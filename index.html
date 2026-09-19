@@ -1,0 +1,3951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>My Plan+</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+/* ========== RESET & VARIABLES ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-input: #252836;
+  --bg-nav: #141620;
+  --text-primary: #e8e8ed;
+  --text-secondary: #8b8fa3;
+  --text-muted: #5a5e72;
+  --accent: #6c7bff;
+  --accent-hover: #8590ff;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --border: #2a2d3a;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --nav-height: 72px;
+  --max-width: 520px;
+  --chart-grid: rgba(42,45,58,0.5);
+  --chart-tick: #5a5e72;
+  --toggle-track: #252836;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f2f3f7;
+  --bg-card: #ffffff;
+  --bg-input: #edeef2;
+  --bg-nav: #ffffff;
+  --text-primary: #1a1d27;
+  --text-secondary: #5a5e72;
+  --text-muted: #8b8fa3;
+  --accent: #5563e8;
+  --accent-hover: #4350d4;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --border: #dcdee5;
+  --chart-grid: rgba(0,0,0,0.06);
+  --chart-tick: #8b8fa3;
+  --toggle-track: #dcdee5;
+}
+
+html { font-size: 16px; }
+html, body, .card, .nav, input, select, textarea, .chip, .btn, .theme-toggle, .stat-card {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding-bottom: calc(var(--nav-height) + 16px);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========== LAYOUT ========== */
+.app-container { max-width: var(--max-width); margin: 0 auto; padding: 16px; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ========== NAV ========== */
+.nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-nav);
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-around; align-items: center;
+  height: var(--nav-height);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: 100;
+}
+.nav-btn {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 9px; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; cursor: pointer; padding: 8px 2px;
+  transition: color 0.2s; min-width: 44px;
+}
+.nav-btn.active { color: var(--accent); }
+.nav-btn svg { width: 24px; height: 24px; }
+
+/* ========== TYPOGRAPHY ========== */
+h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
+h3 { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+
+/* ========== CARDS ========== */
+.card {
+  background: var(--bg-card); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px;
+}
+
+/* ========== FORM ELEMENTS ========== */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 6px; font-weight: 500;
+}
+
+input[type="text"], input[type="date"], input[type="number"], input[type="password"], select, textarea {
+  width: 100%; padding: 10px 12px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-size: 16px; font-family: inherit;
+  outline: none; transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 60px; }
+
+/* ========== BUTTONS ========== */
+.btn {
+  width: 100%; padding: 14px; border: none; border-radius: var(--radius);
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-sm { padding: 8px 16px; font-size: 14px; width: auto; }
+.btn-row { display: flex; gap: 8px; margin-top: 12px; }
+.btn-row > * { flex: 1; }
+
+/* ========== CHIPS ========== */
+.chip-group { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.chip {
+  padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  background: var(--bg-input); color: var(--text-secondary); border: none;
+  cursor: pointer; transition: all 0.2s; min-width: 36px; text-align: center;
+}
+.chip.active { background: var(--accent); color: white; }
+.chip.current-week { box-shadow: 0 0 0 2px var(--accent); }
+
+/* ========== SCORES ========== */
+.score-big {
+  font-size: 64px; font-weight: 700; text-align: center;
+  line-height: 1; margin: 8px 0;
+}
+.score-label { text-align: center; font-size: 14px; color: var(--text-secondary); }
+.score-green { color: var(--success); }
+.score-amber { color: var(--warning); }
+.score-red { color: var(--danger); }
+
+/* ========== STAT GRID ========== */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.stat-card { background: var(--bg-input); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
+.stat-value { font-size: 22px; font-weight: 700; }
+.stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ========== PROGRESS BAR ========== */
+.progress-bar {
+  height: 8px; border-radius: 4px; background: var(--bg-input);
+  overflow: hidden; margin: 8px 0;
+}
+.progress-fill {
+  height: 100%; border-radius: 4px; background: var(--accent);
+  transition: width 0.5s;
+}
+
+/* ========== GOAL CARDS ========== */
+.goal-card { cursor: default; }
+.goal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer;
+}
+.goal-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.goal-title { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.goal-score-badge {
+  font-size: 13px; font-weight: 600; padding: 2px 10px;
+  border-radius: 12px; background: var(--bg-input); white-space: nowrap;
+}
+.goal-chevron {
+  font-size: 14px; color: var(--text-muted); transition: transform 0.2s;
+  margin-left: 8px; flex-shrink: 0;
+}
+.goal-card.expanded .goal-chevron { transform: rotate(180deg); }
+.goal-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.goal-card.expanded .goal-body { display: block; }
+.goal-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5; }
+.goal-actions {
+  display: flex; gap: 8px; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ========== TACTIC ROWS ========== */
+.tactic-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.tactic-row:last-child { border-bottom: none; }
+.tactic-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tactic-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; }
+.icon-btn {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 4px; font-size: 16px; transition: color 0.2s; line-height: 1;
+}
+.icon-btn:hover { color: var(--text-primary); }
+.icon-btn.danger:hover { color: var(--danger); }
+
+/* ========== CHECK-IN ========== */
+.checkin-goal-header {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 12px 0 4px; margin-top: 4px;
+}
+.checkin-goal-header:first-child { padding-top: 0; margin-top: 0; }
+.checkin-tactic {
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.checkin-tactic:last-child { border-bottom: none; }
+.checkin-tactic.inactive { opacity: 0.45; }
+.checkin-tactic-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; gap: 8px;
+}
+.checkin-tactic-toggle {
+  width: 18px; height: 18px; accent-color: var(--accent);
+  cursor: pointer; flex-shrink: 0;
+}
+.checkin-tactic-title { font-size: 14px; flex: 1; min-width: 0; }
+.checkin-tactic-value { font-size: 14px; font-weight: 600; min-width: 40px; text-align: right; }
+.checkin-tactic input[type="range"] {
+  -webkit-appearance: none; width: 100%; height: 6px;
+  background: var(--bg-input); border-radius: 3px; outline: none;
+}
+.checkin-tactic input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px;
+  background: var(--accent); border-radius: 50%; cursor: pointer;
+}
+.checkin-tactic.inactive input[type="range"] { opacity: 0.3; pointer-events: none; }
+.checkin-score-preview {
+  text-align: center; padding: 12px; margin-top: 8px;
+  background: var(--bg-input); border-radius: var(--radius-sm);
+  font-size: 14px; color: var(--text-secondary);
+}
+.checkin-score-preview strong { font-size: 20px; }
+
+/* ========== REFLECTION ========== */
+.reflection-group { margin-bottom: 16px; }
+.reflection-label {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 6px; font-weight: 500; line-height: 1.4;
+}
+
+/* ========== CHART ========== */
+.chart-container { position: relative; height: 240px; margin: 12px 0; }
+
+/* ========== MODAL ========== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 200;
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg-card); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 20px; width: 100%; max-width: var(--max-width);
+  max-height: 80vh; overflow-y: auto;
+}
+.modal h2 { margin-bottom: 16px; }
+
+/* ========== RESULT OVERLAY ========== */
+.result-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15,17,23,0.95); z-index: 300;
+  align-items: center; justify-content: center;
+  flex-direction: column; padding: 20px;
+}
+.result-overlay.show { display: flex; }
+
+/* ========== EMPTY STATE ========== */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--text-secondary);
+}
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state p { font-size: 14px; line-height: 1.5; }
+
+/* ========== REPORT DETAIL GRID ========== */
+.tactic-grid { overflow-x: auto; margin: 12px 0; }
+.tactic-grid table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tactic-grid th, .tactic-grid td {
+  padding: 6px 4px; text-align: center; border: 1px solid var(--border);
+}
+.tactic-grid th { background: var(--bg-input); color: var(--text-secondary); font-weight: 500; }
+.tactic-grid td.done { background: rgba(74,222,128,0.2); color: var(--success); }
+.tactic-grid td.missed { background: rgba(248,113,113,0.15); color: var(--danger); }
+.tactic-grid td.future { background: var(--bg-input); color: var(--text-muted); }
+.tactic-grid td.tactic-name { text-align: left; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ========== WEEKLY REPORT EXPANDABLE ========== */
+.week-report-card { cursor: pointer; }
+.week-report-header { display: flex; justify-content: space-between; align-items: center; }
+.week-report-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.week-report-card.expanded .week-report-body { display: block; }
+.week-report-card .goal-chevron { transition: transform 0.2s; }
+.week-report-card.expanded .goal-chevron { transform: rotate(180deg); }
+.reflection-answer { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
+.reflection-answer strong { color: var(--text-primary); display: block; margin-bottom: 4px; font-size: 12px; }
+
+/* ========== GOAL PROGRESS BAR (small) ========== */
+.goal-progress-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.goal-progress-row:last-child { border-bottom: none; }
+.goal-progress-name { flex: 1; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-progress-bar { width: 80px; height: 6px; border-radius: 3px; background: var(--bg-input); overflow: hidden; flex-shrink: 0; }
+.goal-progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.goal-progress-pct { font-size: 14px; font-weight: 600; min-width: 40px; text-align: right; }
+
+/* ========== LEARN SECTION ========== */
+.learn-section { margin-bottom: 20px; }
+.learn-section h2 { font-size: 17px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.learn-section h2 .icon { font-size: 20px; }
+.learn-section p, .learn-section li { font-size: 13.5px; line-height: 1.7; color: var(--text-secondary); }
+.learn-section ul { padding-left: 18px; margin: 6px 0; }
+.learn-section li { margin-bottom: 4px; }
+.learn-section strong { color: var(--text-primary); }
+.learn-quote {
+  border-left: 3px solid var(--accent); padding: 10px 14px; margin: 10px 0;
+  background: rgba(108,123,255,0.06); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 13px; color: var(--text-secondary); font-style: italic;
+}
+.learn-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; margin-right: 6px;
+}
+.learn-badge-key { background: rgba(74,222,128,0.15); color: var(--success); }
+.learn-badge-concept { background: rgba(108,123,255,0.15); color: var(--accent); }
+.learn-divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ========== WAM LINK ========== */
+.wam-link {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  background: var(--bg-input); border-radius: var(--radius-sm);
+  margin-bottom: 16px; text-decoration: none; color: var(--accent);
+  font-size: 14px; font-weight: 500; transition: background 0.2s;
+}
+.wam-link:hover { background: var(--border); }
+.wam-link svg { width: 20px; height: 20px; flex-shrink: 0; }
+.wam-link-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.wam-link-row .wam-link { flex: 1; min-width: 0; margin-bottom: 0; }
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease; }
+
+/* ========== LIGHT MODE OVERRIDES ========== */
+[data-theme="light"] .card { box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+[data-theme="light"] .nav { box-shadow: 0 -1px 6px rgba(0,0,0,0.06); }
+[data-theme="light"] .result-overlay { background: rgba(242,243,247,0.95); }
+[data-theme="light"] .tactic-grid td.done { background: rgba(22,163,74,0.12); }
+[data-theme="light"] .tactic-grid td.missed { background: rgba(220,38,38,0.08); }
+[data-theme="light"] .learn-badge-key { background: rgba(22,163,74,0.12); color: #16a34a; }
+[data-theme="light"] .learn-badge-concept { background: rgba(85,99,232,0.12); color: #5563e8; }
+[data-theme="light"] .learn-quote { background: rgba(85,99,232,0.06); }
+
+/* ========== THEME TOGGLE ========== */
+.theme-toggle {
+  position: fixed; top: 12px; right: 12px; z-index: 150;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--bg-card); border: 1px solid var(--border);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.theme-toggle:hover { transform: scale(1.1); }
+.theme-toggle:active { transform: scale(0.95); }
+
+/* ========== RESPONSIVE ========== */
+@media (min-width: 640px) {
+  .app-container { padding: 24px; }
+  .wam-link-row { flex-direction: row; }
+}
+
+/* ========== COMMUNITY: AUTH ========== */
+.auth-wrap {
+  position: fixed; inset: 0; background: var(--bg-primary); z-index: 400;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px; overflow-y: auto;
+}
+.auth-card {
+  background: var(--bg-card); border-radius: var(--radius);
+  padding: 24px; width: 100%; max-width: 400px; margin: auto;
+}
+.auth-error { font-size: 13px; margin: 4px 0 12px; min-height: 16px; color: var(--danger); }
+.auth-error.ok { color: var(--success); }
+.auth-link { color: var(--accent); text-decoration: none; }
+
+/* ========== COMMUNITY: SYNC INDICATOR ========== */
+#sync-dot {
+  position: fixed; top: 29px; right: 66px; width: 10px; height: 10px;
+  border-radius: 50%; z-index: 150; display: none; background: var(--success);
+}
+
+/* ========== COMMUNITY: AVAILABILITY GRID ========== */
+.slot-grid { overflow-x: auto; }
+.slot-grid table { border-collapse: collapse; width: 100%; }
+.slot-grid th, .slot-grid td { border: 1px solid var(--border); padding: 0; text-align: center; }
+.slot-grid th { padding: 6px 4px; background: var(--bg-input); color: var(--text-secondary); font-size: 11px; font-weight: 600; }
+.slot-cell {
+  display: block; width: 100%; height: 30px; min-width: 34px;
+  background: transparent; border: none; cursor: pointer; padding: 0;
+}
+.slot-cell.selected { background: var(--accent); }
+
+/* ========== COMMUNITY: ADMIN ========== */
+.admin-table { overflow-x: auto; }
+.admin-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.admin-table th, .admin-table td { padding: 6px; border-bottom: 1px solid var(--border); text-align: left; }
+.admin-table th { color: var(--text-secondary); font-weight: 600; }
+.badge-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; background: var(--bg-input); color: var(--text-secondary);
+}
+.badge-pill.green { color: var(--success); }
+.badge-pill.amber { color: var(--warning); }
+.member-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; gap: 8px;
+}
+.member-row:last-child { border-bottom: none; }
+
+/* ========== COMMUNITY: MESSAGE BOARDS ========== */
+.msg-list {
+  max-height: 260px; overflow-y: auto; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 6px 10px; background: var(--bg-input);
+}
+.msg { padding: 7px 0; border-bottom: 1px solid var(--border); }
+.msg:last-child { border-bottom: none; }
+.msg-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-secondary); gap: 8px; }
+.msg-body { font-size: 14px; white-space: pre-wrap; word-wrap: break-word; margin-top: 2px; }
+.msg-compose { display: flex; gap: 8px; margin-top: 8px; align-items: flex-end; }
+.msg-compose textarea { flex: 1; min-height: 44px; }
+.msg-compose .btn { width: auto; }
+.mail-icon { color: var(--accent); text-decoration: none; font-size: 15px; }
+
+/* 9 nav tabs: share the width evenly, never overflow */
+.nav { justify-content: space-between; padding-left: 2px; padding-right: 2px; }
+.nav-btn { flex: 1 1 0; min-width: 0; padding: 8px 0; font-size: 8px; overflow: hidden; white-space: nowrap; }
+.nav-btn svg { width: 22px; height: 22px; }
+.slot-cell.preferred { background: var(--warning); color: #1a1d27; font-size: 14px; line-height: 30px; }
+</style>
+</head>
+<body>
+
+<!-- ========== COMMUNITY: AUTH OVERLAY & SYNC DOT ========== -->
+<div class="auth-wrap" id="auth-wrap">
+  <div class="auth-card" id="auth-card"></div>
+</div>
+<div id="sync-dot" title=""></div>
+
+
+<!-- ========== THEME TOGGLE ========== -->
+<button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#127769;</button>
+
+<!-- ========== NAVIGATION ========== -->
+<nav class="nav" id="main-nav" style="display:none">
+  <button class="nav-btn active" data-screen="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Dashboard
+  </button>
+  <button class="nav-btn" data-screen="goals">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    Goals
+  </button>
+  <button class="nav-btn" data-screen="checkin">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Check-in
+  </button>
+  <button class="nav-btn" data-screen="reports">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 12h2v5H7zM11 8h2v9h-2zM15 10h2v7h-2z"/></svg>
+    Reports
+  </button>
+  <button class="nav-btn" data-screen="learn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+    Learn
+  </button>
+  <button class="nav-btn" data-screen="group">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    Group
+  </button>
+  <button class="nav-btn" data-screen="team">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+    Team
+  </button>
+  <button class="nav-btn" data-screen="boards">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+    Boards
+  </button>
+  <button class="nav-btn" data-screen="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    Settings
+  </button>
+</nav>
+
+<!-- ========== SCREEN: DASHBOARD ========== -->
+<div id="screen-dashboard" class="screen active">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Dashboard</h1>
+        <div class="subtitle" style="margin:0" id="dash-subtitle">Your 12 Week Year at a glance</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="dash-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: GOALS & TACTICS ========== -->
+<div id="screen-goals" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Goals & Tactics</h1>
+        <div class="subtitle" style="margin:0">Define what you will achieve</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="goals-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: WEEKLY CHECK-IN ========== -->
+<div id="screen-checkin" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Weekly Check-in</h1>
+        <div class="subtitle" style="margin:0" id="checkin-subtitle">Track your weekly execution</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="checkin-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: REPORTS ========== -->
+<div id="screen-reports" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Reports</h1>
+        <div class="subtitle" style="margin:0">Analyse your progress</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="reports-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: LEARN ========== -->
+<div id="screen-learn" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">The 12 Week Year</h1>
+        <p class="subtitle" style="margin:0">Execution over intention</p>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128218;</span> What Is the 12 Week Year?</h2>
+      <p>The <strong>12 Week Year</strong> is a planning and execution system created by Brian P. Moran and Michael Lennington. Instead of setting annual goals that lose momentum by February, you compress your year into <strong>12-week cycles</strong>.</p>
+      <div class="learn-quote">"The number one thing that you will need to do differently is to change how you think about time. Most people think in terms of a 12-month year. The 12 Week Year redefines your year to be 12 weeks long."</div>
+      <p>Each cycle has <strong>12 active weeks</strong> followed by a <strong>13th week for reflection and planning</strong>. This creates urgency, focus, and predictability that annual planning simply cannot.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#127919;</span> Why It Works</h2>
+      <ul>
+        <li><strong>Urgency:</strong> 12 weeks is short enough that every week matters. There is no "I'll catch up later" mindset.</li>
+        <li><strong>Focus:</strong> With a shorter horizon, you naturally narrow your goals to what truly matters.</li>
+        <li><strong>Predictability:</strong> Weekly execution scoring gives you early warning signals, not year-end surprises.</li>
+        <li><strong>Accountability:</strong> Weekly check-ins force honest assessment of progress.</li>
+        <li><strong>Fresh starts:</strong> Every 13 weeks, you get a clean slate to adjust and improve.</li>
+      </ul>
+      <div class="learn-quote">"Execution is the single greatest market differentiator. Great companies and successful individuals execute better than their competition."</div>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128204;</span> Setting Your Vision</h2>
+      <p>Before setting goals, define your <strong>long-term vision</strong>. Where do you want to be in 3-5 years? Your vision provides direction and motivation for each 12-week cycle.</p>
+      <p>A compelling vision should be:</p>
+      <ul>
+        <li><strong>Specific and vivid</strong> &mdash; paint a clear picture of your desired future</li>
+        <li><strong>Personal</strong> &mdash; tied to what genuinely matters to you</li>
+        <li><strong>Challenging but achievable</strong> &mdash; stretches you beyond comfort</li>
+      </ul>
+      <p>Your 12-week goals should be <strong>stepping stones toward your vision</strong>, not disconnected tasks.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#127793;</span> Goals: The 12 Week Targets</h2>
+      <p>Each cycle should have <strong>2-3 goals maximum</strong>. More than that dilutes focus and reduces execution quality.</p>
+      <p>Effective 12-week goals are:</p>
+      <ul>
+        <li><strong>Specific and measurable</strong> &mdash; you should know unambiguously whether you achieved them</li>
+        <li><strong>Achievable in 12 weeks</strong> &mdash; ambitious but realistic within the timeframe</li>
+        <li><strong>Aligned with your vision</strong> &mdash; each goal moves you closer to the bigger picture</li>
+      </ul>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-key">Key</span> Goals define <strong>what</strong> you want to achieve. Tactics define <strong>how</strong> you will achieve it.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#9881;&#65039;</span> Tactics: The Weekly Actions</h2>
+      <p><strong>Tactics</strong> are the specific, repeatable actions you commit to executing each week to drive progress toward your goals. They are your <strong>lead measures</strong> &mdash; the inputs you control.</p>
+      <ul>
+        <li><strong>Be specific:</strong> "Write 500 words daily" not "Write more"</li>
+        <li><strong>Be actionable:</strong> Each tactic should be something you can do this week</li>
+        <li><strong>Be measurable:</strong> You should be able to score your execution honestly</li>
+        <li><strong>Limit per goal:</strong> 3-5 tactics per goal keeps things manageable</li>
+      </ul>
+      <div class="learn-quote">"Knowledge alone is never enough. It's the consistent application of knowledge that produces results."</div>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128200;</span> Lead vs Lag Measures</h2>
+      <p>Understanding the difference between lead and lag measures is critical:</p>
+      <ul>
+        <li><strong>Lag measures</strong> are the results &mdash; revenue, weight lost, product shipped. You cannot directly control them.</li>
+        <li><strong>Lead measures</strong> are the activities that drive the results &mdash; sales calls made, workouts completed, code written. You <em>can</em> control them.</li>
+      </ul>
+      <p>Your <strong>tactics are lead measures</strong>. Your <strong>goals are lag measures</strong>. Focus your weekly energy on executing tactics (lead), and the goals (lag) will follow.</p>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-concept">Concept</span> The weekly execution score measures your <strong>lead indicators</strong>. If your score is consistently above 80%, results will come.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128202;</span> The Weekly Execution Score</h2>
+      <p>The <strong>weekly score</strong> is the percentage of your tactics you executed that week. This is the single most important metric in the 12 Week Year.</p>
+      <ul>
+        <li><strong style="color:var(--success)">80%+ = On track</strong> &mdash; You are executing at a high level. Results will follow.</li>
+        <li><strong style="color:var(--warning)">60-79% = At risk</strong> &mdash; Execution is inconsistent. Identify and remove barriers.</li>
+        <li><strong style="color:var(--danger)">Below 60% = Off track</strong> &mdash; Urgent action needed. Simplify your plan or address obstacles.</li>
+      </ul>
+      <div class="learn-quote">"The key to success in the 12 Week Year is not perfection, but consistent execution at 80% or above."</div>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-key">Key</span> <strong>80% is the target</strong>, not 100%. Perfection is not the goal &mdash; consistent, high-quality execution is.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128172;</span> The Weekly Accountability Meeting (WAM)</h2>
+      <p>The <strong>Weekly Accountability Meeting</strong> is a brief, structured check-in (ideally with a peer or group) that drives accountability and problem-solving.</p>
+      <p>Each week, answer these five questions:</p>
+      <ul>
+        <li><strong>What did you accomplish last week?</strong> &mdash; Report your results honestly</li>
+        <li><strong>Any lessons, insights, or take-aways?</strong> &mdash; Reflect on what you learned</li>
+        <li><strong>What is your plan for this week?</strong> &mdash; Select the tactics you want to focus on from the checklist, and add any additional comments. Your selected tactics will automatically pre-populate the next week's check-in as active tactics.</li>
+        <li><strong>What's your biggest challenge?</strong> &mdash; Surface obstacles early</li>
+        <li><strong>Where do you need help?</strong> &mdash; Ask for support before you fall behind</li>
+      </ul>
+      <p>The WAM should be <strong>15-20 minutes maximum</strong>. It's not a status meeting &mdash; it's an accountability and commitment session.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128161;</span> Week 13: The Recovery & Planning Week</h2>
+      <p>The 13th week is not a week off &mdash; it is a <strong>strategic pause</strong> for reflection and renewal.</p>
+      <p>Use Week 13 to:</p>
+      <ul>
+        <li><strong>Celebrate wins</strong> &mdash; Acknowledge what you achieved</li>
+        <li><strong>Assess honestly</strong> &mdash; Where did execution break down and why?</li>
+        <li><strong>Identify process gaps</strong> &mdash; What systems or habits need improving?</li>
+        <li><strong>Plan the next cycle</strong> &mdash; Set new goals and tactics based on lessons learned</li>
+        <li><strong>Recharge</strong> &mdash; Rest and reset your energy for the next 12 weeks</li>
+      </ul>
+    </div>
+
+    <div class="card learn-section" style="border:1px solid var(--accent)">
+      <h2><span class="icon">&#11088;</span> The 5 Disciplines of Execution</h2>
+      <p>The 12 Week Year framework rests on five disciplines:</p>
+      <ul>
+        <li><strong>1. Vision</strong> &mdash; Create a compelling picture of the future</li>
+        <li><strong>2. Planning</strong> &mdash; Set 12-week goals with specific tactics</li>
+        <li><strong>3. Process Control</strong> &mdash; Use weekly routines and tools to stay on track</li>
+        <li><strong>4. Measurement</strong> &mdash; Track lead and lag indicators weekly</li>
+        <li><strong>5. Time Use</strong> &mdash; Intentionally allocate time to strategic priorities</li>
+      </ul>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-concept">Concept</span> <strong>Process control</strong> is what My Plan+ provides &mdash; a lightweight system for planning, tracking, and scoring your execution each week.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128214;</span> Further Reading</h2>
+      <ul>
+        <li><strong>The 12 Week Year</strong> by Brian P. Moran & Michael Lennington</li>
+        <li><strong>The 12 Week Year Field Guide</strong> &mdash; Practical companion workbook</li>
+        <li><strong>Measure What Matters</strong> by John Doerr &mdash; OKR framework (complementary approach)</li>
+        <li><strong>Atomic Habits</strong> by James Clear &mdash; Building the daily habits that drive tactic execution</li>
+        <li><strong>Deep Work</strong> by Cal Newport &mdash; Protecting focus time for strategic work</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: SETTINGS ========== -->
+<div id="screen-settings" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Settings</h1>
+        <div class="subtitle" style="margin:0">Configure your cycle</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="settings-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: GROUP ========== -->
+<div id="screen-group" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">My Group</h1>
+        <div class="subtitle" style="margin:0">Availability &amp; group allocation</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="group-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: ADMIN ========== -->
+<div id="screen-admin" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Admin</h1>
+        <div class="subtitle" style="margin:0">Cycles, registrations &amp; group allocation</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="admin-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: TEAM ========== -->
+<div id="screen-team" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Team</h1>
+        <div class="subtitle" style="margin:0">Group accountability &amp; scoreboard</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="team-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: BOARDS ========== -->
+<div id="screen-boards" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Message Boards</h1>
+        <div class="subtitle" style="margin:0">Your group &amp; the community</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="boards-content"></div>
+  </div>
+</div>
+
+<!-- ========== MODALS ========== -->
+<div class="modal-overlay" id="modal-goal" onclick="if(event.target===this)closeModal('modal-goal')">
+  <div class="modal">
+    <h2 id="modal-goal-title">Add Goal</h2>
+    <input type="hidden" id="modal-goal-id">
+    <div class="form-group">
+      <label class="form-label">Goal Title</label>
+      <input type="text" id="modal-goal-name" placeholder="e.g. Launch new product">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea id="modal-goal-desc" placeholder="What does achieving this goal look like?"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-goal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGoal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-tactic" onclick="if(event.target===this)closeModal('modal-tactic')">
+  <div class="modal">
+    <h2 id="modal-tactic-title">Add Tactic</h2>
+    <input type="hidden" id="modal-tactic-id">
+    <input type="hidden" id="modal-tactic-goalid">
+    <div class="form-group">
+      <label class="form-label">Tactic Title</label>
+      <input type="text" id="modal-tactic-name" placeholder="e.g. Write 500 words daily">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea id="modal-tactic-desc" placeholder="How will you execute this tactic?"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tactic')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTactic()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RESULT OVERLAY ========== -->
+<div class="result-overlay" id="result-overlay">
+  <div style="text-align:center;max-width:320px">
+    <div class="score-label" id="result-title">Week Score</div>
+    <div class="score-big" id="result-score">--</div>
+    <div class="score-label" id="result-detail"></div>
+    <div style="height:24px"></div>
+    <button class="btn btn-primary" onclick="closeResult()">Done</button>
+  </div>
+</div>
+
+<script>
+/* ========== DATA LAYER ========== */
+const KEYS = {
+  cycle: 'myplanplus_cycle',
+  goals: 'myplanplus_goals',
+  tactics: 'myplanplus_tactics',
+  weekly: 'myplanplus_weekly',
+  theme: 'myplanplus_theme',
+  settings: 'myplanplus_settings'
+};
+
+/* ============================================================
+   COMMUNITY CONFIG — paste your Supabase project details here.
+   Find them in the Supabase dashboard under Settings > API Keys.
+   The publishable/anon key is safe to include in client-side code;
+   row-level security in the database controls what each user can access.
+   ============================================================ */
+const CONFIG = {
+  SUPABASE_URL: 'https://awrtkeyheefrbdsgyemi.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_56q2F2mcEq0EMslL076X2w_dtz8clWd'
+};
+
+/* ========== COMMUNITY STATE ========== */
+let sb = null; // Supabase client
+const APP = {
+  user: null, profile: null, isAdmin: false,
+  cycles: [], activeCycle: null, nextCycle: null,
+  cycleGroups: [], cycleCounts: {},
+  nextGroups: [], nextCounts: {}, myNextGroup: null,
+  myGroup: null, myGroupMembers: [],
+  boards: [], curBoardId: null, admins: [],
+  dirtyKeys: new Set(), syncTimer: null, retryTimer: null
+};
+let planCache = {};
+const SYNC_KEYS = [KEYS.cycle, KEYS.goals, KEYS.tactics, KEYS.weekly, KEYS.settings];
+
+/* ========== DATA LAYER (cloud-synced, with local mirror) ========== */
+function cacheKeyLocal(key) { return APP.user ? key + '__' + APP.user.id : key; }
+function load(key) { return Object.prototype.hasOwnProperty.call(planCache, key) ? planCache[key] : null; }
+function save(key, data) {
+  planCache[key] = data;
+  try { localStorage.setItem(cacheKeyLocal(key), JSON.stringify(data)); } catch (e) {}
+  queueSync(key);
+}
+function removeKey(key) {
+  delete planCache[key];
+  try { localStorage.removeItem(cacheKeyLocal(key)); } catch (e) {}
+  APP.dirtyKeys.delete(key);
+}
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('sync-dot');
+  if (!dot) return;
+  dot.style.display = APP.user ? 'block' : 'none';
+  const map = {
+    ok: ['var(--success)', 'All changes saved to your account'],
+    pending: ['var(--warning)', 'Saving…'],
+    error: ['var(--danger)', 'Cannot reach the server — changes are kept in this browser and will retry']
+  };
+  const m = map[state] || map.ok;
+  dot.style.background = m[0];
+  dot.title = m[1];
+}
+
+function queueSync(key) {
+  if (!SYNC_KEYS.includes(key)) return;
+  APP.dirtyKeys.add(key);
+  setSyncStatus('pending');
+  clearTimeout(APP.syncTimer);
+  APP.syncTimer = setTimeout(flushSync, 800);
+}
+
+async function flushSync() {
+  if (!sb || !APP.user || APP.dirtyKeys.size === 0) return;
+  const keys = [...APP.dirtyKeys];
+  APP.dirtyKeys.clear();
+  const rows = keys.filter(k => planCache[k] !== undefined)
+    .map(k => ({ user_id: APP.user.id, key: k, data: planCache[k], updated_at: new Date().toISOString() }));
+  try {
+    if (rows.length) {
+      const { error } = await sb.from('plan_data').upsert(rows);
+      if (error) throw error;
+    }
+    if (APP.dirtyKeys.size === 0) setSyncStatus('ok');
+  } catch (e) {
+    keys.forEach(k => APP.dirtyKeys.add(k));
+    setSyncStatus('error');
+    clearTimeout(APP.retryTimer);
+    APP.retryTimer = setTimeout(flushSync, 10000);
+  }
+}
+
+async function deleteServerKeys(keys) {
+  if (!sb || !APP.user) return;
+  try { await sb.from('plan_data').delete().eq('user_id', APP.user.id).in('key', keys); } catch (e) {}
+}
+
+async function hydratePlanData() {
+  planCache = {};
+  const { data, error } = await sb.from('plan_data').select('key,data');
+  if (error) {
+    // Offline or server problem: fall back to this browser's cached copy
+    SYNC_KEYS.forEach(k => {
+      try {
+        const v = JSON.parse(localStorage.getItem(cacheKeyLocal(k)));
+        if (v !== null && v !== undefined) planCache[k] = v;
+      } catch (e2) {}
+    });
+    setSyncStatus('error');
+    return;
+  }
+  (data || []).forEach(r => {
+    planCache[r.key] = r.data;
+    try { localStorage.setItem(cacheKeyLocal(r.key), JSON.stringify(r.data)); } catch (e2) {}
+  });
+  if ((data || []).length === 0) maybeImportLegacyLocal();
+  setSyncStatus('ok');
+}
+
+// One-time migration path for people who used the original offline version
+function maybeImportLegacyLocal() {
+  const legacy = {};
+  SYNC_KEYS.forEach(k => { try { const v = JSON.parse(localStorage.getItem(k)); if (v) legacy[k] = v; } catch (e) {} });
+  const hasContent = (legacy[KEYS.goals] && legacy[KEYS.goals].length) || (legacy[KEYS.cycle] && legacy[KEYS.cycle].startDate);
+  if (!hasContent) return;
+  if (confirm('My Plan+ data from the previous (offline) version was found in this browser. Import it into your new account?')) {
+    Object.keys(legacy).forEach(k => save(k, legacy[k]));
+  }
+}
+
+/* ========== AVAILABILITY SLOTS ==========
+   A slot is a "minute of the week" (mow) counted from Monday 00:00 UTC,
+   so people in different time zones can be matched correctly.
+   Sessions run for 45 minutes. */
+const SLOT_REF_UTC = Date.UTC(2026, 0, 5); // a Monday, 00:00 UTC
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const GRID_HOURS = (() => { const a = []; for (let h = 6; h <= 21; h++) a.push(h); return a; })();
+
+function localToMow(dayIdx, hour) { // dayIdx 0 = Monday, hour in the viewer's local time
+  const d = new Date(2026, 0, 5 + dayIdx, hour, 0, 0);
+  const mow = Math.round((d.getTime() - SLOT_REF_UTC) / 60000);
+  return ((mow % 10080) + 10080) % 10080;
+}
+function mowToDate(mow) { return new Date(SLOT_REF_UTC + mow * 60000); }
+function mowLabel(mow) { // rendered in the viewer's local time zone
+  const d = mowToDate(mow);
+  const end = new Date(d.getTime() + 45 * 60000);
+  const t = x => x.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return d.toLocaleDateString([], { weekday: 'long' }) + ' ' + t(d) + '–' + t(end);
+}
+function userTimezone() {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { return ''; }
+}
+
+/* ========== EMAIL HELPERS (open the sender's own mail app) ========== */
+function mailtoOne(email, subject) {
+  return 'mailto:' + email + (subject ? '?subject=' + encodeURIComponent(subject) : '');
+}
+function mailtoMany(emails, subject) {
+  return 'mailto:?bcc=' + emails.filter(Boolean).join(',') + (subject ? '&subject=' + encodeURIComponent(subject) : '');
+}
+function contactAdminHref() {
+  return 'mailto:' + APP.admins.map(a => a.email).filter(Boolean).join(',') + '?subject=' + encodeURIComponent('My Plan+ — question');
+}
+
+function copyEmails(emails) {
+  const text = emails.filter(Boolean).join(', ');
+  const done = () => alert('Email addresses copied to the clipboard.');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+/* ========== AUTH & BOOT ========== */
+function showAuthWrap() {
+  document.getElementById('auth-wrap').style.display = 'flex';
+  document.getElementById('main-nav').style.display = 'none';
+}
+
+function showConfigMissing() {
+  showAuthWrap();
+  document.getElementById('auth-card').innerHTML = `
+    <h2>My Plan+ Community</h2>
+    <p style="font-size:13px;color:var(--text-secondary);line-height:1.7">
+      This app is not connected to its database yet. Open this HTML file in a text
+      editor and paste your Supabase project URL and publishable key into the
+      <strong>CONFIG</strong> block near the top of the script.
+      See <strong>SETUP.md</strong> for the step-by-step guide.
+    </p>`;
+}
+
+function authHeader() {
+  return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+    <img src="MyPlan+.png" alt="My Plan+" style="width:44px;height:44px;border-radius:10px" onerror="this.style.display='none'">
+    <div><h2 style="margin:0">My Plan+</h2><div style="font-size:12px;color:var(--text-secondary)">Your 12 Week Year, together</div></div>
+  </div>`;
+}
+
+function showAuth(mode) {
+  showAuthWrap();
+  const card = document.getElementById('auth-card');
+  const err = `<div class="auth-error" id="auth-error"></div>`;
+  if (mode === 'signup') {
+    card.innerHTML = authHeader() + `
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Register to join the next 12-week cycle. After registering you'll nominate the weekly 45-minute session times you can attend, then choose or create a group — or be randomly allocated to one.</p>
+      <div class="form-group"><label class="form-label">Your name</label><input type="text" id="auth-name" autocomplete="name"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="text" id="auth-email" autocomplete="email" inputmode="email"></div>
+      <div class="form-group"><label class="form-label">Password (8+ characters)</label><input type="password" id="auth-pass" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignUp()"></div>
+      ${err}
+      <button class="btn btn-primary" onclick="doSignUp()">Create Account</button>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:14px;text-align:center">Already registered? <a href="#" class="auth-link" onclick="showAuth('signin');return false">Sign in</a></p>`;
+  } else if (mode === 'forgot') {
+    card.innerHTML = authHeader() + `
+      <div class="form-group"><label class="form-label">Email</label><input type="text" id="auth-email" autocomplete="email" inputmode="email" onkeydown="if(event.key==='Enter')doForgot()"></div>
+      ${err}
+      <button class="btn btn-primary" onclick="doForgot()">Send Reset Link</button>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:14px;text-align:center"><a href="#" class="auth-link" onclick="showAuth('signin');return false">Back to sign in</a></p>`;
+  } else if (mode === 'recovery') {
+    card.innerHTML = authHeader() + `
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Choose a new password for your account.</p>
+      <div class="form-group"><label class="form-label">New password (8+ characters)</label><input type="password" id="auth-pass" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRecovery()"></div>
+      ${err}
+      <button class="btn btn-primary" onclick="doRecovery()">Set New Password</button>`;
+  } else if (mode === 'confirm') {
+    card.innerHTML = authHeader() + `
+      <p style="font-size:14px;line-height:1.7;color:var(--text-secondary)">Almost there! We've sent you a confirmation email.<br><br>Click the link in that email, then come back here and sign in.</p>
+      <button class="btn btn-secondary" style="margin-top:12px" onclick="showAuth('signin')">Back to Sign In</button>`;
+  } else { // signin
+    card.innerHTML = authHeader() + `
+      <div class="form-group"><label class="form-label">Email</label><input type="text" id="auth-email" autocomplete="email" inputmode="email"></div>
+      <div class="form-group"><label class="form-label">Password</label><input type="password" id="auth-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doSignIn()"></div>
+      ${err}
+      <button class="btn btn-primary" onclick="doSignIn()">Sign In</button>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:14px;text-align:center">
+        New here? <a href="#" class="auth-link" onclick="showAuth('signup');return false">Register</a>
+        &nbsp;&middot;&nbsp; <a href="#" class="auth-link" onclick="showAuth('forgot');return false">Forgot password?</a>
+      </p>`;
+  }
+}
+
+function authMsg(msg, ok) {
+  const e = document.getElementById('auth-error');
+  if (!e) return;
+  e.textContent = msg || '';
+  e.className = 'auth-error' + (ok ? ' ok' : '');
+}
+
+async function doSignUp() {
+  const name = document.getElementById('auth-name').value.trim();
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  if (!name || !email || pass.length < 8) { authMsg('Please fill in all fields (password at least 8 characters).'); return; }
+  authMsg('Creating your account…', true);
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if (error) { authMsg(error.message); return; }
+  if (data.session) { await enterApp(data.session.user); } else { showAuth('confirm'); }
+}
+
+async function doSignIn() {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  if (!email || !pass) { authMsg('Enter your email and password.'); return; }
+  authMsg('Signing in…', true);
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { authMsg(error.message); return; }
+  await enterApp(data.user);
+}
+
+async function doForgot() {
+  const email = document.getElementById('auth-email').value.trim();
+  if (!email) { authMsg('Enter your email address.'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  if (error) { authMsg(error.message); return; }
+  authMsg('If that email is registered, a reset link is on its way. Check your inbox.', true);
+}
+
+async function doRecovery() {
+  const pass = document.getElementById('auth-pass').value;
+  if (pass.length < 8) { authMsg('Password must be at least 8 characters.'); return; }
+  const { error } = await sb.auth.updateUser({ password: pass });
+  if (error) { authMsg(error.message); return; }
+  alert('Password updated. Welcome back!');
+  location.reload();
+}
+
+async function signOut() {
+  try { await flushSync(); } catch (e) {}
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function loadProfile() {
+  const { data } = await sb.from('profiles').select('*').eq('id', APP.user.id).maybeSingle();
+  if (data) {
+    APP.profile = data;
+  } else {
+    // Fallback if the signup trigger is missing
+    const fallback = {
+      id: APP.user.id, email: APP.user.email,
+      full_name: (APP.user.user_metadata && APP.user.user_metadata.full_name) || '',
+      timezone: userTimezone(), slots: []
+    };
+    await sb.from('profiles').upsert(fallback);
+    APP.profile = fallback;
+  }
+  if (!APP.profile.timezone) {
+    APP.profile.timezone = userTimezone();
+    sb.from('profiles').update({ timezone: APP.profile.timezone }).eq('id', APP.user.id).then(() => {});
+  }
+  APP.isAdmin = !!APP.profile.is_admin;
+}
+
+async function loadCommunity() {
+  const { data: cycles } = await sb.from('cycles').select('*').order('start_date', { ascending: false });
+  APP.cycles = cycles || [];
+  APP.activeCycle = APP.cycles.find(c => c.status === 'active') || null;
+  APP.nextCycle = APP.cycles.find(c => c.status === 'enrolling') || null;
+  APP.cycleGroups = []; APP.cycleCounts = {}; APP.myGroup = null; APP.myGroupMembers = [];
+  APP.nextGroups = []; APP.nextCounts = {}; APP.myNextGroup = null;
+  const { data: boards } = await sb.from('boards').select('*').order('created_at');
+  APP.boards = boards || [];
+  const { data: admins } = await sb.from('profiles').select('id,full_name,email').eq('is_admin', true);
+  APP.admins = (admins || []).filter(a => a.email);
+  if (!APP.boards.some(b => b.id === APP.curBoardId)) APP.curBoardId = APP.boards[0] ? APP.boards[0].id : null;
+  const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
+  if (!cycleIds.length) return;
+  const { data: gs } = await sb.from('groups').select('*').in('cycle_id', cycleIds).order('created_at');
+  const { data: allMems } = await sb.from('group_members').select('group_id,user_id,cycle_id').in('cycle_id', cycleIds);
+  const groups = gs || [], mems = allMems || [];
+  if (APP.activeCycle) {
+    APP.cycleGroups = groups.filter(g => g.cycle_id === APP.activeCycle.id);
+    mems.filter(m => m.cycle_id === APP.activeCycle.id).forEach(m => { APP.cycleCounts[m.group_id] = (APP.cycleCounts[m.group_id] || 0) + 1; });
+    const mine = mems.find(m => m.cycle_id === APP.activeCycle.id && m.user_id === APP.user.id);
+    if (mine) APP.myGroup = APP.cycleGroups.find(g => g.id === mine.group_id) || null;
+  }
+  if (APP.nextCycle) {
+    APP.nextGroups = groups.filter(g => g.cycle_id === APP.nextCycle.id);
+    mems.filter(m => m.cycle_id === APP.nextCycle.id).forEach(m => { APP.nextCounts[m.group_id] = (APP.nextCounts[m.group_id] || 0) + 1; });
+    const mineNext = mems.find(m => m.cycle_id === APP.nextCycle.id && m.user_id === APP.user.id);
+    if (mineNext) APP.myNextGroup = APP.nextGroups.find(g => g.id === mineNext.group_id) || null;
+  }
+  if (APP.myGroup) {
+    const ids = mems.filter(m => m.group_id === APP.myGroup.id).map(m => m.user_id);
+    if (ids.length) {
+      const { data: profs } = await sb.from('profiles').select('id,full_name,email,timezone').in('id', ids);
+      APP.myGroupMembers = profs || [];
+    }
+  }
+}
+
+// When a member is allocated, pre-fill their plan cycle from the community cycle
+function seedCycleFromCommunity() {
+  if (!APP.activeCycle || !APP.myGroup) return;
+  const cycle = getCycle();
+  if (!cycle.startDate) {
+    save(KEYS.cycle, {
+      name: APP.activeCycle.name,
+      startDate: APP.activeCycle.start_date,
+      wamLink: APP.myGroup.wam_link || '',
+      trackerLink: ''
+    });
+  }
+}
+
+async function enterApp(user) {
+  APP.user = user;
+  await loadProfile();
+  await hydratePlanData();
+  await loadCommunity();
+  seedCycleFromCommunity();
+  syncAllCheckinShares();
+  document.getElementById('auth-wrap').style.display = 'none';
+  document.getElementById('main-nav').style.display = 'flex';
+  if (!APP.profile || !(APP.profile.slots || []).length) navigateTo('group');
+  else if (canUsePlan() && getCycle().startDate) navigateTo('dashboard');
+  else navigateTo('group');
+}
+
+async function boot() {
+  applyTheme(getTheme());
+  if (typeof supabase === 'undefined' || !CONFIG.SUPABASE_URL || CONFIG.SUPABASE_URL.indexOf('PASTE') === 0) {
+    showConfigMissing();
+    return;
+  }
+  sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  sb.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') showAuth('recovery'); });
+  window.addEventListener('online', flushSync);
+  window.addEventListener('beforeunload', () => { if (APP.dirtyKeys.size) flushSync(); });
+  try {
+    const { data } = await sb.auth.getSession();
+    if (data && data.session) { await enterApp(data.session.user); } else { showAuth('signin'); }
+  } catch (e) {
+    showAuth('signin');
+  }
+}
+
+/* ========== ACCESS GATE ========== */
+const PLAN_SCREENS = { dashboard: 'dash-content', goals: 'goals-content', checkin: 'checkin-content', reports: 'reports-content' };
+function canUsePlan() { return APP.isAdmin || !!APP.myGroup; }
+function renderLockedScreen(screen) {
+  const el = document.getElementById(PLAN_SCREENS[screen]);
+  if (!el) return;
+  el.innerHTML = `
+    <div class="empty-state"><div class="empty-state-icon">&#128274;</div>
+    <p>The planning tools unlock once you're in a group for the current 12-week cycle.<br><br>
+    Go to the <strong>Group</strong> tab to join or create a group — or set your availability and you'll be randomly allocated.</p></div>
+    <button class="btn btn-primary" onclick="navigateTo('group')">Go to Group</button>`;
+}
+
+/* ========== MESSAGE BOARDS ========== */
+const MSG_VIEWS = {}; // containerId -> {kind, id}
+
+function msgHtml(m, isUnread) {
+  const mine = APP.user && m.user_id === APP.user.id;
+  let when = '';
+  try { when = new Date(m.created_at).toLocaleString([], { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) {}
+  const del = (mine || APP.isAdmin) ? ` <button class="icon-btn danger" style="font-size:12px" onclick="deleteMessage('${m.id}')" title="Delete message">&#10005;</button>` : '';
+  const nw = isUnread ? '<span class="badge-pill" style="color:var(--warning);font-size:9px;padding:1px 6px;margin-right:6px">NEW</span>' : '';
+  return `<div class="msg"><div class="msg-head"><strong>${nw}${esc(m.author_name || 'Member')}${mine ? ' (you)' : ''}</strong><span>${when}${del}</span></div><div class="msg-body">${esc(m.body)}</div></div>`;
+}
+
+function channelSeenKey(id) { return 'myplanplus_msgseen_' + (APP.user ? APP.user.id : '') + '_' + id; }
+
+function getMsgSort(cid) { return (MSG_VIEWS[cid] && MSG_VIEWS[cid].sort) || 'oldest'; }
+
+function setMsgSort(cid, sort) {
+  if (MSG_VIEWS[cid]) { MSG_VIEWS[cid].sort = sort; renderMsgList(cid); }
+}
+
+function msgSortRow(cid) {
+  const sort = getMsgSort(cid);
+  const opt = (v, l) => `<option value="${v}"${sort === v ? ' selected' : ''}>${l}</option>`;
+  return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+    <select style="flex:1" onchange="setMsgSort('${cid}', this.value)">${opt('oldest', 'Sort: oldest first')}${opt('newest', 'Sort: newest first')}${opt('unread', 'Sort: unread first')}</select>
+    <span class="badge-pill amber" id="${cid}-new"></span>
+  </div>`;
+}
+
+async function loadMessages(kind, id, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || !id) return;
+  const prev = MSG_VIEWS[containerId];
+  const sort = (prev && prev.id === id) ? prev.sort : 'oldest';
+  const col = kind === 'group' ? 'group_id' : 'board_id';
+  const { data, error } = await sb.from('messages').select('*').eq(col, id).order('created_at', { ascending: false }).limit(100);
+  if (error) { el.innerHTML = '<div style="font-size:12px;color:var(--danger)">Could not load messages: ' + esc(error.message) + '</div>'; return; }
+  const msgs = data || []; // newest first
+  let lastSeen = '';
+  try { lastSeen = localStorage.getItem(channelSeenKey(id)) || ''; } catch (e) {}
+  const unread = new Set(msgs.filter(m => m.user_id !== APP.user.id && (!lastSeen || m.created_at > lastSeen)).map(m => m.id));
+  MSG_VIEWS[containerId] = { kind, id, msgs, unread, sort };
+  renderMsgList(containerId);
+  // Everything shown counts as read next time (NEW badges stay for this visit)
+  const newest = msgs.length ? msgs[0].created_at : lastSeen;
+  try { if (newest) localStorage.setItem(channelSeenKey(id), newest); } catch (e) {}
+}
+
+function renderMsgList(containerId) {
+  const view = MSG_VIEWS[containerId];
+  const el = document.getElementById(containerId);
+  if (!view || !el || !view.msgs) return;
+  let msgs = view.msgs.slice(); // newest first as fetched
+  if (view.sort === 'oldest') msgs.reverse();
+  else if (view.sort === 'unread') msgs = msgs.filter(m => view.unread.has(m.id)).concat(msgs.filter(m => !view.unread.has(m.id)));
+  el.innerHTML = msgs.length
+    ? msgs.map(m => msgHtml(m, view.unread.has(m.id))).join('')
+    : '<div style="font-size:13px;color:var(--text-muted);padding:6px 0">No messages yet — start the conversation!</div>';
+  el.scrollTop = view.sort === 'oldest' ? el.scrollHeight : 0;
+  const badge = document.getElementById(containerId + '-new');
+  if (badge) badge.textContent = view.unread.size ? view.unread.size + ' new' : '';
+}
+
+async function postMessage(kind, id, inputId, containerId) {
+  const input = document.getElementById(inputId);
+  if (!input || !id) return;
+  const body = input.value.trim();
+  if (!body) return;
+  if (body.length > 2000) { alert('Messages are limited to 2000 characters.'); return; }
+  const row = { user_id: APP.user.id, author_name: (APP.profile && APP.profile.full_name) || APP.user.email, body };
+  row[kind === 'group' ? 'group_id' : 'board_id'] = id;
+  const { error } = await sb.from('messages').insert(row);
+  if (error) { alert('Could not post: ' + error.message); return; }
+  input.value = '';
+  loadMessages(kind, id, containerId);
+}
+
+async function deleteMessage(id) {
+  if (!confirm('Delete this message?')) return;
+  const { error } = await sb.from('messages').delete().eq('id', id);
+  if (error) { alert(error.message); return; }
+  Object.keys(MSG_VIEWS).forEach(cid => {
+    if (document.getElementById(cid)) loadMessages(MSG_VIEWS[cid].kind, MSG_VIEWS[cid].id, cid);
+  });
+}
+
+function boardCard() {
+  const adminBtns = APP.isAdmin
+    ? `<div class="btn-row" style="margin-top:8px">
+         <button class="btn btn-secondary btn-sm" onclick="adminCreateBoard()">+ New Board</button>
+         ${APP.boards.length ? '<button class="btn btn-danger btn-sm" onclick="adminDeleteBoard()">Delete Board</button>' : ''}
+       </div>`
+    : '';
+  if (!APP.boards.length) {
+    return `<div class="card"><h3>Community Message Board</h3>
+      <p style="font-size:13px;color:var(--text-muted)">No community boards yet.${APP.isAdmin ? ' Create the first one below.' : ''}</p>${adminBtns}</div>`;
+  }
+  const opts = APP.boards.map(b => `<option value="${b.id}"${b.id === APP.curBoardId ? ' selected' : ''}>${esc(b.name)}</option>`).join('');
+  return `<div class="card"><h3>Community Message Board</h3>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <select style="flex:1" onchange="APP.curBoardId=this.value;loadMessages('board',APP.curBoardId,'board-msgs')">${opts}</select>
+      <button class="btn btn-secondary btn-sm" onclick="loadMessages('board',APP.curBoardId,'board-msgs')">Refresh</button>
+    </div>
+    ${msgSortRow('board-msgs')}
+    <div class="msg-list" id="board-msgs"><div style="font-size:12px;color:var(--text-muted)">Loading…</div></div>
+    <div class="msg-compose">
+      <textarea id="board-input" rows="2" placeholder="Write a message to the whole community…"></textarea>
+      <button class="btn btn-primary btn-sm" onclick="postMessage('board',APP.curBoardId,'board-input','board-msgs')">Post</button>
+    </div>
+    ${adminBtns}
+  </div>`;
+}
+
+async function adminCreateBoard() {
+  const name = prompt('Board name (e.g. Announcements, General):', '');
+  if (!name || !name.trim()) return;
+  const { error } = await sb.from('boards').insert({ name: name.trim(), created_by: APP.user.id });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  if (currentScreen === 'admin') renderAdmin(); else if (currentScreen === 'group') renderGroup(); else renderBoards();
+}
+
+async function adminDeleteBoard() {
+  const b = APP.boards.find(x => x.id === APP.curBoardId);
+  if (!b) return;
+  if (!confirm('Delete the board "' + b.name + '" and all its messages? This cannot be undone.')) return;
+  const { error } = await sb.from('boards').delete().eq('id', b.id);
+  if (error) { alert(error.message); return; }
+  APP.curBoardId = null;
+  await loadCommunity();
+  if (currentScreen === 'admin') renderAdmin(); else if (currentScreen === 'group') renderGroup(); else renderBoards();
+}
+
+/* ========== GROUP SCREEN ========== */
+let slotSel = null;
+let slotPref = null;
+
+function dayTimeSelects(prefix) {
+  const days = DAY_NAMES.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+  const hours = GRID_HOURS.map(h => `<option value="${h}">${new Date(2026, 0, 5, h).toLocaleTimeString([], { hour: 'numeric' })}</option>`).join('');
+  return `<div class="btn-row">
+    <div><label class="form-label">Day</label><select id="${prefix}-day">${days}</select></div>
+    <div><label class="form-label">Start time</label><select id="${prefix}-hour">${hours}</select></div>
+  </div>`;
+}
+
+function renderGroup() {
+  const el = document.getElementById('group-content');
+  const p = APP.profile || {};
+  let html = '';
+
+  if (APP.myGroup) {
+    const others = APP.myGroupMembers.filter(m => m.id !== APP.user.id);
+    const otherEmails = others.map(m => m.email).filter(Boolean);
+    html += `<div class="card" style="border:1px solid var(--success)">
+      <h3 style="color:var(--success)">Your Group: ${esc(APP.myGroup.name)}</h3>
+      <div style="font-size:15px;font-weight:600;margin:4px 0">${mowLabel(APP.myGroup.slot_mow)}</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Weekly 45-minute session, shown in your local time.</div>
+      ${APP.activeCycle ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Cycle: <strong>${esc(APP.activeCycle.name)}</strong> &middot; starts ${formatDate(APP.activeCycle.start_date)}</div>` : ''}
+      ${APP.myGroup.wam_link ? `<a class="wam-link" target="_blank" href="${esc(APP.myGroup.wam_link)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
+        Join weekly session</a>` : ''}
+      <h3>Members</h3>
+      ${APP.myGroupMembers.map(m => `<div class="member-row">
+        <span>${esc(m.full_name || 'Unnamed')}${m.id === APP.user.id ? ' (you)' : ''}</span>
+        <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--text-muted);font-size:12px">${esc(m.timezone || '')}</span>${m.id !== APP.user.id && m.email ? `<a class="mail-icon" href="${mailtoOne(m.email, 'My Plan+ — ' + (APP.myGroup ? APP.myGroup.name : ''))}" title="Email ${esc(m.full_name || '')}">&#9993;</a>` : ''}</span>
+      </div>`).join('')}
+      <div class="btn-row" style="margin-top:10px">
+        <button class="btn btn-secondary btn-sm" onclick="navigateTo('boards')">Message Board</button>
+        ${otherEmails.length ? `<a class="btn btn-secondary btn-sm" style="text-align:center;text-decoration:none;display:block" href="${mailtoMany(otherEmails, 'My Plan+ — ' + APP.myGroup.name)}">Email Group</a>` : ''}
+        <button class="btn btn-danger btn-sm" onclick="leaveGroup()">Leave Group</button>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary);margin-top:12px">You have full access to the planning tools &mdash; set your focus for the 12 weeks in <strong>Goals</strong> and record your <strong>Check-in</strong> each week.</p>
+    </div>`;
+
+  } else if (APP.activeCycle) {
+    html += groupChooserHtml(APP.activeCycle, APP.cycleGroups, APP.cycleCounts, 'newgrp', 'Choose your group');
+  } else if (!APP.nextCycle) {
+    html += `<div class="card">
+      <h3>You're registered</h3>
+      <p style="font-size:13px;line-height:1.6;color:var(--text-secondary)">The next 12-week cycle hasn't been opened yet. Nominate your availability below &mdash; when sign-up opens you can join or create a group, or be randomly allocated to one that suits your times.</p>
+    </div>`;
+  }
+
+  // The NEXT cycle can be open for sign-up while the current one runs
+  if (APP.nextCycle) {
+    if (APP.myNextGroup) {
+      html += `<div class="card" style="border:1px solid var(--warning)">
+        <h3 style="color:var(--warning)">Next cycle: ${esc(APP.nextCycle.name)}</h3>
+        <div style="font-size:14px;font-weight:600;margin:4px 0">You're in ${esc(APP.myNextGroup.name)} &middot; ${mowLabel(APP.myNextGroup.slot_mow)}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the admin makes the cycle active.</div>
+        <button class="btn btn-danger btn-sm" onclick="leaveNextGroup()">Leave This Group</button>
+      </div>`;
+    } else {
+      html += groupChooserHtml(APP.nextCycle, APP.nextGroups, APP.nextCounts, 'nextgrp', 'Next cycle — sign-up open');
+    }
+  }
+
+  html += `<div class="card"><h3>Your Profile</h3>
+    <div class="form-group"><label class="form-label">Name</label><input type="text" id="profile-name" value="${esc(p.full_name || '')}"></div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Signed in as ${esc(APP.user ? APP.user.email : '')} &middot; Time zone: ${esc(p.timezone || userTimezone())}</div>
+    <button class="btn btn-secondary btn-sm" onclick="saveProfileName()">Save Name</button>
+  </div>`;
+
+  html += `<div class="card"><h3>Meeting Availability</h3>
+    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Tick every weekly <strong>45-minute session</strong> start time you could regularly attend (shown in your local time). Used for random allocation into a group that shares a suitable time.</p>
+    <div class="slot-grid">${renderSlotGrid()}</div>
+    <div style="font-size:12px;color:var(--text-muted);margin:8px 0"><span id="slot-count">${((p.slots || []).length)}</span> time(s) selected &middot; tap once = available, tap again = your <strong>preferred</strong> time (&#9733;, one only), tap a third time = clear</div>
+    <button class="btn btn-primary" onclick="saveAvailability()">Save Availability</button>
+  </div>`;
+
+  if (!APP.isAdmin && APP.admins.length) {
+    html += `<div class="card"><h3>Questions or Problems?</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Stuck with registration, groups, times or your plan? Email ${esc(APP.admins.map(a => a.full_name).filter(Boolean).join(', ') || 'the admin')} — the button opens a pre-addressed draft in your mail app.</p>
+      <a class="btn btn-secondary" style="display:block;text-align:center;text-decoration:none" href="${contactAdminHref()}">Email the Admin</a>
+    </div>`;
+  }
+
+  if (APP.isAdmin) {
+    html += `<button class="btn btn-secondary" onclick="navigateTo('admin')">Open Admin Panel</button>`;
+  }
+
+  el.innerHTML = html;
+}
+
+/* ========== BOARDS SCREEN ========== */
+function renderBoards() {
+  const el = document.getElementById('boards-content');
+  let html = '';
+  if (APP.myGroup) {
+    html += `<div class="card" style="border:1px solid var(--success)"><h3 style="color:var(--success)">Group Board &mdash; ${esc(APP.myGroup.name)}</h3>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Private to your group.</div>
+      ${msgSortRow('grp-msgs')}
+      <div class="msg-list" id="grp-msgs"><div style="font-size:12px;color:var(--text-muted)">Loading…</div></div>
+      <div class="msg-compose">
+        <textarea id="grp-input" rows="2" placeholder="Message your group…"></textarea>
+        <button class="btn btn-primary btn-sm" onclick="postMessage('group','${APP.myGroup.id}','grp-input','grp-msgs')">Post</button>
+      </div>
+      <div style="text-align:right;margin-top:6px"><button class="btn btn-secondary btn-sm" onclick="loadMessages('group','${APP.myGroup.id}','grp-msgs')">Refresh</button></div>
+    </div>`;
+  } else {
+    html += `<div class="card"><h3>Group Board</h3><p style="font-size:13px;color:var(--text-secondary)">You'll get a private board for your group once you've joined or been allocated to one — see the <a href="#" class="auth-link" onclick="navigateTo('group');return false">Group</a> tab.</p></div>`;
+  }
+  html += boardCard();
+  el.innerHTML = html;
+  if (APP.myGroup) loadMessages('group', APP.myGroup.id, 'grp-msgs');
+  if (APP.curBoardId) loadMessages('board', APP.curBoardId, 'board-msgs');
+}
+
+function groupChooserHtml(cycle, groups, counts, prefix, title) {
+  let h = `<div class="card" style="border:1px solid var(--accent)">
+    <h3 style="color:var(--accent)">${title} &mdash; ${esc(cycle.name)}</h3>
+    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(cycle.start_date)}. Join an existing group, create your own, or simply keep your availability up to date and you'll be <strong>randomly allocated</strong> to a group that matches it.</p>`;
+  if (groups.length) {
+    h += groups.map(g => {
+      const count = counts[g.id] || 0;
+      const cap = g.max_size || 4;
+      const full = count >= cap;
+      return `<div class="member-row">
+        <span><strong>${esc(g.name)}</strong><br><span style="font-size:12px;color:var(--text-secondary)">${mowLabel(g.slot_mow)} &middot; ${count}/${cap} member${count === 1 ? '' : 's'}</span></span>
+        ${full ? '<span class="badge-pill">Full</span>' : `<button class="btn btn-secondary btn-sm" onclick="joinGroup('${g.id}','${cycle.id}')">Join</button>`}
+      </div>`;
+    }).join('');
+  } else {
+    h += `<p style="font-size:13px;color:var(--text-muted)">No groups yet &mdash; be the first to create one!</p>`;
+  }
+  h += `<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+    <h3>Create Your Own Group</h3>
+    <div class="form-group"><label class="form-label">Group name</label><input type="text" id="${prefix}-name" placeholder="e.g. Early Birds"></div>
+    ${dayTimeSelects(prefix)}
+    <div style="font-size:11px;color:var(--text-muted);margin:8px 0">Weekly 45-minute session, in your local time. You'll join it automatically.</div>
+    <button class="btn btn-primary" onclick="createOwnGroup('${cycle.id}','${prefix}')">Create &amp; Join</button>
+  </div></div>`;
+  return h;
+}
+
+async function createOwnGroup(cycleId, prefix) {
+  const name = document.getElementById(prefix + '-name').value.trim();
+  if (!name) { alert('Give your group a name.'); return; }
+  const day = Number(document.getElementById(prefix + '-day').value);
+  const hour = Number(document.getElementById(prefix + '-hour').value);
+  const slot = localToMow(day, hour);
+  const { data, error } = await sb.from('groups')
+    .insert({ cycle_id: cycleId, name, slot_mow: slot, created_by: APP.user.id })
+    .select().single();
+  if (error) { alert('Could not create group: ' + error.message); return; }
+  const { error: e2 } = await sb.from('group_members').insert({ group_id: data.id, user_id: APP.user.id, cycle_id: cycleId });
+  if (e2) { alert('Group created, but joining it failed: ' + e2.message); }
+  await loadCommunity();
+  seedCycleFromCommunity();
+  renderGroup();
+}
+
+async function joinGroup(groupId, cycleId) {
+  const g = APP.cycleGroups.concat(APP.nextGroups).find(x => x.id === groupId);
+  const count = (APP.cycleCounts[groupId] || 0) + (APP.nextCounts[groupId] || 0);
+  if (g && count >= (g.max_size || 4)) {
+    alert('That group already has its full complement of ' + (g.max_size || 4) + '. Join another, create your own, or email the admin — they can add you to a full group manually.');
+    return;
+  }
+  const { error } = await sb.from('group_members').insert({ group_id: groupId, user_id: APP.user.id, cycle_id: cycleId });
+  if (error) { alert('Could not join: ' + error.message); return; }
+  await loadCommunity();
+  seedCycleFromCommunity();
+  renderGroup();
+}
+
+async function leaveNextGroup() {
+  if (!APP.myNextGroup) return;
+  if (!confirm('Leave "' + APP.myNextGroup.name + '" for the next cycle?')) return;
+  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myNextGroup.id).eq('user_id', APP.user.id);
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderGroup();
+}
+
+async function leaveGroup() {
+  if (!APP.myGroup) return;
+  if (!confirm('Leave "' + APP.myGroup.name + '"? The planning tools lock again until you join another group or are allocated.')) return;
+  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myGroup.id).eq('user_id', APP.user.id);
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderGroup();
+}
+
+function renderSlotGrid() {
+  slotSel = new Set((APP.profile && APP.profile.slots) || []);
+  slotPref = (APP.profile && APP.profile.preferred_slot != null) ? APP.profile.preferred_slot : null;
+  if (slotPref != null) slotSel.add(slotPref);
+  let h = '<table><thead><tr><th></th>' + DAY_NAMES.map(d => '<th>' + d + '</th>').join('') + '</tr></thead><tbody>';
+  GRID_HOURS.forEach(hr => {
+    const lbl = new Date(2026, 0, 5, hr).toLocaleTimeString([], { hour: 'numeric' });
+    h += '<tr><th style="white-space:nowrap">' + lbl + '</th>';
+    for (let d = 0; d < 7; d++) {
+      const mow = localToMow(d, hr);
+      const cls = 'slot-cell' + (slotSel.has(mow) ? ' selected' : '') + (slotPref === mow ? ' preferred' : '');
+      h += '<td><button type="button" class="' + cls + '" data-mow="' + mow + '" onclick="toggleSlot(this)" title="' + DAY_NAMES[d] + ' ' + lbl + '">' + (slotPref === mow ? '&#9733;' : '') + '</button></td>';
+    }
+    h += '</tr>';
+  });
+  return h + '</tbody></table>';
+}
+
+function toggleSlot(btn) {
+  const mow = Number(btn.dataset.mow);
+  // Tap cycle: off -> available -> preferred (one only) -> off
+  if (!slotSel.has(mow)) {
+    slotSel.add(mow);
+    btn.classList.add('selected');
+  } else if (slotPref !== mow) {
+    const prev = document.querySelector('.slot-cell.preferred');
+    if (prev) { prev.classList.remove('preferred'); prev.innerHTML = ''; }
+    slotPref = mow;
+    btn.classList.add('preferred');
+    btn.innerHTML = '&#9733;';
+  } else {
+    slotPref = null;
+    slotSel.delete(mow);
+    btn.classList.remove('selected');
+    btn.classList.remove('preferred');
+    btn.innerHTML = '';
+  }
+  const c = document.getElementById('slot-count');
+  if (c) c.textContent = slotSel.size;
+}
+
+async function saveAvailability() {
+  const slots = [...slotSel].sort((a, b) => a - b);
+  const tz = userTimezone();
+  const { error } = await sb.from('profiles').update({ slots, preferred_slot: slotPref, timezone: tz }).eq('id', APP.user.id);
+  if (error) { alert('Could not save availability: ' + error.message); return; }
+  APP.profile.slots = slots;
+  APP.profile.preferred_slot = slotPref;
+  APP.profile.timezone = tz;
+  alert('Availability saved — ' + slots.length + ' session time(s)' + (slotPref != null ? ', preferred: ' + mowLabel(slotPref) : '') + '.');
+  renderGroup();
+}
+
+async function saveProfileName() {
+  const name = document.getElementById('profile-name').value.trim();
+  if (!name) { alert('Please enter your name.'); return; }
+  const { error } = await sb.from('profiles').update({ full_name: name }).eq('id', APP.user.id);
+  if (error) { alert('Could not save: ' + error.message); return; }
+  APP.profile.full_name = name;
+  alert('Name saved!');
+}
+
+/* ========== ADMIN SCREEN ========== */
+const ADMIN = { profiles: [], groups: [], members: [], selCycleId: null, alloc: null, editCycleId: null };
+
+async function renderAdmin() {
+  const el = document.getElementById('admin-content');
+  if (!APP.isAdmin) { el.innerHTML = '<div class="empty-state"><p>Admins only.</p></div>'; return; }
+  el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
+  const [pr, gr, gm, cy, bd] = await Promise.all([
+    sb.from('profiles').select('id,full_name,email,timezone,slots,preferred_slot,is_admin,created_at').order('created_at'),
+    sb.from('groups').select('*').order('created_at'),
+    sb.from('group_members').select('group_id,user_id'),
+    sb.from('cycles').select('*').order('start_date', { ascending: false }),
+    sb.from('boards').select('*').order('created_at')
+  ]);
+  ADMIN.profiles = pr.data || [];
+  ADMIN.groups = gr.data || [];
+  ADMIN.members = gm.data || [];
+  APP.cycles = cy.data || [];
+  APP.boards = bd.data || [];
+  APP.activeCycle = APP.cycles.find(c => c.status === 'active') || null;
+  if (!ADMIN.selCycleId || !APP.cycles.some(c => c.id === ADMIN.selCycleId)) {
+    ADMIN.selCycleId = APP.activeCycle ? APP.activeCycle.id : (APP.cycles[0] ? APP.cycles[0].id : null);
+  }
+  drawAdmin();
+}
+
+function drawAdmin() {
+  const el = document.getElementById('admin-content');
+  const profById = {};
+  ADMIN.profiles.forEach(p => { profById[p.id] = p; });
+  const displayName = id => { const p = profById[id] || {}; return p.full_name || p.email || id; };
+  const selCycle = APP.cycles.find(c => c.id === ADMIN.selCycleId) || null;
+  const cycleGroups = ADMIN.groups.filter(g => selCycle && g.cycle_id === selCycle.id);
+  const groupById = {};
+  cycleGroups.forEach(g => { groupById[g.id] = g; });
+  const memberGroup = {};
+  ADMIN.members.forEach(m => { if (groupById[m.group_id]) memberGroup[m.user_id] = groupById[m.group_id]; });
+  const allEmails = ADMIN.profiles.map(p => p.email).filter(Boolean);
+
+  let html = '';
+
+  // --- Cycles ---
+  html += '<div class="card"><h3>12-Week Cycles</h3>';
+  if (APP.cycles.length === 0) html += '<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">No cycles yet — create the next 12-week year below.</p>';
+  APP.cycles.forEach(c => {
+    const badge = c.status === 'active' ? 'green' : c.status === 'enrolling' ? 'amber' : '';
+    const label = c.status === 'enrolling' ? 'sign-up open' : c.status;
+    if (ADMIN.editCycleId === c.id) {
+      html += `<div style="border:1px solid var(--accent);border-radius:var(--radius-sm);padding:10px;margin:8px 0">
+        <div class="form-group"><label class="form-label">Cycle name</label><input type="text" id="edit-cycle-name" value="${esc(c.name)}"></div>
+        <div class="form-group"><label class="form-label">Start date</label><input type="date" id="edit-cycle-start" value="${c.start_date}"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm" onclick="adminSaveCycleEdit('${c.id}')">Save Changes</button>
+          <button class="btn btn-secondary btn-sm" onclick="ADMIN.editCycleId=null;drawAdmin()">Cancel</button>
+        </div>
+        <button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="adminDeleteCycle('${c.id}')">Delete Cycle</button>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Changing the start date shifts week numbering for the whole cycle. Members' personal plan dates don't move automatically &mdash; each member can pull the new dates via Settings &rarr; "Use these dates". Deleting a cycle also removes its groups, their message boards and shared check-ins.</p>
+      </div>`;
+      return;
+    }
+    let btns = `<button class="btn btn-secondary btn-sm" onclick="ADMIN.editCycleId='${c.id}';drawAdmin()">Edit</button> `;
+    if (c.status === 'active') {
+      btns += `<button class="btn btn-secondary btn-sm" onclick="adminArchiveCycleRow('${c.id}')">Archive</button>`;
+    } else {
+      if (c.status === 'enrolling') btns += `<button class="btn btn-secondary btn-sm" onclick="adminCloseEnrollment('${c.id}')">Close sign-up</button> `;
+      else btns += `<button class="btn btn-secondary btn-sm" onclick="adminOpenEnrollment('${c.id}')">Open sign-up</button> `;
+      btns += `<button class="btn btn-secondary btn-sm" onclick="adminActivateCycle('${c.id}')">Make active</button>`;
+    }
+    html += `<div class="member-row"><span><strong>${esc(c.name)}</strong> &middot; starts ${formatDate(c.start_date)} <span class="badge-pill ${badge}">${esc(label)}</span></span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${btns}</span></div>`;
+  });
+  html += `<div class="btn-row">
+      <input type="text" id="new-cycle-name" placeholder="Cycle name e.g. Q1 2027">
+      <input type="date" id="new-cycle-start">
+    </div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminCreateCycle()">+ Create Cycle</button>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px"><strong>Open sign-up</strong> lets people join and create groups for the NEXT cycle while the current one is still running (you can also pre-allocate it below via the Cycle selector). <strong>Make active</strong> starts a cycle — the previously active one is archived — and its group members get the planning tools.</p>
+  </div>`;
+
+  // --- Groups & Allocation ---
+  html += `<div class="card"><h3>Groups &amp; Allocation</h3>`;
+  if (!selCycle) {
+    html += '<p style="font-size:13px;color:var(--text-muted)">Create a cycle first.</p></div>';
+  } else {
+    html += `<div class="form-group"><label class="form-label">Cycle</label>
+      <select id="admin-cycle-sel" onchange="ADMIN.selCycleId=this.value;ADMIN.alloc=null;drawAdmin()">` +
+      APP.cycles.map(c => `<option value="${c.id}"${c.id === ADMIN.selCycleId ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
+      `</select></div>`;
+
+    // Existing groups
+    if (cycleGroups.length) {
+      html += `<h3>Groups in ${esc(selCycle.name)}</h3>`;
+      cycleGroups.forEach(g => {
+        const mem = ADMIN.members.filter(m => m.group_id === g.id);
+        const memEmails = mem.map(m => (profById[m.user_id] || {}).email).filter(Boolean);
+        html += `<div style="margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <strong>${esc(g.name)}</strong>
+            <span style="display:flex;gap:6px;flex-wrap:wrap">
+              ${memEmails.length ? `<a class="btn btn-secondary btn-sm" style="text-decoration:none;text-align:center" href="${mailtoMany(memEmails, 'My Plan+ — ' + g.name)}">Email group</a>` : ''}
+              <button class="btn btn-secondary btn-sm" onclick="adminSetGroupLink('${g.id}')">${g.wam_link ? 'Edit' : 'Add'} link</button>
+              <button class="btn btn-danger btn-sm" onclick="adminDeleteGroup('${g.id}')">Delete</button>
+            </span>
+          </div>
+          <div style="font-size:13px;color:var(--text-secondary);margin:4px 0">${mowLabel(g.slot_mow)} (45 min)${g.wam_link ? ' &middot; has meeting link' : ''}</div>` +
+          (mem.length
+            ? mem.map(m => `<div class="member-row"><span>${esc(displayName(m.user_id))}</span><button class="icon-btn danger" title="Remove from group" onclick="adminRemoveMember('${g.id}','${m.user_id}')">&#10005;</button></div>`).join('')
+            : '<div style="font-size:12px;color:var(--text-muted)">No members yet.</div>') +
+          `</div>`;
+      });
+    } else {
+      html += `<p style="font-size:13px;color:var(--text-muted)">No groups in this cycle yet.</p>`;
+    }
+
+    // Admin create group
+    html += `<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <h3>Create a Group</h3>
+      <div class="form-group"><label class="form-label">Group name</label><input type="text" id="admgrp-name" placeholder="e.g. Group 5"></div>
+      ${dayTimeSelects('admgrp')}
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminCreateGroup()">+ Create Group</button>
+    </div>`;
+
+    // Random allocation
+    html += `<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <h3>Random Allocation</h3>
+      <div class="btn-row">
+        <div><label class="form-label">Min group size</label><input type="number" id="alloc-min" value="3" min="2"></div>
+        <div><label class="form-label">Max group size</label><input type="number" id="alloc-max" value="4" min="2"></div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px" onclick="runAllocation()">Randomly Allocate Ungrouped People</button>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Covers everyone who has nominated availability but hasn't joined or created a group in this cycle. Existing groups are kept. Re-run for a different random mix, then save.</p>`;
+
+    if (ADMIN.alloc) {
+      html += `<div style="margin-top:12px">`;
+      if (ADMIN.alloc.groups.length === 0) {
+        html += `<p style="font-size:13px;color:var(--text-muted)">Nobody to allocate — everyone with availability is already in a group.</p>`;
+      }
+      ADMIN.alloc.groups.forEach((g, i) => {
+        html += `<div style="margin-bottom:10px"><strong>${esc(g.name)}</strong> &middot; ${mowLabel(g.slot_mow)}<br>
+          <span style="font-size:13px;color:var(--text-secondary)">${g.memberIds.map(id => esc(displayName(id))).join(', ')}</span></div>`;
+      });
+      if (ADMIN.alloc.leftover.length) {
+        html += `<div style="color:var(--warning);font-size:13px;margin-bottom:8px"><strong>Not allocated</strong> (no shared time with enough people): ${ADMIN.alloc.leftover.map(id => esc(displayName(id))).join(', ')}.<br>Add them to a group manually in the table below.</div>`;
+      }
+      if (ADMIN.alloc.groups.length) {
+        html += `<button class="btn btn-primary" onclick="saveAllocation()">Save This Allocation</button>`;
+      }
+      html += `</div>`;
+    }
+    html += `</div></div>`;
+  }
+
+  // --- Registrants ---
+  html += `<div class="card"><h3>Registered People (${ADMIN.profiles.length})</h3>
+    <div class="admin-table"><table><thead><tr><th>Name</th><th>Email</th><th>Avail.</th><th>Group</th></tr></thead><tbody>`;
+  ADMIN.profiles.forEach(p => {
+    const g = memberGroup[p.id];
+    const availTitle = (p.slots || []).map(sl => mowLabel(sl) + (p.preferred_slot === sl ? ' \u2605' : '')).join('&#10;');
+    const groupCell = cycleGroups.length
+      ? `<select onchange="adminMoveMember('${p.id}', this.value)">
+           <option value=""${!g ? ' selected' : ''}>&mdash; no group &mdash;</option>` +
+        cycleGroups.map(cg => `<option value="${cg.id}"${g && g.id === cg.id ? ' selected' : ''}>${esc(cg.name)}</option>`).join('') +
+        `</select>`
+      : (g ? esc(g.name) : '—');
+    html += `<tr>
+      <td>${esc(p.full_name || '—')}${p.is_admin ? ' <span class="badge-pill">admin</span>' : ''}</td>
+      <td>${p.email ? `<a class="auth-link" href="${mailtoOne(p.email, 'My Plan+')}">${esc(p.email)}</a>` : ''}</td>
+      <td title="${availTitle}">${(p.slots || []).length}${p.preferred_slot != null ? '\u2605' : ''}</td>
+      <td>${groupCell}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>
+    <div class="btn-row" style="margin-top:10px">
+      ${allEmails.length ? `<a class="btn btn-secondary btn-sm" style="text-decoration:none;text-align:center" href="${mailtoMany(allEmails, 'My Plan+')}">Email all users</a>` : ''}
+      <button class="btn btn-secondary btn-sm" onclick="copyEmails(${esc(JSON.stringify(allEmails)).replace(/"/g, '&quot;')})">Copy all emails</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and admin moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
+
+  // --- Message boards ---
+  html += `<div class="card"><h3>Community Message Boards</h3>` +
+    (APP.boards.length
+      ? APP.boards.map(b => `<div class="member-row"><span>${esc(b.name)}</span><button class="btn btn-danger btn-sm" onclick="APP.curBoardId='${b.id}';adminDeleteBoard()">Delete</button></div>`).join('')
+      : '<p style="font-size:13px;color:var(--text-muted)">No boards yet.</p>') +
+    `<button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminCreateBoard()">+ New Board</button>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Community boards are visible to all registered users on their Group tab. Each group also has its own private board automatically.</p></div>`;
+
+  // --- Export ---
+  html += `<div class="card"><h3>Admin Export</h3>
+    <button class="btn btn-secondary" style="margin-bottom:8px" onclick="adminExportCSV()">Export Registrants &amp; Groups (CSV)</button>
+    <button class="btn btn-secondary" onclick="adminExportJSON()">Export Community Data (JSON)</button>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Members' plan entries are private to each member &mdash; everyone can export their own backup from Settings.</p>
+  </div>`;
+
+  html += `<button class="btn btn-secondary" onclick="navigateTo('group')">&larr; Back to Group</button>`;
+  el.innerHTML = html;
+}
+
+async function adminCreateCycle() {
+  const name = document.getElementById('new-cycle-name').value.trim();
+  const start = document.getElementById('new-cycle-start').value;
+  if (!name || !start) { alert('Enter a cycle name and start date.'); return; }
+  const { error } = await sb.from('cycles').insert({ name, start_date: start, status: 'setup' });
+  if (error) { alert(error.message); return; }
+  renderAdmin();
+}
+
+async function adminActivateCycle(id) {
+  await sb.from('cycles').update({ status: 'archived' }).eq('status', 'active');
+  const { error } = await sb.from('cycles').update({ status: 'active' }).eq('id', id);
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminSaveCycleEdit(id) {
+  const name = document.getElementById('edit-cycle-name').value.trim();
+  const start = document.getElementById('edit-cycle-start').value;
+  if (!name || !start) { alert('Enter a cycle name and start date.'); return; }
+  const { error } = await sb.from('cycles').update({ name, start_date: start }).eq('id', id);
+  if (error) { alert('Could not save: ' + error.message); return; }
+  ADMIN.editCycleId = null;
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminDeleteCycle(id) {
+  const c = APP.cycles.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm('Delete the cycle "' + c.name + '"? This also deletes its groups, group message boards and shared check-ins. Members\' own plan data is not affected.')) return;
+  if (!confirm('Really delete "' + c.name + '"? This cannot be undone.')) return;
+  const { error } = await sb.from('cycles').delete().eq('id', id);
+  if (error) { alert('Could not delete: ' + error.message); return; }
+  ADMIN.editCycleId = null;
+  if (ADMIN.selCycleId === id) ADMIN.selCycleId = null;
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminOpenEnrollment(id) {
+  await sb.from('cycles').update({ status: 'setup' }).eq('status', 'enrolling');
+  const { error } = await sb.from('cycles').update({ status: 'enrolling' }).eq('id', id);
+  if (error) { alert(error.message + (error.message.indexOf('check') !== -1 ? ' — run supabase-update-3.sql in the Supabase SQL Editor first.' : '')); return; }
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminCloseEnrollment(id) {
+  await sb.from('cycles').update({ status: 'setup' }).eq('id', id);
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminArchiveCycleRow(id) {
+  if (!confirm('Archive this cycle? Its group members lose access to the planning tools until a new cycle is active and they are in a group.')) return;
+  await sb.from('cycles').update({ status: 'archived' }).eq('id', id);
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminCreateGroup() {
+  const selCycle = APP.cycles.find(c => c.id === ADMIN.selCycleId);
+  if (!selCycle) return;
+  const name = document.getElementById('admgrp-name').value.trim();
+  if (!name) { alert('Enter a group name.'); return; }
+  const day = Number(document.getElementById('admgrp-day').value);
+  const hour = Number(document.getElementById('admgrp-hour').value);
+  const { error } = await sb.from('groups').insert({
+    cycle_id: selCycle.id, name, slot_mow: localToMow(day, hour), created_by: APP.user.id
+  });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminDeleteGroup(groupId) {
+  const g = ADMIN.groups.find(x => x.id === groupId);
+  if (!g) return;
+  if (!confirm('Delete "' + g.name + '"? Its members become ungrouped and its message board is removed.')) return;
+  const { error } = await sb.from('groups').delete().eq('id', groupId);
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderAdmin();
+}
+
+function shuffleArr(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function runAllocation() {
+  const selCycle = APP.cycles.find(c => c.id === ADMIN.selCycleId);
+  if (!selCycle) return;
+  const minSize = Math.max(2, Number(document.getElementById('alloc-min').value) || 3);
+  const maxSize = Math.max(minSize, Number(document.getElementById('alloc-max').value) || 4);
+  // People already in a group for this cycle keep their choice
+  const cycleGroupIds = new Set(ADMIN.groups.filter(g => g.cycle_id === selCycle.id).map(g => g.id));
+  const grouped = new Set(ADMIN.members.filter(m => cycleGroupIds.has(m.group_id)).map(m => m.user_id));
+  const people = ADMIN.profiles.filter(p => (p.slots || []).length > 0 && !grouped.has(p.id));
+  const unassigned = new Map(people.map(p => [p.id, p]));
+  const groups = [];
+  let nextNum = ADMIN.groups.filter(g => g.cycle_id === selCycle.id).length + 1;
+  for (;;) {
+    // Count, for each nominated time, how many unassigned people can make it
+    const counts = {};
+    unassigned.forEach(p => (p.slots || []).forEach(s => { (counts[s] = counts[s] || []).push(p.id); }));
+    let best = null;
+    Object.keys(counts).forEach(s => {
+      const slotNum = Number(s);
+      const pref = counts[s].reduce((n, id) => n + ((unassigned.get(id) || {}).preferred_slot === slotNum ? 1 : 0), 0);
+      const cand = { slot: slotNum, ids: counts[s], pref };
+      if (!best || cand.ids.length > best.ids.length || (cand.ids.length === best.ids.length && cand.pref > best.pref)) best = cand;
+    });
+    if (!best || best.ids.length < minSize) break;
+    // People who marked this time as their preference are placed first
+    const ids = shuffleArr(best.ids.filter(id => (unassigned.get(id) || {}).preferred_slot === best.slot))
+      .concat(shuffleArr(best.ids.filter(id => (unassigned.get(id) || {}).preferred_slot !== best.slot)));
+    const n = ids.length;
+    const k = Math.ceil(n / maxSize);
+    if (Math.floor(n / k) >= minSize) {
+      // Everyone available at this time fits into k balanced groups
+      const base = Math.floor(n / k), extra = n % k;
+      let idx = 0;
+      for (let gi = 0; gi < k; gi++) {
+        const size = base + (gi < extra ? 1 : 0);
+        const memberIds = ids.slice(idx, idx + size);
+        idx += size;
+        memberIds.forEach(id => unassigned.delete(id));
+        groups.push({ name: 'Group ' + (nextNum++), slot_mow: best.slot, memberIds });
+      }
+    } else {
+      const memberIds = ids.slice(0, maxSize);
+      memberIds.forEach(id => unassigned.delete(id));
+      groups.push({ name: 'Group ' + (nextNum++), slot_mow: best.slot, memberIds });
+    }
+  }
+  ADMIN.alloc = { groups, leftover: [...unassigned.keys()] };
+  drawAdmin();
+}
+
+async function saveAllocation() {
+  const selCycle = APP.cycles.find(c => c.id === ADMIN.selCycleId);
+  if (!selCycle || !ADMIN.alloc || !ADMIN.alloc.groups.length) return;
+  const rows = ADMIN.alloc.groups.map(g => ({ cycle_id: selCycle.id, name: g.name, slot_mow: g.slot_mow, created_by: APP.user.id }));
+  const ins = await sb.from('groups').insert(rows).select();
+  if (ins.error) { alert('Save failed: ' + ins.error.message); return; }
+  const byName = {};
+  (ins.data || []).forEach(row => { byName[row.name] = row.id; });
+  const memberRows = [];
+  ADMIN.alloc.groups.forEach(g => {
+    const gid = byName[g.name];
+    if (gid) g.memberIds.forEach(uid => memberRows.push({ group_id: gid, user_id: uid, cycle_id: selCycle.id }));
+  });
+  if (memberRows.length) {
+    const mi = await sb.from('group_members').insert(memberRows);
+    if (mi.error) { alert('Groups created, but adding members failed: ' + mi.error.message); return; }
+  }
+  ADMIN.alloc = null;
+  alert('Groups saved! Members will see their group next time they open the app.');
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminMoveMember(userId, newGroupId) {
+  const selCycle = APP.cycles.find(c => c.id === ADMIN.selCycleId);
+  if (!selCycle) return;
+  const cycleGroupIds = new Set(ADMIN.groups.filter(g => g.cycle_id === selCycle.id).map(g => g.id));
+  const current = ADMIN.members.find(m => m.user_id === userId && cycleGroupIds.has(m.group_id));
+  if ((current ? current.group_id : '') === (newGroupId || '')) return;
+  if (current) {
+    const del = await sb.from('group_members').delete().eq('group_id', current.group_id).eq('user_id', userId);
+    if (del.error) { alert(del.error.message); renderAdmin(); return; }
+  }
+  if (newGroupId) {
+    const ins = await sb.from('group_members').insert({ group_id: newGroupId, user_id: userId, cycle_id: selCycle.id });
+    if (ins.error) { alert(ins.error.message); renderAdmin(); return; }
+  }
+  await loadCommunity();
+  renderAdmin();
+}
+
+async function adminRemoveMember(groupId, userId) {
+  if (!confirm('Remove this member from the group?')) return;
+  await sb.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId);
+  renderAdmin();
+}
+
+async function adminSetGroupLink(groupId) {
+  const g = ADMIN.groups.find(x => x.id === groupId);
+  const link = prompt('Meeting link for this group (Zoom, Meet, Teams…):', (g && g.wam_link) || '');
+  if (link === null) return;
+  await sb.from('groups').update({ wam_link: link.trim() }).eq('id', groupId);
+  renderAdmin();
+}
+
+function downloadFile(name, mime, content) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function adminExportJSON() {
+  downloadFile('myplanplus-community-' + todayStr() + '.json', 'application/json',
+    JSON.stringify({
+      exported: new Date().toISOString(),
+      cycles: APP.cycles, profiles: ADMIN.profiles,
+      groups: ADMIN.groups, members: ADMIN.members, boards: APP.boards
+    }, null, 2));
+}
+
+function adminExportCSV() {
+  const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+  const groupById = {};
+  ADMIN.groups.forEach(g => { groupById[g.id] = g; });
+  const memberGroups = {};
+  ADMIN.members.forEach(m => { (memberGroups[m.user_id] = memberGroups[m.user_id] || []).push(groupById[m.group_id]); });
+  const rows = [['Name', 'Email', 'Timezone', 'Availability', 'Groups'].map(q).join(',')];
+  ADMIN.profiles.forEach(p => {
+    rows.push([
+      p.full_name, p.email, p.timezone,
+      (p.slots || []).map(mowLabel).join('; '),
+      (memberGroups[p.id] || []).filter(Boolean).map(g => g.name).join('; ')
+    ].map(q).join(','));
+  });
+  downloadFile('myplanplus-registrants-' + todayStr() + '.csv', 'text/csv', rows.join('\n'));
+}
+
+/* ========== SETTINGS EXTRAS ========== */
+function renderAccountCard() {
+  const p = APP.profile || {};
+  return `<div class="card"><h3>Account</h3>
+    <div style="font-size:14px;margin-bottom:4px"><strong>${esc(p.full_name || 'Unnamed')}</strong>${APP.isAdmin ? ' <span class="badge-pill">admin</span>' : ''}</div>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">${esc(APP.user ? APP.user.email : '')} &middot; your plan syncs to your account</div>
+    <div class="btn-row">${APP.isAdmin ? '<button class="btn btn-secondary btn-sm" onclick="navigateTo(\'admin\')">Admin Panel</button>' : ''}${(!APP.isAdmin && APP.admins.length) ? `<a class="btn btn-secondary btn-sm" style="text-align:center;text-decoration:none" href="${contactAdminHref()}">Email Admin</a>` : ''}<button class="btn btn-danger btn-sm" onclick="signOut()">Sign Out</button></div>
+  </div>`;
+}
+
+function communityCycleNote() {
+  if (!APP.activeCycle) return '';
+  return `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Community cycle: <strong>${esc(APP.activeCycle.name)}</strong> starting ${formatDate(APP.activeCycle.start_date)}. <a href="#" class="auth-link" onclick="useCommunityCycle();return false">Use these dates</a></div>`;
+}
+
+function useCommunityCycle() {
+  const c = getCycle();
+  save(KEYS.cycle, {
+    name: APP.activeCycle.name,
+    startDate: APP.activeCycle.start_date,
+    wamLink: (APP.myGroup && APP.myGroup.wam_link) || c.wamLink || '',
+    trackerLink: c.trackerLink || ''
+  });
+  renderSettings();
+}
+
+/* ========== TEAM ACCOUNTABILITY (shared check-ins) ==========
+   Saving a weekly check-in also publishes a shared copy (score +
+   reflection answers) to the community database: full detail is
+   visible to your group; scores only are visible to everyone for
+   the cross-group leaderboard. */
+let teamWeekSel = 0;
+let TEAM_CACHE = null;
+
+function communityCurrentWeek() {
+  if (!APP.activeCycle) return 0;
+  const start = new Date(APP.activeCycle.start_date + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  if (now < start) return 0;
+  return Math.min(Math.floor((now - start) / (7 * 24 * 60 * 60 * 1000)) + 1, 13);
+}
+
+async function syncCheckinShare(weekNum) {
+  if (!sb || !APP.user || !APP.activeCycle || !APP.myGroup) return;
+  const score = weekNum <= 12 ? calculateWeeklyScore(weekNum) : calculateCycleScore();
+  const wd = getWeeklyData()[String(weekNum)] || {};
+  try {
+    await sb.from('checkins').upsert({
+      user_id: APP.user.id, cycle_id: APP.activeCycle.id, week: weekNum,
+      score: Math.max(0, Math.min(100, score)),
+      author_name: (APP.profile && APP.profile.full_name) || APP.user.email,
+      reflections: wd.reflections || {},
+      updated_at: new Date().toISOString()
+    });
+  } catch (e) {}
+}
+
+async function removeSharedCheckin(weekNum) {
+  if (!sb || !APP.user || !APP.activeCycle) return;
+  try {
+    await sb.from('checkins').delete()
+      .eq('user_id', APP.user.id).eq('cycle_id', APP.activeCycle.id).eq('week', weekNum);
+  } catch (e) {}
+}
+
+async function syncAllCheckinShares() {
+  if (!sb || !APP.activeCycle || !APP.myGroup) return;
+  const weeklyData = getWeeklyData();
+  const weeks = Object.keys(weeklyData).map(Number).filter(w => w >= 1 && w <= 13);
+  for (const w of weeks) await syncCheckinShare(w);
+}
+
+async function renderTeam() {
+  const el = document.getElementById('team-content');
+  if (!APP.activeCycle) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128101;</div><p>No active 12-week cycle yet.<br>The team scoreboard appears once a cycle is running.</p></div>`;
+    return;
+  }
+  el.innerHTML = '<div class="empty-state"><p>Loading team scores…</p></div>';
+  const cid = APP.activeCycle.id;
+  const [gRes, mRes, sRes] = await Promise.all([
+    sb.from('groups').select('id,name,slot_mow').eq('cycle_id', cid).order('created_at'),
+    sb.from('group_members').select('group_id,user_id').eq('cycle_id', cid),
+    sb.from('checkin_scores').select('user_id,week,score').eq('cycle_id', cid)
+  ]);
+  if (sRes.error) {
+    el.innerHTML = `<div class="empty-state"><p>The shared check-in tables aren't set up yet.<br>Run <strong>supabase-update-2.sql</strong> in the Supabase SQL Editor.</p></div>`;
+    return;
+  }
+  let detail = [];
+  if (APP.myGroup) {
+    const ids = (mRes.data || []).filter(m => m.group_id === APP.myGroup.id).map(m => m.user_id);
+    if (ids.length) {
+      const dRes = await sb.from('checkins').select('user_id,week,score,author_name,reflections').eq('cycle_id', cid).in('user_id', ids);
+      detail = dRes.data || [];
+    }
+  }
+  TEAM_CACHE = { groups: gRes.data || [], members: mRes.data || [], scores: sRes.data || [], detail };
+  drawTeam();
+}
+
+function teamAvg(vals) {
+  const v = vals.filter(x => typeof x === 'number');
+  if (!v.length) return null;
+  return Math.round(v.reduce((a, b) => a + b, 0) / v.length);
+}
+
+function teamCell(v) {
+  if (v == null) return '<td class="future">&mdash;</td>';
+  return `<td style="font-weight:700;color:${scoreColorHex(v)}">${v}%</td>`;
+}
+
+function drawTeam() {
+  const { groups, members, scores, detail } = TEAM_CACHE;
+  const el = document.getElementById('team-content');
+  const scoreMap = {};
+  scores.forEach(r => { (scoreMap[r.user_id] = scoreMap[r.user_id] || {})[r.week] = r.score; });
+  const membersByGroup = {};
+  members.forEach(m => { (membersByGroup[m.group_id] = membersByGroup[m.group_id] || []).push(m.user_id); });
+  let maxWeek = communityCurrentWeek();
+  scores.forEach(r => { if (r.week <= 12 && r.week > maxWeek) maxWeek = r.week; });
+  maxWeek = Math.max(1, Math.min(maxWeek, 12));
+  TEAM_CACHE.maxWeek = maxWeek;
+  if (teamWeekSel === 0) teamWeekSel = Math.max(communityCurrentWeek(), 1);
+
+  const curWeek = communityCurrentWeek();
+  let html = `<div class="card">
+    <h3>${esc(APP.activeCycle.name)}</h3>
+    <div style="font-size:14px;font-weight:600">${curWeek === 0 ? 'Not started yet' : curWeek === 13 ? 'Week 13 — Reflection' : 'Week ' + curWeek + ' of 13'}</div>
+    <div style="font-size:12px;color:var(--text-secondary)">${members.length} member${members.length === 1 ? '' : 's'} across ${groups.length} group${groups.length === 1 ? '' : 's'} &middot; scores update as people save their weekly check-ins</div>
+  </div>`;
+
+  // ----- My group -----
+  if (APP.myGroup) {
+    const myIds = (membersByGroup[APP.myGroup.id] || []).slice();
+    const nameById = {};
+    APP.myGroupMembers.forEach(pr => { nameById[pr.id] = pr.full_name || pr.email || 'Member'; });
+    detail.forEach(d => { if (!nameById[d.user_id]) nameById[d.user_id] = d.author_name || 'Member'; });
+    myIds.sort((a, b) => String(nameById[a] || '').localeCompare(String(nameById[b] || '')));
+
+    const groupWeekAvgs = [];
+    for (let w = 1; w <= maxWeek; w++) groupWeekAvgs.push(teamAvg(myIds.map(id => (scoreMap[id] || {})[w])));
+    const groupOverall = teamAvg([].concat(...myIds.map(id => { const r = []; for (let w = 1; w <= maxWeek; w++) r.push((scoreMap[id] || {})[w]); return r; })));
+
+    html += `<div class="card" style="border:1px solid var(--accent)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 style="margin:0;color:var(--accent)">${esc(APP.myGroup.name)} — Team Score</h3>
+        <span class="goal-score-badge ${groupOverall != null ? scoreColor(groupOverall) : ''}">${groupOverall != null ? groupOverall + '%' : '--'}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin:4px 0 10px">Combined execution score, weeks 1&ndash;${maxWeek}. Target: 80%+.</div>
+      <div class="tactic-grid"><table><thead><tr><th style="text-align:left">Member</th>`;
+    for (let w = 1; w <= maxWeek; w++) html += `<th>${w}</th>`;
+    html += `<th>Avg</th></tr></thead><tbody>`;
+    myIds.forEach(id => {
+      html += `<tr><td class="tactic-name">${esc(nameById[id] || 'Member')}${id === APP.user.id ? ' (you)' : ''}</td>`;
+      const rowVals = [];
+      for (let w = 1; w <= maxWeek; w++) { const v = (scoreMap[id] || {})[w]; rowVals.push(v); html += teamCell(v == null ? null : v); }
+      html += teamCell(teamAvg(rowVals)) + '</tr>';
+    });
+    html += `<tr><td class="tactic-name" style="font-weight:700">Team average</td>`;
+    groupWeekAvgs.forEach(v => { html += teamCell(v); });
+    html += teamCell(groupOverall) + `</tr></tbody></table></div>
+      <div class="chart-container"><canvas id="chart-team-group"></canvas></div>
+    </div>`;
+
+    // Weekly check-in detail for the selected week
+    html += `<div class="card"><h3>Group Check-ins &mdash; Week Detail</h3><div class="chip-group">`;
+    for (let w = 1; w <= 13; w++) {
+      let cls = 'chip';
+      if (w === teamWeekSel) cls += ' active';
+      else if (w === curWeek) cls += ' current-week';
+      html += `<button class="${cls}" onclick="selectTeamWeek(${w})">${w === 13 ? '13*' : w}</button>`;
+    }
+    html += `</div>`;
+    const qs = teamWeekSel === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+    myIds.forEach(id => {
+      const d = detail.find(x => x.user_id === id && x.week === teamWeekSel);
+      html += `<div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong style="font-size:14px">${esc(nameById[id] || 'Member')}${id === APP.user.id ? ' (you)' : ''}</strong>
+          <span class="goal-score-badge ${d ? scoreColor(d.score) : ''}">${d ? d.score + '%' : '--'}</span>
+        </div>`;
+      if (!d) {
+        html += `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">No check-in saved for week ${teamWeekSel} yet.</div>`;
+      } else {
+        let any = false;
+        qs.forEach((q, i) => {
+          const ans = (d.reflections || {})['q' + (i + 1)];
+          if (!ans) return;
+          any = true;
+          html += `<div class="reflection-answer" style="margin:8px 0 0"><strong>${q}</strong>${esc(ans)}</div>`;
+        });
+        if (!any) html += `<div style="font-size:12px;color:var(--text-muted);margin-top:4px">Score saved, no written answers.</div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="card"><p style="font-size:13px;color:var(--text-secondary)">Join a group to see your team's weekly check-ins here. The all-groups scoreboard below is visible to everyone.</p></div>`;
+  }
+
+  // ----- All groups leaderboard -----
+  const groupStats = groups.map(g => {
+    const ids = membersByGroup[g.id] || [];
+    const weekly = [];
+    for (let w = 1; w <= maxWeek; w++) weekly.push(teamAvg(ids.map(id => (scoreMap[id] || {})[w])));
+    const overall = teamAvg([].concat(...ids.map(id => { const r = []; for (let w = 1; w <= maxWeek; w++) r.push((scoreMap[id] || {})[w]); return r; })));
+    return { g, ids, weekly, overall };
+  }).sort((a, b) => (b.overall == null ? -1 : b.overall) - (a.overall == null ? -1 : a.overall));
+
+  html += `<div class="card"><h3>All Groups &mdash; Scoreboard</h3>
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Combined weekly execution scores per group &mdash; everyone keeping everyone accountable.</div>`;
+  if (!groups.length) {
+    html += `<p style="font-size:13px;color:var(--text-muted)">No groups yet.</p>`;
+  } else {
+    html += `<div class="tactic-grid"><table><thead><tr><th style="text-align:left">Group</th>`;
+    for (let w = 1; w <= maxWeek; w++) html += `<th>${w}</th>`;
+    html += `<th>Avg</th></tr></thead><tbody>`;
+    groupStats.forEach((st, i) => {
+      const isMine = APP.myGroup && st.g.id === APP.myGroup.id;
+      html += `<tr><td class="tactic-name" ${isMine ? 'style="font-weight:700"' : ''}>${i === 0 && st.overall != null ? '&#127942; ' : ''}${esc(st.g.name)}${isMine ? ' (yours)' : ''} <span style="color:var(--text-muted)">(${st.ids.length})</span></td>`;
+      st.weekly.forEach(v => { html += teamCell(v); });
+      html += teamCell(st.overall) + '</tr>';
+    });
+    html += `</tbody></table></div><div class="chart-container"><canvas id="chart-team-all"></canvas></div>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+  renderTeamCharts(groupStats, membersByGroup, scoreMap);
+}
+
+function selectTeamWeek(w) {
+  teamWeekSel = w;
+  if (TEAM_CACHE) drawTeam(); else renderTeam();
+}
+
+function renderTeamCharts(groupStats, membersByGroup, scoreMap) {
+  const st = getComputedStyle(document.documentElement);
+  const accent = st.getPropertyValue('--accent').trim();
+  const gridColor = st.getPropertyValue('--chart-grid').trim();
+  const tickColor = st.getPropertyValue('--chart-tick').trim();
+  const successColor = st.getPropertyValue('--success').trim();
+  const palette = ['#f472b6', '#fb923c', '#a78bfa', '#34d399', '#fbbf24', '#60a5fa', '#f87171', '#4ade80'];
+  const maxWeek = TEAM_CACHE.maxWeek;
+  const labels = [];
+  for (let w = 1; w <= maxWeek; w++) labels.push('Wk ' + w);
+  const target = { label: '80% Target', data: Array(labels.length).fill(80), borderColor: successColor, borderDash: [5, 5], pointRadius: 0, fill: false };
+  const opts = {
+    responsive: true, maintainAspectRatio: false, spanGaps: true,
+    scales: {
+      y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, callback: v => v + '%' } },
+      x: { grid: { color: gridColor }, ticks: { color: tickColor } }
+    },
+    plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12, font: { size: 10 } } } }
+  };
+
+  const gc = document.getElementById('chart-team-group');
+  if (gc && APP.myGroup) {
+    if (charts.teamGroup) charts.teamGroup.destroy();
+    const myIds = (membersByGroup[APP.myGroup.id] || []);
+    const nameById = {};
+    APP.myGroupMembers.forEach(pr => { nameById[pr.id] = pr.full_name || pr.email || 'Member'; });
+    const datasets = myIds.map((id, i) => {
+      const data = [];
+      for (let w = 1; w <= maxWeek; w++) { const v = (scoreMap[id] || {})[w]; data.push(v == null ? null : v); }
+      return { label: nameById[id] || 'Member', data, borderColor: palette[i % palette.length], borderDash: [4, 4], pointRadius: 2, fill: false, tension: 0.3 };
+    });
+    const avgData = [];
+    for (let w = 1; w <= maxWeek; w++) avgData.push(teamAvg(myIds.map(id => (scoreMap[id] || {})[w])));
+    datasets.unshift({ label: 'Team Average', data: avgData, borderColor: accent, backgroundColor: accent + '22', fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: accent, borderWidth: 3 });
+    datasets.push(target);
+    charts.teamGroup = new Chart(gc, { type: 'line', data: { labels, datasets }, options: opts });
+  }
+
+  const ac = document.getElementById('chart-team-all');
+  if (ac && groupStats && groupStats.length) {
+    if (charts.teamAll) charts.teamAll.destroy();
+    const datasets = groupStats.map((stat, i) => ({
+      label: stat.g.name, data: stat.weekly.map(v => v == null ? null : v),
+      borderColor: palette[i % palette.length], pointRadius: 3, fill: false, tension: 0.3,
+      borderWidth: APP.myGroup && stat.g.id === APP.myGroup.id ? 3 : 1.5
+    }));
+    datasets.push(target);
+    charts.teamAll = new Chart(ac, { type: 'line', data: { labels, datasets }, options: opts });
+  }
+}
+
+
+function getCycle() { return load(KEYS.cycle) || { name: '', startDate: '' }; }
+function getGoals() { return load(KEYS.goals) || []; }
+function getTactics() { return load(KEYS.tactics) || []; }
+function getWeeklyData() { return load(KEYS.weekly) || {}; }
+function getSettings() { return load(KEYS.settings) || { autoBackup: false }; }
+function saveSettings(s) { save(KEYS.settings, s); }
+
+function autoBackupIfEnabled() {
+  if (!getSettings().autoBackup) return;
+  exportFullBackup();
+}
+
+function getTacticsForGoal(goalId) {
+  return getTactics().filter(t => t.goalId === goalId).sort((a, b) => a.order - b.order);
+}
+
+function genId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+
+/* ========== UTILITIES ========== */
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function formatDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function localDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getWeekDates(startDate, weekNum) {
+  if (!startDate) return { start: '', end: '' };
+  const s = new Date(startDate + 'T00:00:00');
+  const weekStart = new Date(s);
+  weekStart.setDate(s.getDate() + (weekNum - 1) * 7);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  return {
+    start: localDateStr(weekStart),
+    end: localDateStr(weekEnd)
+  };
+}
+
+function getCurrentWeek() {
+  const cycle = getCycle();
+  if (!cycle.startDate) return 0;
+  const start = new Date(cycle.startDate + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  if (now < start) return 0;
+  const diffMs = now - start;
+  const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+  return Math.min(diffWeeks + 1, 13);
+}
+
+function getCycleEndDate() {
+  const cycle = getCycle();
+  if (!cycle.startDate) return '';
+  const s = new Date(cycle.startDate + 'T00:00:00');
+  s.setDate(s.getDate() + 13 * 7 - 1);
+  return localDateStr(s);
+}
+
+function scoreColor(pct) {
+  if (pct >= 80) return 'score-green';
+  if (pct >= 60) return 'score-amber';
+  return 'score-red';
+}
+
+function scoreColorHex(pct) {
+  const s = getComputedStyle(document.documentElement);
+  if (pct >= 80) return s.getPropertyValue('--success').trim();
+  if (pct >= 60) return s.getPropertyValue('--warning').trim();
+  return s.getPropertyValue('--danger').trim();
+}
+
+/* ========== SCORING ENGINE ========== */
+// Get tactic scores for a week, supporting both old (completedTactics) and new (tacticScores) format
+function getWeekTacticScores(weekData) {
+  if (!weekData) return {};
+  if (weekData.tacticScores) return weekData.tacticScores;
+  // Migrate old format: completedTactics array → tacticScores object at 100%
+  if (weekData.completedTactics) {
+    const scores = {};
+    weekData.completedTactics.forEach(id => { scores[id] = 100; });
+    return scores;
+  }
+  return {};
+}
+
+// Get the set of active tactic IDs for a week. If not explicitly set, check previous week's planned tactics.
+function getWeekActiveTactics(weekData, allTacticIds) {
+  if (!weekData) {
+    // No data yet for this week — check if previous week had planned tactics
+    if (selectedWeek > 1 && selectedWeek <= 12) {
+      const prevWeekData = getWeeklyData()[String(selectedWeek - 1)];
+      if (prevWeekData && prevWeekData.plannedTactics && prevWeekData.plannedTactics.length > 0) {
+        return new Set(prevWeekData.plannedTactics);
+      }
+    }
+    return new Set(allTacticIds);
+  }
+  if (weekData.activeTactics) return new Set(weekData.activeTactics);
+  // Old data: if tacticScores exists, all tactics with a key are active; treat rest as active too for backwards compat
+  return new Set(allTacticIds);
+}
+
+function calculateWeeklyScore(weekNum) {
+  const allTactics = getTactics();
+  if (allTactics.length === 0) return 0;
+  const weekData = getWeeklyData()[String(weekNum)];
+  if (!weekData) return 0;
+  const scores = getWeekTacticScores(weekData);
+  const allIds = allTactics.map(t => t.id);
+  const active = getWeekActiveTactics(weekData, allIds);
+  const activeTactics = allTactics.filter(t => active.has(t.id));
+  if (activeTactics.length === 0) return 0;
+  let total = 0;
+  activeTactics.forEach(t => { total += (scores[t.id] || 0); });
+  return Math.round(total / activeTactics.length);
+}
+
+// Highest week (1-12) that has check-in data
+function getHighestScoredWeek() {
+  const weeklyData = getWeeklyData();
+  let highest = 0;
+  for (let w = 1; w <= 12; w++) {
+    if (weeklyData[String(w)]) highest = w;
+  }
+  return highest;
+}
+
+// Weeks to include in scoring: max of current calendar week and highest week with data
+function getWeeksToScore() {
+  return Math.max(Math.min(getCurrentWeek(), 12), getHighestScoredWeek());
+}
+
+function calculateGoalScore(goalId) {
+  const tactics = getTacticsForGoal(goalId);
+  if (tactics.length === 0) return 0;
+  const weeklyData = getWeeklyData();
+  const allTacticIds = getTactics().map(t => t.id);
+  const weeksToScore = getWeeksToScore();
+  if (weeksToScore === 0) return 0;
+  let totalPossible = 0;
+  let totalEarned = 0;
+  for (let w = 1; w <= weeksToScore; w++) {
+    const wd = weeklyData[String(w)];
+    if (!wd) continue; // Skip weeks with no data
+    const scores = getWeekTacticScores(wd);
+    const active = getWeekActiveTactics(wd, allTacticIds);
+    tactics.forEach(t => {
+      if (active.has(t.id)) {
+        totalPossible += 100;
+        totalEarned += (scores[t.id] || 0);
+      }
+    });
+  }
+  if (totalPossible === 0) return 0;
+  return Math.round((totalEarned / totalPossible) * 100);
+}
+
+function calculateCycleScore() {
+  const goals = getGoals();
+  if (goals.length === 0) return 0;
+  const scores = goals.map(g => calculateGoalScore(g.id));
+  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+}
+
+/* ========== NAVIGATION ========== */
+let currentScreen = 'dashboard';
+let charts = {};
+let expandedGoals = new Set();
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => navigateTo(btn.dataset.screen));
+});
+
+function navigateTo(screen) {
+  currentScreen = screen;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.screen === screen));
+  renderScreen(screen);
+}
+
+function renderScreen(screen) {
+  if (PLAN_SCREENS[screen] && !canUsePlan()) { renderLockedScreen(screen); return; }
+  if (screen === 'dashboard') renderDashboard();
+  else if (screen === 'goals') renderGoals();
+  else if (screen === 'checkin') renderCheckin();
+  else if (screen === 'reports') renderReports();
+  else if (screen === 'learn') {} // Static content, no render needed
+  else if (screen === 'group') renderGroup();
+  else if (screen === 'team') renderTeam();
+  else if (screen === 'boards') renderBoards();
+  else if (screen === 'admin') renderAdmin();
+  else if (screen === 'settings') renderSettings();
+}
+
+/* ========== DASHBOARD ========== */
+function renderDashboard() {
+  const cycle = getCycle();
+  const goals = getGoals();
+  const el = document.getElementById('dash-content');
+
+  if (!cycle.startDate) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#127919;</div><p>No cycle configured yet.<br>Go to <strong>Settings</strong> to set up your 12 Week Year.</p></div>`;
+    return;
+  }
+
+  const currentWeek = getCurrentWeek();
+  const cycleScore = calculateCycleScore();
+  const weekProgress = Math.min(currentWeek, 13);
+
+  let weekLabel = currentWeek === 0 ? 'Not started yet' :
+    currentWeek === 13 ? 'Week 13 &mdash; Reflection' :
+    `Week ${currentWeek} of 13`;
+
+  const dates = currentWeek > 0 ? getWeekDates(cycle.startDate, currentWeek) : null;
+  const dateRange = dates ? `${formatDate(dates.start)} &ndash; ${formatDate(dates.end)}` : '';
+
+  let html = `
+    <div class="card">
+      <h3>${cycle.name || '12 Week Cycle'}</h3>
+      <div style="font-size:16px;font-weight:600;margin:4px 0">${weekLabel}</div>
+      ${dateRange ? `<div style="font-size:12px;color:var(--text-secondary)">${dateRange}</div>` : ''}
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.round((weekProgress / 13) * 100)}%"></div></div>
+      <div style="font-size:12px;color:var(--text-muted);text-align:right">${weekProgress}/13 weeks</div>
+    </div>`;
+
+  if (goals.length > 0 && (currentWeek > 0 || getHighestScoredWeek() > 0)) {
+    html += `
+    <div class="card" style="text-align:center">
+      <div class="score-label">Cycle Score</div>
+      <div class="score-big ${scoreColor(cycleScore)}">${cycleScore}%</div>
+      <div class="score-label">Average across ${goals.length} goal${goals.length !== 1 ? 's' : ''}</div>
+    </div>`;
+
+    // Goal overview
+    html += `<div class="card"><h3>Goal Progress</h3>`;
+    goals.forEach(g => {
+      const gs = calculateGoalScore(g.id);
+      html += `
+      <div class="goal-progress-row">
+        <div class="goal-progress-name">${esc(g.title)}</div>
+        <div class="goal-progress-bar"><div class="goal-progress-fill ${scoreColor(gs)}" style="width:${gs}%;background:${scoreColorHex(gs)}"></div></div>
+        <div class="goal-progress-pct ${scoreColor(gs)}">${gs}%</div>
+      </div>`;
+    });
+    html += `</div>`;
+
+    // Weekly trend chart
+    html += `<div class="card"><h3>Weekly Trend</h3><div class="chart-container"><canvas id="chart-dash-trend"></canvas></div></div>`;
+  } else if (goals.length === 0) {
+    html += `<div class="card"><div class="empty-state"><p>Add some goals in the <strong>Goals</strong> tab to start tracking.</p></div></div>`;
+  }
+
+  el.innerHTML = html;
+
+  if (goals.length > 0 && (currentWeek > 0 || getHighestScoredWeek() > 0)) {
+    renderDashTrendChart();
+  }
+}
+
+function renderDashTrendChart() {
+  const canvas = document.getElementById('chart-dash-trend');
+  if (!canvas) return;
+  if (charts.dashTrend) charts.dashTrend.destroy();
+
+  const maxWeek = getWeeksToScore();
+  const weeklyData = getWeeklyData();
+  const labels = [];
+  const data = [];
+  for (let w = 1; w <= maxWeek; w++) {
+    if (!weeklyData[String(w)]) continue; // Skip weeks with no data
+    labels.push('Wk ' + w);
+    data.push(calculateWeeklyScore(w));
+  }
+
+  const s = getComputedStyle(document.documentElement);
+  const accent = s.getPropertyValue('--accent').trim();
+  const gridColor = s.getPropertyValue('--chart-grid').trim();
+  const tickColor = s.getPropertyValue('--chart-tick').trim();
+
+  charts.dashTrend = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Weekly Score',
+        data,
+        borderColor: accent,
+        backgroundColor: accent + '22',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: accent
+      }, {
+        label: '80% Target',
+        data: Array(labels.length).fill(80),
+        borderColor: s.getPropertyValue('--success').trim(),
+        borderDash: [5, 5],
+        pointRadius: 0,
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, callback: v => v + '%' } },
+        x: { grid: { color: gridColor }, ticks: { color: tickColor } }
+      },
+      plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12, font: { size: 11 } } } }
+    }
+  });
+}
+
+/* ========== GOALS & TACTICS ========== */
+function renderGoals() {
+  const goals = getGoals();
+  const el = document.getElementById('goals-content');
+
+  if (goals.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state"><div class="empty-state-icon">&#127919;</div>
+      <p>No goals yet.<br>Add your first goal to get started.</p></div>
+      <button class="btn btn-primary" onclick="openGoalModal()">+ Add Goal</button>`;
+    return;
+  }
+
+  let html = '';
+  goals.forEach(g => {
+    const tactics = getTacticsForGoal(g.id);
+    const gs = calculateGoalScore(g.id);
+    const isExpanded = expandedGoals.has(g.id);
+    html += `
+    <div class="card goal-card${isExpanded ? ' expanded' : ''}" id="goal-${g.id}">
+      <div class="goal-header" onclick="toggleGoalExpand('${g.id}')">
+        <div class="goal-header-left">
+          <div class="goal-title">${esc(g.title)}</div>
+          <div class="goal-score-badge ${scoreColor(gs)}">${gs}%</div>
+        </div>
+        <span class="goal-chevron">&#9660;</span>
+      </div>
+      <div class="goal-body">
+        ${g.description ? `<div class="goal-desc">${esc(g.description)}</div>` : ''}
+        <h3>Tactics (${tactics.length})</h3>`;
+    if (tactics.length === 0) {
+      html += `<div style="font-size:13px;color:var(--text-muted);padding:8px 0">No tactics yet.</div>`;
+    }
+    tactics.forEach(t => {
+      html += `
+        <div class="tactic-row">
+          <div class="tactic-title">${esc(t.title)}</div>
+          <div class="tactic-actions">
+            <button class="icon-btn" onclick="openTacticModal('${g.id}','${t.id}')" title="Edit">&#9998;</button>
+            <button class="icon-btn danger" onclick="deleteTactic('${t.id}')" title="Delete">&#10005;</button>
+          </div>
+        </div>`;
+    });
+    html += `
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="openTacticModal('${g.id}')">+ Add Tactic</button>
+        <div class="goal-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openGoalModal('${g.id}')">Edit Goal</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteGoal('${g.id}')">Delete Goal</button>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  html += `<button class="btn btn-primary" style="margin-top:8px" onclick="openGoalModal()">+ Add Goal</button>`;
+  el.innerHTML = html;
+}
+
+function toggleGoalExpand(goalId) {
+  if (expandedGoals.has(goalId)) expandedGoals.delete(goalId);
+  else expandedGoals.add(goalId);
+  document.getElementById('goal-' + goalId).classList.toggle('expanded');
+}
+
+function openGoalModal(goalId) {
+  const isEdit = !!goalId;
+  document.getElementById('modal-goal-title').textContent = isEdit ? 'Edit Goal' : 'Add Goal';
+  if (isEdit) {
+    const g = getGoals().find(x => x.id === goalId);
+    document.getElementById('modal-goal-id').value = goalId;
+    document.getElementById('modal-goal-name').value = g ? g.title : '';
+    document.getElementById('modal-goal-desc').value = g ? g.description : '';
+  } else {
+    document.getElementById('modal-goal-id').value = '';
+    document.getElementById('modal-goal-name').value = '';
+    document.getElementById('modal-goal-desc').value = '';
+  }
+  document.getElementById('modal-goal').classList.add('show');
+  document.getElementById('modal-goal-name').focus();
+}
+
+function saveGoal() {
+  const id = document.getElementById('modal-goal-id').value;
+  const title = document.getElementById('modal-goal-name').value.trim();
+  const desc = document.getElementById('modal-goal-desc').value.trim();
+  if (!title) return;
+
+  const goals = getGoals();
+  if (id) {
+    const g = goals.find(x => x.id === id);
+    if (g) { g.title = title; g.description = desc; }
+  } else {
+    goals.push({ id: genId(), title, description: desc, order: goals.length });
+  }
+  save(KEYS.goals, goals);
+  closeModal('modal-goal');
+  renderGoals();
+}
+
+function deleteGoal(goalId) {
+  if (!confirm('Delete this goal and all its tactics? This cannot be undone.')) return;
+  save(KEYS.goals, getGoals().filter(g => g.id !== goalId));
+  save(KEYS.tactics, getTactics().filter(t => t.goalId !== goalId));
+  cleanupDeletedTactics();
+  renderGoals();
+}
+
+function openTacticModal(goalId, tacticId) {
+  const isEdit = !!tacticId;
+  document.getElementById('modal-tactic-title').textContent = isEdit ? 'Edit Tactic' : 'Add Tactic';
+  document.getElementById('modal-tactic-goalid').value = goalId;
+  if (isEdit) {
+    const t = getTactics().find(x => x.id === tacticId);
+    document.getElementById('modal-tactic-id').value = tacticId;
+    document.getElementById('modal-tactic-name').value = t ? t.title : '';
+    document.getElementById('modal-tactic-desc').value = t ? t.description : '';
+  } else {
+    document.getElementById('modal-tactic-id').value = '';
+    document.getElementById('modal-tactic-name').value = '';
+    document.getElementById('modal-tactic-desc').value = '';
+  }
+  document.getElementById('modal-tactic').classList.add('show');
+  document.getElementById('modal-tactic-name').focus();
+}
+
+function saveTactic() {
+  const id = document.getElementById('modal-tactic-id').value;
+  const goalId = document.getElementById('modal-tactic-goalid').value;
+  const title = document.getElementById('modal-tactic-name').value.trim();
+  const desc = document.getElementById('modal-tactic-desc').value.trim();
+  if (!title) return;
+
+  const isEdit = !!id;
+  const tactics = getTactics();
+  if (isEdit) {
+    const t = tactics.find(x => x.id === id);
+    if (t) { t.title = title; t.description = desc; }
+  } else {
+    const goalTactics = tactics.filter(t => t.goalId === goalId);
+    tactics.push({ id: genId(), goalId, title, description: desc, order: goalTactics.length });
+  }
+  save(KEYS.tactics, tactics);
+  expandedGoals.add(goalId);
+
+  if (isEdit) {
+    closeModal('modal-tactic');
+  } else {
+    // Clear fields for quick consecutive adds
+    document.getElementById('modal-tactic-name').value = '';
+    document.getElementById('modal-tactic-desc').value = '';
+    document.getElementById('modal-tactic-name').focus();
+  }
+  renderGoals();
+}
+
+function deleteTactic(tacticId) {
+  if (!confirm('Delete this tactic?')) return;
+  save(KEYS.tactics, getTactics().filter(t => t.id !== tacticId));
+  cleanupDeletedTactics();
+  renderGoals();
+}
+
+function cleanupDeletedTactics() {
+  const tacticIds = new Set(getTactics().map(t => t.id));
+  const weeklyData = getWeeklyData();
+  let changed = false;
+  Object.values(weeklyData).forEach(week => {
+    if (week.tacticScores) {
+      Object.keys(week.tacticScores).forEach(id => {
+        if (!tacticIds.has(id)) { delete week.tacticScores[id]; changed = true; }
+      });
+    }
+    if (week.completedTactics) {
+      const filtered = week.completedTactics.filter(id => tacticIds.has(id));
+      if (filtered.length !== week.completedTactics.length) {
+        week.completedTactics = filtered;
+        changed = true;
+      }
+    }
+  });
+  if (changed) save(KEYS.weekly, weeklyData);
+}
+
+/* ========== WEEKLY CHECK-IN ========== */
+let selectedWeek = 0;
+
+const WEEKLY_QUESTIONS = [
+  'What did you accomplish LAST week?',
+  'Any lessons, insights, or take-aways?',
+  'What is your plan for THIS week?',
+  "What's your biggest challenge this week?",
+  'Where do you need help?'
+];
+
+const WEEK13_QUESTIONS = [
+  'Proudest Achievements: Looking back over the past quarter, what are the things you have achieved that make you the PROUDEST?',
+  'Areas of Confidence: What are the current areas of focus and progress that make you the MOST CONFIDENT?',
+  'Future Excitement: Looking ahead at the next quarter, what new developments, projects, or goals are giving you THE GREATEST SENSE OF EXCITEMENT?',
+  'Five New "Jumps": What are the five new "jumps" (progress) you can now achieve that will make your next 90 days a great quarter regardless of what else happens?'
+];
+
+function renderCheckin() {
+  const cycle = getCycle();
+  const goals = getGoals();
+  const tactics = getTactics();
+  const el = document.getElementById('checkin-content');
+
+  if (!cycle.startDate) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128203;</div><p>Set up your cycle in <strong>Settings</strong> first.</p></div>`;
+    return;
+  }
+  if (tactics.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128203;</div><p>Add some goals and tactics in the <strong>Goals</strong> tab first.</p></div>`;
+    return;
+  }
+
+  const currentWeek = getCurrentWeek();
+  if (selectedWeek === 0) selectedWeek = Math.max(currentWeek, 1);
+
+  // WAM + tracker links (side by side)
+  let html = '';
+  const navLinks = [];
+  if (cycle.wamLink) {
+    navLinks.push(`<a href="${esc(cycle.wamLink)}" target="_blank" class="wam-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
+      Join Weekly WAM Meeting
+    </a>`);
+  }
+  if (cycle.trackerLink) {
+    navLinks.push(`<a href="${esc(cycle.trackerLink)}" target="_blank" class="wam-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+      Open Google Sheet Tracker
+    </a>`);
+  }
+  if (navLinks.length) {
+    html += `<div class="wam-link-row">${navLinks.join('')}</div>`;
+  }
+
+  // Week selector chips
+  html += `<div class="chip-group" id="week-chips">`;
+  for (let w = 1; w <= 13; w++) {
+    const isActive = w === selectedWeek;
+    const isCurrent = w === currentWeek;
+    let cls = 'chip';
+    if (isActive) cls += ' active';
+    else if (isCurrent) cls += ' current-week';
+    const label = w === 13 ? '13*' : w;
+    html += `<button class="${cls}" onclick="selectWeek(${w})">${label}</button>`;
+  }
+  html += `</div>`;
+
+  // Week date range
+  const dates = getWeekDates(cycle.startDate, selectedWeek);
+  const sub = document.getElementById('checkin-subtitle');
+  sub.innerHTML = `Week ${selectedWeek} &mdash; ${formatDate(dates.start)} to ${formatDate(dates.end)}`;
+
+  const weeklyData = getWeeklyData();
+  const weekSaved = weeklyData.hasOwnProperty(String(selectedWeek));
+  const weekData = weeklyData[String(selectedWeek)] || {};
+  const tacticScores = getWeekTacticScores(weekData);
+  const allTacticIds = tactics.map(t => t.id);
+  const activeTactics = getWeekActiveTactics(weekSaved ? weekData : null, allTacticIds);
+  const reflections = weekData.reflections || {};
+
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+
+  if (selectedWeek <= 12) {
+    // Tactic scoring
+    html += `<div class="card"><h3>Tactic Scoring</h3><div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Uncheck tactics not pursued this week</div>`;
+    goals.forEach(g => {
+      const gt = getTacticsForGoal(g.id);
+      if (gt.length === 0) return;
+      html += `<div class="checkin-goal-header">${esc(g.title)}</div>`;
+      gt.forEach(t => {
+        const isActive = activeTactics.has(t.id);
+        const score = tacticScores[t.id] || 0;
+        html += `
+        <div class="checkin-tactic${isActive ? '' : ' inactive'}" id="ct-row-${t.id}">
+          <div class="checkin-tactic-header">
+            <input type="checkbox" class="checkin-tactic-toggle" data-tactic-id="${t.id}" ${isActive ? 'checked' : ''} onchange="toggleTacticActive(this)" title="Include this week">
+            <div class="checkin-tactic-title">${esc(t.title)}</div>
+            <div class="checkin-tactic-value ${isActive ? scoreColor(score) : ''}" id="val-${t.id}">${isActive ? score + '%' : '--'}</div>
+          </div>
+          <input type="range" min="0" max="100" step="1" value="${isActive ? score : 0}" data-tactic-id="${t.id}" oninput="updateTacticSlider(this)"${isActive ? '' : ' disabled'}>
+        </div>`;
+      });
+    });
+    html += `<div class="checkin-score-preview" id="checkin-preview"></div>`;
+    html += `</div>`;
+  } else {
+    // Week 13 - show cycle score summary
+    const cycleScore = calculateCycleScore();
+    html += `
+    <div class="card" style="text-align:center">
+      <div class="score-label">Final Cycle Score</div>
+      <div class="score-big ${scoreColor(cycleScore)}">${cycleScore}%</div>
+    </div>`;
+  }
+
+  // Reflections
+  html += `<div class="card"><h3>${selectedWeek === 13 ? 'Cycle Reflection' : 'Weekly Reflections'}</h3>`;
+  questions.forEach((q, i) => {
+    const val = reflections['q' + (i + 1)] || '';
+    html += `<div class="reflection-group">
+      <label class="reflection-label">${q}</label>`;
+    // Q3 ("What is your plan for THIS week?") gets tactic checkboxes
+    if (selectedWeek <= 12 && questions === WEEKLY_QUESTIONS && i === 2) {
+      const plannedSet = new Set(weekData.plannedTactics || []);
+      html += `<div class="planned-tactics-list" style="margin-bottom:8px">`;
+      goals.forEach(g => {
+        const gt = getTacticsForGoal(g.id);
+        if (gt.length === 0) return;
+        html += `<div style="font-size:12px;color:var(--text-muted);margin:8px 0 4px;font-weight:600">${esc(g.title)}</div>`;
+        gt.forEach(t => {
+          const checked = plannedSet.has(t.id) ? ' checked' : '';
+          html += `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:14px">
+            <input type="checkbox" class="planned-tactic-toggle" data-tactic-id="${t.id}"${checked} onchange="updatePlannedTacticsText()">
+            ${esc(t.title)}
+          </label>`;
+        });
+      });
+      html += `</div>`;
+      html += `<textarea id="reflection-q${i + 1}" rows="3" placeholder="Additional comments (optional)">${esc(val)}</textarea>`;
+    } else {
+      html += `<textarea id="reflection-q${i + 1}" rows="3">${esc(val)}</textarea>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  html += `<button class="btn btn-secondary" id="copy-tracker-btn" style="margin-bottom:8px" onclick="copyCheckinForTracker()">Copy answers for Google Sheet</button>`;
+  html += `<button class="btn btn-secondary" style="margin-bottom:8px" onclick="printCheckin()">Print Check-in</button>`;
+  html += `<button class="btn btn-primary" onclick="saveCheckin()">Save Week ${selectedWeek}</button>`;
+  const hasWeekData = !!getWeeklyData()[String(selectedWeek)];
+  if (hasWeekData) {
+    html += `<button class="btn btn-danger" style="margin-top:8px" onclick="resetWeek(${selectedWeek})">Reset Week ${selectedWeek}</button>`;
+  }
+
+  el.innerHTML = html;
+  if (selectedWeek <= 12) updateCheckinPreview();
+}
+
+function selectWeek(w) {
+  selectedWeek = w;
+  renderCheckin();
+}
+
+function toggleTacticActive(checkbox) {
+  const id = checkbox.dataset.tacticId;
+  const row = document.getElementById('ct-row-' + id);
+  const slider = row.querySelector('input[type="range"]');
+  const label = document.getElementById('val-' + id);
+  if (checkbox.checked) {
+    row.classList.remove('inactive');
+    slider.disabled = false;
+    const val = Number(slider.value);
+    label.textContent = val + '%';
+    label.className = 'checkin-tactic-value ' + scoreColor(val);
+  } else {
+    row.classList.add('inactive');
+    slider.disabled = true;
+    label.textContent = '--';
+    label.className = 'checkin-tactic-value';
+  }
+  updateCheckinPreview();
+}
+
+function updateTacticSlider(slider) {
+  const val = slider.value;
+  const id = slider.dataset.tacticId;
+  const label = document.getElementById('val-' + id);
+  if (label) {
+    label.textContent = val + '%';
+    label.className = 'checkin-tactic-value ' + scoreColor(Number(val));
+  }
+  updateCheckinPreview();
+}
+
+function updatePlannedTacticsText() {
+  const textarea = document.getElementById('reflection-q3');
+  if (!textarea) return;
+  const allTactics = getTactics();
+  const tacticMap = {};
+  allTactics.forEach(t => { tacticMap[t.id] = t.title; });
+  const selected = [];
+  document.querySelectorAll('.planned-tactic-toggle:checked').forEach(cb => {
+    const title = tacticMap[cb.dataset.tacticId];
+    if (title) selected.push('- ' + title);
+  });
+  // Preserve any user-added comments after the tactic list
+  const current = textarea.value;
+  const marker = '---';
+  const parts = current.split(marker);
+  const userComments = parts.length > 1 ? parts.slice(1).join(marker).trim() : '';
+  if (selected.length > 0) {
+    textarea.value = selected.join('\n') + (userComments ? '\n' + marker + '\n' + userComments : '');
+  } else {
+    textarea.value = userComments;
+  }
+}
+
+function updateCheckinPreview() {
+  const activeToggles = document.querySelectorAll('.checkin-tactic-toggle:checked');
+  const activeCount = activeToggles.length;
+  const totalCount = document.querySelectorAll('.checkin-tactic-toggle').length;
+  if (activeCount === 0) {
+    const preview = document.getElementById('checkin-preview');
+    if (preview) preview.innerHTML = `<span style="color:var(--text-muted)">No tactics active this week</span>`;
+    return;
+  }
+  let sum = 0;
+  activeToggles.forEach(toggle => {
+    const id = toggle.dataset.tacticId;
+    const slider = document.querySelector(`.checkin-tactic input[type="range"][data-tactic-id="${id}"]`);
+    if (slider) sum += Number(slider.value);
+  });
+  const pct = Math.round(sum / activeCount);
+  const preview = document.getElementById('checkin-preview');
+  if (preview) {
+    preview.innerHTML = `<strong class="${scoreColor(pct)}">${pct}%</strong><br>Average across ${activeCount} of ${totalCount} tactics`;
+  }
+}
+
+function saveCheckin() {
+  const weeklyData = getWeeklyData();
+  const entry = { reflections: {} };
+
+  if (selectedWeek <= 12) {
+    entry.activeTactics = [];
+    entry.tacticScores = {};
+    document.querySelectorAll('.checkin-tactic-toggle').forEach(toggle => {
+      if (toggle.checked) {
+        const id = toggle.dataset.tacticId;
+        entry.activeTactics.push(id);
+        const slider = document.querySelector(`.checkin-tactic input[type="range"][data-tactic-id="${id}"]`);
+        entry.tacticScores[id] = slider ? Number(slider.value) : 0;
+      }
+    });
+  }
+
+  // Save planned tactics for "What is your plan for THIS week?"
+  if (selectedWeek <= 12) {
+    entry.plannedTactics = [];
+    document.querySelectorAll('.planned-tactic-toggle').forEach(cb => {
+      if (cb.checked) entry.plannedTactics.push(cb.dataset.tacticId);
+    });
+  }
+
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+  questions.forEach((q, i) => {
+    const textarea = document.getElementById('reflection-q' + (i + 1));
+    if (textarea) entry.reflections['q' + (i + 1)] = textarea.value.trim();
+  });
+
+  weeklyData[String(selectedWeek)] = entry;
+  save(KEYS.weekly, weeklyData);
+  autoBackupIfEnabled();
+  syncCheckinShare(selectedWeek);
+
+  // Show result
+  const score = selectedWeek <= 12 ? calculateWeeklyScore(selectedWeek) : calculateCycleScore();
+  document.getElementById('result-title').textContent = selectedWeek <= 12 ? `Week ${selectedWeek} Score` : 'Cycle Score';
+  document.getElementById('result-score').textContent = score + '%';
+  document.getElementById('result-score').className = 'score-big ' + scoreColor(score);
+  document.getElementById('result-detail').textContent = selectedWeek <= 12 ? 'Keep pushing toward 80%+ weekly execution!' : 'Cycle complete. Time to plan the next one!';
+  document.getElementById('result-overlay').classList.add('show');
+}
+
+function getCurrentCheckinScore() {
+  // Week 13 captures the overall cycle score; weeks 1-12 use the live weekly
+  // score computed from the active tactics and their sliders (matches preview).
+  if (selectedWeek > 12) return calculateCycleScore();
+  const activeToggles = document.querySelectorAll('.checkin-tactic-toggle:checked');
+  if (activeToggles.length === 0) return 0;
+  let sum = 0;
+  activeToggles.forEach(toggle => {
+    const id = toggle.dataset.tacticId;
+    const slider = document.querySelector(`.checkin-tactic input[type="range"][data-tactic-id="${id}"]`);
+    if (slider) sum += Number(slider.value);
+  });
+  return Math.round(sum / activeToggles.length);
+}
+
+function copyCheckinForTracker() {
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+  // Read the answers currently on screen, flattening line breaks/tabs so each
+  // answer stays within a single spreadsheet cell.
+  const answers = questions.map((q, i) => {
+    const ta = document.getElementById('reflection-q' + (i + 1));
+    const v = ta ? ta.value : '';
+    return v.replace(/\t/g, ' ').replace(/\r?\n+/g, '; ').trim();
+  });
+  // Column layout to match the tracker: the week's score sits 3 cells above the
+  // first question, i.e. score, then two blank cells, then the 5 answers.
+  // Paste the score as a decimal fraction (e.g. 0.8) so a percent-formatted
+  // tracker cell shows it as 80% and keeps its existing format.
+  const score = getCurrentCheckinScore();
+  const cells = [String(score / 100), '', '', ...answers];
+  // Newline-separated => one column, one cell per line when pasted down.
+  const row = cells.join('\n');
+  const btn = document.getElementById('copy-tracker-btn');
+  const done = () => {
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = 'Copied! Paste into the tracker';
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(row).then(done).catch(() => fallbackCopy(row, done));
+  } else {
+    fallbackCopy(row, done);
+  }
+}
+
+function fallbackCopy(text, onDone) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); onDone && onDone(); }
+  catch (e) { alert('Could not copy automatically. Please copy manually.'); }
+  document.body.removeChild(ta);
+}
+
+function printCheckin() {
+  const cycle = getCycle();
+  if (!cycle.startDate) { alert('Set up your cycle in Settings first.'); return; }
+  const goals = getGoals();
+  const dates = getWeekDates(cycle.startDate, selectedWeek);
+  const score = getCurrentCheckinScore();
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+  const cycleName = cycle.name || 'My Plan+';
+
+  function sc(pct) { return pct >= 80 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626'; }
+
+  let h = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Week ' + selectedWeek + ' Check-in</title>';
+  h += '<style>';
+  h += '@page{size:A4;margin:15mm}';
+  h += 'body{background:#fff;color:#1a1d27;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px;line-height:1.55;margin:0;padding:24px}';
+  h += '.header-banner{background:linear-gradient(135deg,#4350d4,#6c7bff);border-radius:10px;padding:24px;text-align:center;color:#fff;margin-bottom:16px}';
+  h += '.header-banner h1{margin:0;font-size:22px}.header-banner p{margin:4px 0 0;opacity:.9;font-size:14px}';
+  h += '.card{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
+  h += '.score-big{font-size:28px;font-weight:700}.secondary{color:#6b7280}';
+  h += '.tactic-score-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px}';
+  h += '.reflection-q{color:#4350d4;font-weight:600;font-size:12px;margin-top:10px}';
+  h += '.reflection-a{color:#374151;margin:3px 0 8px;white-space:pre-wrap;word-wrap:break-word;font-size:12px}';
+  h += '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+  h += '</style></head><body>';
+
+  h += '<div class="header-banner"><h1>Weekly Check-in</h1><p>Week ' + selectedWeek + (selectedWeek === 13 ? ' (Review)' : '') + ' &middot; ' + formatDate(dates.start) + ' to ' + formatDate(dates.end) + '</p></div>';
+
+  h += '<div class="card" style="display:flex;justify-content:space-between;align-items:center">';
+  h += '<div class="secondary">' + esc(cycleName) + '</div>';
+  h += '<div style="text-align:right"><div class="secondary">' + (selectedWeek <= 12 ? 'Week Score' : 'Cycle Score') + '</div><div class="score-big" style="color:' + sc(score) + '">' + score + '%</div></div>';
+  h += '</div>';
+
+  // Tactic scoring (weeks 1-12) — read live from the active tactics on screen
+  if (selectedWeek <= 12) {
+    let body = '';
+    goals.forEach(function(g) {
+      let ghtml = '';
+      getTacticsForGoal(g.id).forEach(function(t) {
+        const toggle = document.querySelector('.checkin-tactic-toggle[data-tactic-id="' + t.id + '"]');
+        if (!toggle || !toggle.checked) return;
+        const slider = document.querySelector('.checkin-tactic input[type="range"][data-tactic-id="' + t.id + '"]');
+        const val = slider ? Number(slider.value) : 0;
+        ghtml += '<div class="tactic-score-row"><span>' + esc(t.title) + '</span><span style="font-weight:700;color:' + sc(val) + '">' + val + '%</span></div>';
+      });
+      if (ghtml) body += '<div style="color:#6c7bff;font-weight:700;margin:6px 0 2px">' + esc(g.title) + '</div>' + ghtml;
+    });
+    if (body) h += '<div class="card"><strong>Tactic Scoring</strong>' + body + '</div>';
+  }
+
+  // Reflections — read live from the textareas so the full text prints
+  h += '<div class="card"><strong>' + (selectedWeek === 13 ? 'Cycle Reflection' : 'Weekly Reflections') + '</strong>';
+  questions.forEach(function(q, i) {
+    const ta = document.getElementById('reflection-q' + (i + 1));
+    const ans = ta ? ta.value.trim() : '';
+    h += '<div class="reflection-q">' + q + '</div><div class="reflection-a">' + (ans ? esc(ans) : '<span class="secondary">&mdash;</span>') + '</div>';
+  });
+  h += '</div>';
+
+  h += '</body></html>';
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Please allow pop-ups to print the check-in.'); return; }
+  win.document.write(h);
+  win.document.close();
+  setTimeout(function() { win.print(); }, 500);
+}
+
+function resetWeek(weekNum) {
+  if (!confirm(`Reset Week ${weekNum}? This will remove all scores and reflections for this week.`)) return;
+  const weeklyData = getWeeklyData();
+  delete weeklyData[String(weekNum)];
+  save(KEYS.weekly, weeklyData);
+  autoBackupIfEnabled();
+  removeSharedCheckin(weekNum);
+  renderCheckin();
+}
+
+function closeResult() {
+  document.getElementById('result-overlay').classList.remove('show');
+}
+
+/* ========== REPORTS ========== */
+function renderReports() {
+  const cycle = getCycle();
+  const goals = getGoals();
+  const tactics = getTactics();
+  const el = document.getElementById('reports-content');
+
+  if (!cycle.startDate || goals.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128202;</div><p>Set up your cycle and add goals to see reports.</p></div>`;
+    return;
+  }
+
+  const currentWeek = getCurrentWeek();
+  const weeklyData = getWeeklyData();
+  const weeksCompleted = Object.keys(weeklyData).filter(k => Number(k) >= 1 && Number(k) <= 12 && weeklyData[k]).length;
+  const cycleScore = calculateCycleScore();
+
+  let html = `
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-value ${scoreColor(cycleScore)}">${cycleScore}%</div><div class="stat-label">Cycle Score</div></div>
+    <div class="stat-card"><div class="stat-value">${weeksCompleted}</div><div class="stat-label">Weeks Scored</div></div>
+    <div class="stat-card"><div class="stat-value">${goals.length}</div><div class="stat-label">Goals</div></div>
+  </div>`;
+
+  // Weekly scores line chart
+  html += `<div class="card"><h3>Weekly Scores</h3><div class="chart-container"><canvas id="chart-report-weekly"></canvas></div></div>`;
+
+  // Goal breakdown bar chart
+  html += `<div class="card"><h3>Goal Breakdown</h3><div class="chart-container"><canvas id="chart-report-goals"></canvas></div></div>`;
+
+  // Per-goal detail grids
+  html += `<div class="card"><h3>Tactic Score Grid</h3>`;
+  goals.forEach(g => {
+    const gt = getTacticsForGoal(g.id);
+    const gs = calculateGoalScore(g.id);
+    html += `<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><strong style="font-size:14px">${esc(g.title)}</strong><span class="goal-score-badge ${scoreColor(gs)}">${gs}%</span></div>`;
+    if (gt.length > 0) {
+      html += `<div class="tactic-grid"><table><thead><tr><th style="text-align:left">Tactic</th>`;
+      for (let w = 1; w <= 12; w++) html += `<th>${w}</th>`;
+      html += `</tr></thead><tbody>`;
+      gt.forEach(t => {
+        html += `<tr><td class="tactic-name" title="${esc(t.title)}">${esc(t.title)}</td>`;
+        for (let w = 1; w <= 12; w++) {
+          const wd = weeklyData[String(w)];
+          if (!wd) {
+            html += `<td class="future">&mdash;</td>`;
+          } else {
+            const allIds = getTactics().map(x => x.id);
+            const active = getWeekActiveTactics(wd, allIds);
+            if (!active.has(t.id)) {
+              html += `<td class="future" style="font-size:10px">&mdash;</td>`;
+            } else {
+              const scores = getWeekTacticScores(wd);
+              const sc = scores[t.id] || 0;
+              html += `<td class="${sc >= 80 ? 'done' : sc > 0 ? 'missed' : 'future'}" style="font-size:10px">${sc}%</td>`;
+            }
+          }
+        }
+        html += `</tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  // Weekly reports (expandable)
+  html += `<div class="card"><h3>Weekly Reports</h3>`;
+  const maxReportWeek = Math.max(Math.min(currentWeek, 13), getHighestScoredWeek());
+  for (let w = 1; w <= maxReportWeek; w++) {
+    const wd = weeklyData[String(w)];
+    const ws = w <= 12 ? calculateWeeklyScore(w) : calculateCycleScore();
+    const hasData = wd && (wd.tacticScores || wd.completedTactics || wd.reflections);
+    const dates = getWeekDates(cycle.startDate, w);
+    const questions = w === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+
+    html += `
+    <div class="week-report-card card" style="margin-bottom:8px;cursor:pointer" onclick="this.classList.toggle('expanded')">
+      <div class="week-report-header">
+        <div>
+          <div style="font-size:14px;font-weight:600">Week ${w}${w === 13 ? ' (Review)' : ''}</div>
+          <div style="font-size:12px;color:var(--text-secondary)">${formatDate(dates.start)} &ndash; ${formatDate(dates.end)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="goal-score-badge ${scoreColor(ws)}">${hasData ? ws + '%' : '--'}</span>
+          <span class="goal-chevron">&#9660;</span>
+        </div>
+      </div>
+      <div class="week-report-body">`;
+
+    if (!hasData) {
+      html += `<div style="font-size:13px;color:var(--text-muted)">No check-in data for this week.</div>`;
+    } else {
+      if (w <= 12) {
+        const wScores = getWeekTacticScores(wd);
+        const allIds = getTactics().map(t => t.id);
+        const wActive = getWeekActiveTactics(wd, allIds);
+        html += `<div style="margin-bottom:12px"><strong style="font-size:12px;color:var(--text-secondary)">TACTIC SCORES</strong>`;
+        goals.forEach(g => {
+          const gt = getTacticsForGoal(g.id).filter(t => wActive.has(t.id));
+          if (gt.length === 0) return;
+          gt.forEach(t => {
+            const sc = wScores[t.id] || 0;
+            html += `<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${esc(t.title)}</span><span class="${scoreColor(sc)}" style="font-weight:600">${sc}%</span></div>`;
+          });
+        });
+        html += `</div>`;
+      }
+
+      if (wd.reflections) {
+        questions.forEach((q, i) => {
+          const ans = wd.reflections['q' + (i + 1)];
+          if (ans) {
+            html += `<div class="reflection-answer"><strong>${q}</strong>${esc(ans)}</div>`;
+          }
+        });
+      }
+    }
+
+    html += `</div></div>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+  renderReportCharts();
+}
+
+function renderReportCharts() {
+  const s = getComputedStyle(document.documentElement);
+  const accent = s.getPropertyValue('--accent').trim();
+  const gridColor = s.getPropertyValue('--chart-grid').trim();
+  const tickColor = s.getPropertyValue('--chart-tick').trim();
+  const successColor = s.getPropertyValue('--success').trim();
+  const maxChartWeek = getWeeksToScore();
+
+  // Weekly line chart
+  const weeklyCanvas = document.getElementById('chart-report-weekly');
+  if (weeklyCanvas) {
+    if (charts.reportWeekly) charts.reportWeekly.destroy();
+    const weeklyData = getWeeklyData();
+    const chartWeeks = [];
+    const labels = [];
+    const overallData = [];
+    for (let w = 1; w <= maxChartWeek; w++) {
+      if (!weeklyData[String(w)]) continue; // Skip weeks with no data
+      chartWeeks.push(w);
+      labels.push('Wk ' + w);
+      overallData.push(calculateWeeklyScore(w));
+    }
+
+    const datasets = [{
+      label: 'Overall',
+      data: overallData,
+      borderColor: accent,
+      backgroundColor: accent + '22',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3,
+      pointBackgroundColor: accent
+    }, {
+      label: '80% Target',
+      data: Array(labels.length).fill(80),
+      borderColor: successColor,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false
+    }];
+
+    // Per-goal lines
+    const goalColors = ['#f472b6', '#fb923c', '#a78bfa', '#34d399', '#fbbf24', '#60a5fa'];
+    const goals = getGoals();
+    goals.forEach((g, i) => {
+      const gData = [];
+      chartWeeks.forEach(w => {
+        const gt = getTacticsForGoal(g.id);
+        if (gt.length === 0) { gData.push(0); return; }
+        const wd = weeklyData[String(w)];
+        const scores = getWeekTacticScores(wd);
+        const allIds = getTactics().map(t => t.id);
+        const active = getWeekActiveTactics(wd, allIds);
+        const activeGt = gt.filter(t => active.has(t.id));
+        if (activeGt.length === 0) { gData.push(0); return; }
+        let sum = 0;
+        activeGt.forEach(t => { sum += (scores[t.id] || 0); });
+        gData.push(Math.round(sum / activeGt.length));
+      });
+      datasets.push({
+        label: g.title,
+        data: gData,
+        borderColor: goalColors[i % goalColors.length],
+        borderDash: [4, 4],
+        pointRadius: 2,
+        fill: false,
+        tension: 0.3
+      });
+    });
+
+    charts.reportWeekly = new Chart(weeklyCanvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, callback: v => v + '%' } },
+          x: { grid: { color: gridColor }, ticks: { color: tickColor } }
+        },
+        plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12, font: { size: 10 } } } }
+      }
+    });
+  }
+
+  // Goal bar chart
+  const goalsCanvas = document.getElementById('chart-report-goals');
+  if (goalsCanvas) {
+    if (charts.reportGoals) charts.reportGoals.destroy();
+    const goals = getGoals();
+    const labels = goals.map(g => g.title);
+    const data = goals.map(g => calculateGoalScore(g.id));
+    const bgColors = data.map(d => scoreColorHex(d) + 'aa');
+    const borderColors = data.map(d => scoreColorHex(d));
+
+    charts.reportGoals = new Chart(goalsCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ label: 'Goal Score', data, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 1 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: {
+          x: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, callback: v => v + '%' } },
+          y: { grid: { display: false }, ticks: { color: tickColor, font: { size: 11 } } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+}
+
+/* ========== SETTINGS ========== */
+function renderSettings() {
+  const cycle = getCycle();
+  const el = document.getElementById('settings-content');
+
+  const endDate = getCycleEndDate();
+
+  el.innerHTML = renderAccountCard() + `
+  <div class="card">
+    <h3>Cycle Configuration</h3>
+    ${communityCycleNote()}
+    <div class="form-group">
+      <label class="form-label">Cycle Name</label>
+      <input type="text" id="set-cycle-name" value="${esc(cycle.name)}" placeholder="e.g. Q2 2026">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Start Date</label>
+      <input type="date" id="set-cycle-start" value="${cycle.startDate}">
+    </div>
+    ${endDate ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Cycle ends: ${formatDate(endDate)} (13 weeks)</div>` : ''}
+    <div class="form-group">
+      <label class="form-label">Weekly WAM Meeting Link (Zoom, Teams, etc.)</label>
+      <input type="text" id="set-wam-link" value="${esc(cycle.wamLink || '')}" placeholder="e.g. https://zoom.us/j/123456789">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Google Sheet Tracker Link</label>
+      <input type="text" id="set-tracker-link" value="${esc(cycle.trackerLink || '')}" placeholder="e.g. https://docs.google.com/spreadsheets/...">
+    </div>
+    <button class="btn btn-primary" onclick="saveCycleSettings()">Save Cycle Settings</button>
+  </div>
+
+  <div class="card" style="border:1px solid var(--warning);background:rgba(251,191,36,0.05)">
+    <h3 style="color:var(--warning)">Your Data</h3>
+    <p style="font-size:13px;line-height:1.7;color:var(--text-secondary);margin-bottom:0">
+      Your plan is saved to <strong style="color:var(--text-primary)">your account in the cloud</strong> every time you save, so you can sign in from any device or browser. A copy is also kept in this browser so the app keeps working if you briefly lose connection. We still recommend exporting a backup file from time to time &mdash; especially at the end of each cycle.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Full Backup</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Saves everything: cycle settings, goals, tactics, weekly scores, and reflections. Use this to transfer data between browsers or restore after cache clearing.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="set-auto-backup" ${getSettings().autoBackup ? 'checked' : ''} onchange="toggleAutoBackup(this.checked)" style="width:18px;height:18px;cursor:pointer">
+        Auto-backup on every save or reset
+      </label>
+    </div>
+    <p style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">When enabled, a backup file will automatically download each time you save a check-in, reset a week, or save cycle settings.</p>
+    <button class="btn btn-primary" style="margin-bottom:8px" onclick="exportFullBackup()">Export Full Backup (JSON)</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">Import Full Backup (JSON)</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importFullBackup(event)">
+  </div>
+
+  <div class="card">
+    <h3>Cycle Archive</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Archive this cycle as a styled PDF report and CSV data export, then optionally reset to start a new cycle.</p>
+    <button class="btn btn-primary" style="margin-bottom:8px" onclick="archiveCycle()">Archive Cycle (PDF + CSV)</button>
+    <button class="btn btn-danger" onclick="resetCycle()">Reset &amp; Start New Cycle</button>
+  </div>
+
+  <div class="card">
+    <h3>Danger Zone</h3>
+    <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+  </div>
+
+  <div class="card">
+    <h3>How to Use My Plan+</h3>
+    <ol style="font-size:13px;line-height:1.8;color:var(--text-secondary);padding-left:18px;margin:0">
+      <li><strong style="color:var(--text-primary)">Set up your cycle</strong> &mdash; Enter a cycle name, start date, and optional WAM meeting link above.</li>
+      <li><strong style="color:var(--text-primary)">Define goals &amp; tactics</strong> &mdash; Go to the Goals screen to create 2&ndash;5 goals. Add specific, measurable tactics under each goal.</li>
+      <li><strong style="color:var(--text-primary)">Weekly check-in</strong> &mdash; Each week, open the Check-in screen. Score your tactics with the sliders, then select which tactics you plan to focus on next week under &ldquo;What is your plan for this week?&rdquo; &mdash; these will pre-populate the following week&rsquo;s active tactics when you save.</li>
+      <li><strong style="color:var(--text-primary)">Review progress</strong> &mdash; Use the Reports screen to track your scores over time and see how each goal and tactic is trending.</li>
+      <li><strong style="color:var(--text-primary)">Week 13 review</strong> &mdash; At the end of the 13-week cycle, complete the final review to reflect on the full cycle.</li>
+      <li><strong style="color:var(--text-primary)">Back up regularly</strong> &mdash; Use the backup options above to export your data, or enable auto-backup so a file downloads every time you save.</li>
+    </ol>
+  </div>`;
+}
+
+function saveCycleSettings() {
+  const name = document.getElementById('set-cycle-name').value.trim();
+  const startDate = document.getElementById('set-cycle-start').value;
+  const wamLink = document.getElementById('set-wam-link').value.trim();
+  const trackerLink = document.getElementById('set-tracker-link').value.trim();
+  if (!startDate) { alert('Please set a start date.'); return; }
+  save(KEYS.cycle, { name, startDate, wamLink, trackerLink });
+  autoBackupIfEnabled();
+  alert('Cycle settings saved!');
+  renderSettings();
+}
+
+function toggleAutoBackup(enabled) {
+  const s = getSettings();
+  s.autoBackup = enabled;
+  saveSettings(s);
+}
+
+/* ========== EXPORT / IMPORT ========== */
+function exportFullBackup() {
+  const backup = {
+    version: 1,
+    exportDate: todayStr(),
+    cycle: getCycle(),
+    goals: getGoals(),
+    tactics: getTactics(),
+    weeklyData: getWeeklyData()
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const now = new Date();
+  const stamp = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
+  a.download = 'myplanplus-backup-' + stamp + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importFullBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const backup = JSON.parse(e.target.result);
+      if (!backup.version) { alert('Not a valid My Plan+ backup file.'); return; }
+      if (!confirm('This will replace all current data. Continue?')) return;
+      if (backup.cycle) save(KEYS.cycle, backup.cycle);
+      if (backup.goals) save(KEYS.goals, backup.goals);
+      if (backup.tactics) save(KEYS.tactics, backup.tactics);
+      if (backup.weeklyData) save(KEYS.weekly, backup.weeklyData);
+      flushSync().then(() => { alert('Backup imported successfully!'); location.reload(); });
+    } catch (err) {
+      alert('Import error: ' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ========== CYCLE ARCHIVE (PDF + CSV) ========== */
+function archiveCycle() {
+  const cycle = getCycle();
+  if (!cycle.startDate) { alert('No cycle to archive. Set up a cycle first.'); return; }
+  const goals = getGoals();
+  const tactics = getTactics();
+  const weeklyData = getWeeklyData();
+  const cycleName = cycle.name || 'Untitled Cycle';
+  const stamp = todayStr();
+  const safeName = cycleName.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
+  const cycleScore = calculateCycleScore();
+  const startDates = getWeekDates(cycle.startDate, 1);
+  const endDates = getWeekDates(cycle.startDate, 13);
+
+  function sc(pct) { return pct >= 80 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626'; }
+  function e(s) { return esc(s); }
+  function bar(pct, col) {
+    return '<div style="display:flex;align-items:center;gap:8px;margin-top:2px"><div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + col + ';border-radius:3px"></div></div></div>';
+  }
+
+  let h = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Plan+ Archive - ' + e(cycleName) + '</title>';
+  h += '<style>';
+  h += '@page{size:A4;margin:15mm}';
+  h += 'body{background:#ffffff;color:#1a1d27;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:11px;line-height:1.5;margin:0;padding:20px}';
+  h += '.card{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
+  h += '.section-title{color:#4350d4;font-size:16px;font-weight:700;margin:20px 0 8px;border-bottom:2px solid #4350d4;padding-bottom:4px}';
+  h += '.header-banner{background:linear-gradient(135deg,#4350d4,#6c7bff);border-radius:10px;padding:24px;text-align:center;color:#fff;margin-bottom:16px}';
+  h += '.header-banner h1{margin:0;font-size:24px}.header-banner p{margin:4px 0 0;opacity:0.9;font-size:14px}';
+  h += '.score-big{font-size:28px;font-weight:700}.goal-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0}';
+  h += '.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px}';
+  h += '.muted{color:#9ca3af}.secondary{color:#6b7280}';
+  h += '.grid-table{width:100%;border-collapse:collapse;font-size:9px}.grid-table th,.grid-table td{padding:3px 4px;text-align:center;border-bottom:1px solid #e5e7eb}';
+  h += '.grid-table th{color:#6b7280;font-weight:600;font-size:8px}.grid-table td.tactic-name{text-align:left;color:#1a1d27;font-size:9px}';
+  h += '.reflection-q{color:#4350d4;font-weight:600;font-size:10px;margin-top:8px}.reflection-a{color:#374151;margin:2px 0 6px;white-space:pre-wrap;font-size:10px}';
+  h += '.week-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}';
+  h += '.tactic-score-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:10px}';
+  h += '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+  h += '</style></head><body>';
+
+  // Header banner
+  h += '<div class="header-banner"><h1>My Plan+ Cycle Archive</h1><p>' + e(cycleName) + '</p></div>';
+
+  // Cycle info
+  h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center">';
+  h += '<div><span class="secondary">Start:</span> ' + formatDate(startDates.start) + ' &nbsp; <span class="secondary">End:</span> ' + formatDate(endDates.end) + '<br><span class="secondary">Archived:</span> ' + stamp + '</div>';
+  h += '<div style="text-align:right"><div class="secondary">Cycle Score</div><div class="score-big" style="color:' + sc(cycleScore) + '">' + cycleScore + '%</div></div>';
+  h += '</div></div>';
+
+  // --- DASHBOARD ---
+  h += '<div class="section-title">Dashboard</div>';
+  goals.forEach(function(g) {
+    var gs = calculateGoalScore(g.id);
+    var gt = getTacticsForGoal(g.id);
+    h += '<div class="card"><div class="goal-row"><div><strong>' + e(g.title) + '</strong><br><span class="secondary" style="font-size:10px">' + gt.length + ' tactic' + (gt.length !== 1 ? 's' : '') + '</span></div>';
+    h += '<span class="badge" style="color:' + sc(gs) + ';border:1px solid ' + sc(gs) + '">' + gs + '%</span></div>';
+    h += bar(gs, sc(gs)) + '</div>';
+  });
+
+  // Weekly trend
+  h += '<div class="card"><strong>Weekly Score Trend</strong><div style="display:flex;gap:4px;margin-top:8px">';
+  for (var w = 1; w <= 12; w++) {
+    var ws = calculateWeeklyScore(w);
+    var wd = weeklyData[String(w)];
+    h += '<div style="flex:1;text-align:center"><div class="muted" style="font-size:7px">W' + w + '</div>';
+    h += '<div style="font-weight:700;font-size:10px;color:' + (wd ? sc(ws) : '#5a5e72') + '">' + (wd ? ws + '%' : '--') + '</div></div>';
+  }
+  h += '</div></div>';
+
+  // --- GOALS & TACTICS ---
+  h += '<div class="section-title">Goals &amp; Tactics</div>';
+  goals.forEach(function(g) {
+    var gt = getTacticsForGoal(g.id);
+    var gs = calculateGoalScore(g.id);
+    h += '<div class="card"><div class="goal-row"><strong>' + e(g.title) + '</strong><span style="color:' + sc(gs) + ';font-weight:700">' + gs + '%</span></div>';
+    if (g.description) h += '<div class="secondary" style="font-size:10px;font-style:italic;margin-bottom:4px">' + e(g.description) + '</div>';
+    gt.forEach(function(t) { h += '<div style="padding:2px 0 2px 12px;font-size:10px">&bull; ' + e(t.title) + '</div>'; });
+    h += '</div>';
+  });
+
+  // --- WEEKLY CHECK-INS ---
+  h += '<div class="section-title">Weekly Check-ins</div>';
+  for (var w2 = 1; w2 <= 13; w2++) {
+    var wd2 = weeklyData[String(w2)];
+    if (!wd2) continue;
+    var wDates = getWeekDates(cycle.startDate, w2);
+    var ws2 = w2 <= 12 ? calculateWeeklyScore(w2) : cycleScore;
+    var questions = w2 === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+
+    h += '<div class="card"><div class="week-header"><div><strong>Week ' + w2 + (w2 === 13 ? ' (Review)' : '') + '</strong><br><span class="secondary" style="font-size:9px">' + formatDate(wDates.start) + ' &ndash; ' + formatDate(wDates.end) + '</span></div>';
+    h += '<span class="badge" style="color:' + sc(ws2) + ';border:1px solid ' + sc(ws2) + '">' + ws2 + '%</span></div>';
+
+    if (w2 <= 12) {
+      var wScores = getWeekTacticScores(wd2);
+      var allIds = tactics.map(function(t) { return t.id; });
+      var wActive = getWeekActiveTactics(wd2, allIds);
+      goals.forEach(function(g) {
+        var gt = getTacticsForGoal(g.id).filter(function(t) { return wActive.has(t.id); });
+        gt.forEach(function(t) {
+          var tsc = wScores[t.id] || 0;
+          h += '<div class="tactic-score-row"><span>' + e(t.title) + '</span><span style="font-weight:700;color:' + sc(tsc) + '">' + tsc + '%</span></div>';
+          h += bar(tsc, sc(tsc));
+        });
+      });
+    }
+
+    if (wd2.reflections) {
+      questions.forEach(function(q, i) {
+        var ans = wd2.reflections['q' + (i + 1)];
+        if (!ans) return;
+        h += '<div class="reflection-q">' + q + '</div><div class="reflection-a">' + e(ans) + '</div>';
+      });
+    }
+    h += '</div>';
+  }
+
+  // --- REPORTS: TACTIC SCORE GRID ---
+  h += '<div class="section-title">Reports &mdash; Tactic Score Grid</div>';
+  goals.forEach(function(g) {
+    var gt = getTacticsForGoal(g.id);
+    if (gt.length === 0) return;
+    h += '<div class="card"><div style="color:#6c7bff;font-weight:700;margin-bottom:6px">' + e(g.title) + '</div>';
+    h += '<table class="grid-table"><thead><tr><th style="text-align:left">Tactic</th>';
+    for (var w3 = 1; w3 <= 12; w3++) h += '<th>W' + w3 + '</th>';
+    h += '<th>Avg</th></tr></thead><tbody>';
+    gt.forEach(function(t) {
+      h += '<tr><td class="tactic-name">' + e(t.title) + '</td>';
+      var tot = 0, cnt = 0;
+      for (var w4 = 1; w4 <= 12; w4++) {
+        var wd4 = weeklyData[String(w4)];
+        if (!wd4) { h += '<td class="muted">--</td>'; continue; }
+        var allIds4 = tactics.map(function(t2) { return t2.id; });
+        var active4 = getWeekActiveTactics(wd4, allIds4);
+        if (!active4.has(t.id)) { h += '<td class="muted">--</td>'; continue; }
+        var sc4 = (getWeekTacticScores(wd4)[t.id]) || 0;
+        h += '<td style="font-weight:700;color:' + sc(sc4) + '">' + sc4 + '%</td>';
+        tot += sc4; cnt++;
+      }
+      var avg = cnt > 0 ? Math.round(tot / cnt) : 0;
+      h += '<td style="font-weight:700;color:' + (cnt > 0 ? sc(avg) : '#5a5e72') + '">' + (cnt > 0 ? avg + '%' : '--') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  });
+
+  // Footer
+  h += '<div style="text-align:center;color:#5a5e72;font-size:9px;margin-top:20px;padding-top:10px;border-top:1px solid #2a2d3a">Generated by My Plan+ on ' + stamp + '</div>';
+  h += '</body></html>';
+
+  // Open in new window for Save As PDF
+  var win = window.open('', '_blank');
+  win.document.write(h);
+  win.document.close();
+  setTimeout(function() { win.print(); }, 500);
+
+  // Also generate CSV
+  generateArchiveCSV(cycle, goals, tactics, weeklyData, safeName, stamp);
+}
+
+function generateArchiveCSV(cycle, goals, tactics, weeklyData, safeName, stamp) {
+  const rows = [];
+  // Header
+  const header = ['Goal', 'Tactic', 'W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9', 'W10', 'W11', 'W12', 'Average'];
+  rows.push(header);
+
+  goals.forEach(g => {
+    const gt = getTacticsForGoal(g.id);
+    gt.forEach(t => {
+      const row = ['"' + g.title.replace(/"/g, '""') + '"', '"' + t.title.replace(/"/g, '""') + '"'];
+      let total = 0, count = 0;
+      for (let w = 1; w <= 12; w++) {
+        const wd = weeklyData[String(w)];
+        if (!wd) { row.push(''); continue; }
+        const allIds = tactics.map(t2 => t2.id);
+        const active = getWeekActiveTactics(wd, allIds);
+        if (!active.has(t.id)) { row.push('N/A'); continue; }
+        const sc = (getWeekTacticScores(wd)[t.id]) || 0;
+        row.push(sc);
+        total += sc; count++;
+      }
+      row.push(count > 0 ? Math.round(total / count) : '');
+      rows.push(row);
+    });
+    // Goal average row
+    const gs = calculateGoalScore(g.id);
+    const goalRow = ['"' + g.title.replace(/"/g, '""') + '"', '"(Goal Average)"'];
+    for (let w = 1; w <= 12; w++) { goalRow.push(calculateWeeklyScore(w) || ''); }
+    goalRow.push(gs);
+    rows.push(goalRow);
+    rows.push([]); // Blank separator
+  });
+
+  // Cycle score row
+  const cycleRow = ['"Cycle Score"', '""'];
+  for (let w = 1; w <= 12; w++) { cycleRow.push(calculateWeeklyScore(w) || ''); }
+  cycleRow.push(calculateCycleScore());
+  rows.push(cycleRow);
+
+  // Reflections section
+  rows.push([]);
+  rows.push(['Week', 'Question', 'Response']);
+  for (let w = 1; w <= 13; w++) {
+    const wd = weeklyData[String(w)];
+    if (!wd || !wd.reflections) continue;
+    const questions = w === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+    questions.forEach((q, i) => {
+      const ans = wd.reflections['q' + (i + 1)];
+      if (ans) {
+        var safeAns = ans.replace(/\r?\n/g, ' | ').replace(/"/g, '""');
+        if (/^[-+=@]/.test(safeAns)) safeAns = "'" + safeAns;
+        rows.push(['Week ' + w, '"' + q.replace(/"/g, '""') + '"', '"' + safeAns + '"']);
+      }
+    });
+  }
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `MyPlanPlus-Data-${safeName}-${stamp}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function resetCycle() {
+  if (!confirm('This will clear all goals, tactics, weekly scores, and cycle settings to start a fresh cycle.\n\nHave you archived this cycle first?')) return;
+  if (!confirm('Are you sure? This cannot be undone. All current cycle data will be permanently deleted.')) return;
+  const keys = [KEYS.cycle, KEYS.goals, KEYS.tactics, KEYS.weekly];
+  keys.forEach(k => removeKey(k));
+  selectedWeek = 0;
+  expandedGoals.clear();
+  deleteServerKeys(keys).then(() => location.reload());
+}
+
+function clearAllData() {
+  if (!confirm('Are you sure you want to delete ALL data? This cannot be undone.')) return;
+  if (!confirm('Really delete everything? Export a backup first if needed.')) return;
+  const keys = [KEYS.cycle, KEYS.goals, KEYS.tactics, KEYS.weekly];
+  keys.forEach(k => removeKey(k));
+  deleteServerKeys(keys).then(() => location.reload());
+}
+
+/* ========== MODALS ========== */
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+/* ========== THEME ========== */
+function getTheme() {
+  const saved = localStorage.getItem(KEYS.theme);
+  if (saved) return saved;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-toggle').innerHTML = theme === 'dark' ? '&#9728;&#65039;' : '&#127769;';
+  localStorage.setItem(KEYS.theme, theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  renderScreen(currentScreen);
+}
+
+/* ========== UTILITIES ========== */
+function esc(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ========== INIT ========== */
+boot();
+</script>
+<script src="/tracker.js?v=2"></script>
+</body>
+</html>

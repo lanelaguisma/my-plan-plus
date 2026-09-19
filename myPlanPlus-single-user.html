@@ -1,0 +1,2308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>My Plan+</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+/* ========== RESET & VARIABLES ========== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-input: #252836;
+  --bg-nav: #141620;
+  --text-primary: #e8e8ed;
+  --text-secondary: #8b8fa3;
+  --text-muted: #5a5e72;
+  --accent: #6c7bff;
+  --accent-hover: #8590ff;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --border: #2a2d3a;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --nav-height: 72px;
+  --max-width: 520px;
+  --chart-grid: rgba(42,45,58,0.5);
+  --chart-tick: #5a5e72;
+  --toggle-track: #252836;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f2f3f7;
+  --bg-card: #ffffff;
+  --bg-input: #edeef2;
+  --bg-nav: #ffffff;
+  --text-primary: #1a1d27;
+  --text-secondary: #5a5e72;
+  --text-muted: #8b8fa3;
+  --accent: #5563e8;
+  --accent-hover: #4350d4;
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --border: #dcdee5;
+  --chart-grid: rgba(0,0,0,0.06);
+  --chart-tick: #8b8fa3;
+  --toggle-track: #dcdee5;
+}
+
+html { font-size: 16px; }
+html, body, .card, .nav, input, select, textarea, .chip, .btn, .theme-toggle, .stat-card {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding-bottom: calc(var(--nav-height) + 16px);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========== LAYOUT ========== */
+.app-container { max-width: var(--max-width); margin: 0 auto; padding: 16px; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ========== NAV ========== */
+.nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--bg-nav);
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-around; align-items: center;
+  height: var(--nav-height);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  z-index: 100;
+}
+.nav-btn {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 9px; display: flex; flex-direction: column;
+  align-items: center; gap: 3px; cursor: pointer; padding: 8px 2px;
+  transition: color 0.2s; min-width: 44px;
+}
+.nav-btn.active { color: var(--accent); }
+.nav-btn svg { width: 24px; height: 24px; }
+
+/* ========== TYPOGRAPHY ========== */
+h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary); }
+h3 { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 20px; }
+
+/* ========== CARDS ========== */
+.card {
+  background: var(--bg-card); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 12px;
+}
+
+/* ========== FORM ELEMENTS ========== */
+.form-group { margin-bottom: 16px; }
+.form-label {
+  display: block; font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 6px; font-weight: 500;
+}
+
+input[type="text"], input[type="date"], input[type="number"], select, textarea {
+  width: 100%; padding: 10px 12px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  color: var(--text-primary); font-size: 16px; font-family: inherit;
+  outline: none; transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 60px; }
+
+/* ========== BUTTONS ========== */
+.btn {
+  width: 100%; padding: 14px; border: none; border-radius: var(--radius);
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.btn:active { transform: scale(0.98); }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn-sm { padding: 8px 16px; font-size: 14px; width: auto; }
+.btn-row { display: flex; gap: 8px; margin-top: 12px; }
+.btn-row > * { flex: 1; }
+
+/* ========== CHIPS ========== */
+.chip-group { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.chip {
+  padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  background: var(--bg-input); color: var(--text-secondary); border: none;
+  cursor: pointer; transition: all 0.2s; min-width: 36px; text-align: center;
+}
+.chip.active { background: var(--accent); color: white; }
+.chip.current-week { box-shadow: 0 0 0 2px var(--accent); }
+
+/* ========== SCORES ========== */
+.score-big {
+  font-size: 64px; font-weight: 700; text-align: center;
+  line-height: 1; margin: 8px 0;
+}
+.score-label { text-align: center; font-size: 14px; color: var(--text-secondary); }
+.score-green { color: var(--success); }
+.score-amber { color: var(--warning); }
+.score-red { color: var(--danger); }
+
+/* ========== STAT GRID ========== */
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.stat-card { background: var(--bg-input); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
+.stat-value { font-size: 22px; font-weight: 700; }
+.stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ========== PROGRESS BAR ========== */
+.progress-bar {
+  height: 8px; border-radius: 4px; background: var(--bg-input);
+  overflow: hidden; margin: 8px 0;
+}
+.progress-fill {
+  height: 100%; border-radius: 4px; background: var(--accent);
+  transition: width 0.5s;
+}
+
+/* ========== GOAL CARDS ========== */
+.goal-card { cursor: default; }
+.goal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer;
+}
+.goal-header-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.goal-title { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.goal-score-badge {
+  font-size: 13px; font-weight: 600; padding: 2px 10px;
+  border-radius: 12px; background: var(--bg-input); white-space: nowrap;
+}
+.goal-chevron {
+  font-size: 14px; color: var(--text-muted); transition: transform 0.2s;
+  margin-left: 8px; flex-shrink: 0;
+}
+.goal-card.expanded .goal-chevron { transform: rotate(180deg); }
+.goal-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.goal-card.expanded .goal-body { display: block; }
+.goal-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5; }
+.goal-actions {
+  display: flex; gap: 8px; margin-top: 12px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ========== TACTIC ROWS ========== */
+.tactic-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+.tactic-row:last-child { border-bottom: none; }
+.tactic-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tactic-actions { display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; }
+.icon-btn {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 4px; font-size: 16px; transition: color 0.2s; line-height: 1;
+}
+.icon-btn:hover { color: var(--text-primary); }
+.icon-btn.danger:hover { color: var(--danger); }
+
+/* ========== CHECK-IN ========== */
+.checkin-goal-header {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 12px 0 4px; margin-top: 4px;
+}
+.checkin-goal-header:first-child { padding-top: 0; margin-top: 0; }
+.checkin-tactic {
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.checkin-tactic:last-child { border-bottom: none; }
+.checkin-tactic.inactive { opacity: 0.45; }
+.checkin-tactic-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px; gap: 8px;
+}
+.checkin-tactic-toggle {
+  width: 18px; height: 18px; accent-color: var(--accent);
+  cursor: pointer; flex-shrink: 0;
+}
+.checkin-tactic-title { font-size: 14px; flex: 1; min-width: 0; }
+.checkin-tactic-value { font-size: 14px; font-weight: 600; min-width: 40px; text-align: right; }
+.checkin-tactic input[type="range"] {
+  -webkit-appearance: none; width: 100%; height: 6px;
+  background: var(--bg-input); border-radius: 3px; outline: none;
+}
+.checkin-tactic input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px;
+  background: var(--accent); border-radius: 50%; cursor: pointer;
+}
+.checkin-tactic.inactive input[type="range"] { opacity: 0.3; pointer-events: none; }
+.checkin-score-preview {
+  text-align: center; padding: 12px; margin-top: 8px;
+  background: var(--bg-input); border-radius: var(--radius-sm);
+  font-size: 14px; color: var(--text-secondary);
+}
+.checkin-score-preview strong { font-size: 20px; }
+
+/* ========== REFLECTION ========== */
+.reflection-group { margin-bottom: 16px; }
+.reflection-label {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 6px; font-weight: 500; line-height: 1.4;
+}
+
+/* ========== CHART ========== */
+.chart-container { position: relative; height: 240px; margin: 12px 0; }
+
+/* ========== MODAL ========== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); z-index: 200;
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg-card); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 20px; width: 100%; max-width: var(--max-width);
+  max-height: 80vh; overflow-y: auto;
+}
+.modal h2 { margin-bottom: 16px; }
+
+/* ========== RESULT OVERLAY ========== */
+.result-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(15,17,23,0.95); z-index: 300;
+  align-items: center; justify-content: center;
+  flex-direction: column; padding: 20px;
+}
+.result-overlay.show { display: flex; }
+
+/* ========== EMPTY STATE ========== */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--text-secondary);
+}
+.empty-state-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+.empty-state p { font-size: 14px; line-height: 1.5; }
+
+/* ========== REPORT DETAIL GRID ========== */
+.tactic-grid { overflow-x: auto; margin: 12px 0; }
+.tactic-grid table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tactic-grid th, .tactic-grid td {
+  padding: 6px 4px; text-align: center; border: 1px solid var(--border);
+}
+.tactic-grid th { background: var(--bg-input); color: var(--text-secondary); font-weight: 500; }
+.tactic-grid td.done { background: rgba(74,222,128,0.2); color: var(--success); }
+.tactic-grid td.missed { background: rgba(248,113,113,0.15); color: var(--danger); }
+.tactic-grid td.future { background: var(--bg-input); color: var(--text-muted); }
+.tactic-grid td.tactic-name { text-align: left; white-space: nowrap; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ========== WEEKLY REPORT EXPANDABLE ========== */
+.week-report-card { cursor: pointer; }
+.week-report-header { display: flex; justify-content: space-between; align-items: center; }
+.week-report-body { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.week-report-card.expanded .week-report-body { display: block; }
+.week-report-card .goal-chevron { transition: transform 0.2s; }
+.week-report-card.expanded .goal-chevron { transform: rotate(180deg); }
+.reflection-answer { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 12px; }
+.reflection-answer strong { color: var(--text-primary); display: block; margin-bottom: 4px; font-size: 12px; }
+
+/* ========== GOAL PROGRESS BAR (small) ========== */
+.goal-progress-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.goal-progress-row:last-child { border-bottom: none; }
+.goal-progress-name { flex: 1; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-progress-bar { width: 80px; height: 6px; border-radius: 3px; background: var(--bg-input); overflow: hidden; flex-shrink: 0; }
+.goal-progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.goal-progress-pct { font-size: 14px; font-weight: 600; min-width: 40px; text-align: right; }
+
+/* ========== LEARN SECTION ========== */
+.learn-section { margin-bottom: 20px; }
+.learn-section h2 { font-size: 17px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.learn-section h2 .icon { font-size: 20px; }
+.learn-section p, .learn-section li { font-size: 13.5px; line-height: 1.7; color: var(--text-secondary); }
+.learn-section ul { padding-left: 18px; margin: 6px 0; }
+.learn-section li { margin-bottom: 4px; }
+.learn-section strong { color: var(--text-primary); }
+.learn-quote {
+  border-left: 3px solid var(--accent); padding: 10px 14px; margin: 10px 0;
+  background: rgba(108,123,255,0.06); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 13px; color: var(--text-secondary); font-style: italic;
+}
+.learn-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; margin-right: 6px;
+}
+.learn-badge-key { background: rgba(74,222,128,0.15); color: var(--success); }
+.learn-badge-concept { background: rgba(108,123,255,0.15); color: var(--accent); }
+.learn-divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+/* ========== WAM LINK ========== */
+.wam-link {
+  display: flex; align-items: center; gap: 10px; padding: 12px;
+  background: var(--bg-input); border-radius: var(--radius-sm);
+  margin-bottom: 16px; text-decoration: none; color: var(--accent);
+  font-size: 14px; font-weight: 500; transition: background 0.2s;
+}
+.wam-link:hover { background: var(--border); }
+.wam-link svg { width: 20px; height: 20px; flex-shrink: 0; }
+.wam-link-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.wam-link-row .wam-link { flex: 1; min-width: 0; margin-bottom: 0; }
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ========== ANIMATIONS ========== */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease; }
+
+/* ========== LIGHT MODE OVERRIDES ========== */
+[data-theme="light"] .card { box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+[data-theme="light"] .nav { box-shadow: 0 -1px 6px rgba(0,0,0,0.06); }
+[data-theme="light"] .result-overlay { background: rgba(242,243,247,0.95); }
+[data-theme="light"] .tactic-grid td.done { background: rgba(22,163,74,0.12); }
+[data-theme="light"] .tactic-grid td.missed { background: rgba(220,38,38,0.08); }
+[data-theme="light"] .learn-badge-key { background: rgba(22,163,74,0.12); color: #16a34a; }
+[data-theme="light"] .learn-badge-concept { background: rgba(85,99,232,0.12); color: #5563e8; }
+[data-theme="light"] .learn-quote { background: rgba(85,99,232,0.06); }
+
+/* ========== THEME TOGGLE ========== */
+.theme-toggle {
+  position: fixed; top: 12px; right: 12px; z-index: 150;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--bg-card); border: 1px solid var(--border);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 20px; transition: all 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.theme-toggle:hover { transform: scale(1.1); }
+.theme-toggle:active { transform: scale(0.95); }
+
+/* ========== RESPONSIVE ========== */
+@media (min-width: 640px) {
+  .app-container { padding: 24px; }
+  .wam-link-row { flex-direction: row; }
+}
+</style>
+</head>
+<body>
+
+<!-- ========== THEME TOGGLE ========== -->
+<button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#127769;</button>
+
+<!-- ========== NAVIGATION ========== -->
+<nav class="nav">
+  <button class="nav-btn active" data-screen="dashboard">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Dashboard
+  </button>
+  <button class="nav-btn" data-screen="goals">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+    Goals
+  </button>
+  <button class="nav-btn" data-screen="checkin">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+    Check-in
+  </button>
+  <button class="nav-btn" data-screen="reports">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 12h2v5H7zM11 8h2v9h-2zM15 10h2v7h-2z"/></svg>
+    Reports
+  </button>
+  <button class="nav-btn" data-screen="learn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+    Learn
+  </button>
+  <button class="nav-btn" data-screen="settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    Settings
+  </button>
+</nav>
+
+<!-- ========== SCREEN: DASHBOARD ========== -->
+<div id="screen-dashboard" class="screen active">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Dashboard</h1>
+        <div class="subtitle" style="margin:0" id="dash-subtitle">Your 12 Week Year at a glance</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="dash-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: GOALS & TACTICS ========== -->
+<div id="screen-goals" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Goals & Tactics</h1>
+        <div class="subtitle" style="margin:0">Define what you will achieve</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="goals-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: WEEKLY CHECK-IN ========== -->
+<div id="screen-checkin" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Weekly Check-in</h1>
+        <div class="subtitle" style="margin:0" id="checkin-subtitle">Track your weekly execution</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="checkin-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: REPORTS ========== -->
+<div id="screen-reports" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Reports</h1>
+        <div class="subtitle" style="margin:0">Analyse your progress</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="reports-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: LEARN ========== -->
+<div id="screen-learn" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">The 12 Week Year</h1>
+        <p class="subtitle" style="margin:0">Execution over intention</p>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128218;</span> What Is the 12 Week Year?</h2>
+      <p>The <strong>12 Week Year</strong> is a planning and execution system created by Brian P. Moran and Michael Lennington. Instead of setting annual goals that lose momentum by February, you compress your year into <strong>12-week cycles</strong>.</p>
+      <div class="learn-quote">"The number one thing that you will need to do differently is to change how you think about time. Most people think in terms of a 12-month year. The 12 Week Year redefines your year to be 12 weeks long."</div>
+      <p>Each cycle has <strong>12 active weeks</strong> followed by a <strong>13th week for reflection and planning</strong>. This creates urgency, focus, and predictability that annual planning simply cannot.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#127919;</span> Why It Works</h2>
+      <ul>
+        <li><strong>Urgency:</strong> 12 weeks is short enough that every week matters. There is no "I'll catch up later" mindset.</li>
+        <li><strong>Focus:</strong> With a shorter horizon, you naturally narrow your goals to what truly matters.</li>
+        <li><strong>Predictability:</strong> Weekly execution scoring gives you early warning signals, not year-end surprises.</li>
+        <li><strong>Accountability:</strong> Weekly check-ins force honest assessment of progress.</li>
+        <li><strong>Fresh starts:</strong> Every 13 weeks, you get a clean slate to adjust and improve.</li>
+      </ul>
+      <div class="learn-quote">"Execution is the single greatest market differentiator. Great companies and successful individuals execute better than their competition."</div>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128204;</span> Setting Your Vision</h2>
+      <p>Before setting goals, define your <strong>long-term vision</strong>. Where do you want to be in 3-5 years? Your vision provides direction and motivation for each 12-week cycle.</p>
+      <p>A compelling vision should be:</p>
+      <ul>
+        <li><strong>Specific and vivid</strong> &mdash; paint a clear picture of your desired future</li>
+        <li><strong>Personal</strong> &mdash; tied to what genuinely matters to you</li>
+        <li><strong>Challenging but achievable</strong> &mdash; stretches you beyond comfort</li>
+      </ul>
+      <p>Your 12-week goals should be <strong>stepping stones toward your vision</strong>, not disconnected tasks.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#127793;</span> Goals: The 12 Week Targets</h2>
+      <p>Each cycle should have <strong>2-3 goals maximum</strong>. More than that dilutes focus and reduces execution quality.</p>
+      <p>Effective 12-week goals are:</p>
+      <ul>
+        <li><strong>Specific and measurable</strong> &mdash; you should know unambiguously whether you achieved them</li>
+        <li><strong>Achievable in 12 weeks</strong> &mdash; ambitious but realistic within the timeframe</li>
+        <li><strong>Aligned with your vision</strong> &mdash; each goal moves you closer to the bigger picture</li>
+      </ul>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-key">Key</span> Goals define <strong>what</strong> you want to achieve. Tactics define <strong>how</strong> you will achieve it.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#9881;&#65039;</span> Tactics: The Weekly Actions</h2>
+      <p><strong>Tactics</strong> are the specific, repeatable actions you commit to executing each week to drive progress toward your goals. They are your <strong>lead measures</strong> &mdash; the inputs you control.</p>
+      <ul>
+        <li><strong>Be specific:</strong> "Write 500 words daily" not "Write more"</li>
+        <li><strong>Be actionable:</strong> Each tactic should be something you can do this week</li>
+        <li><strong>Be measurable:</strong> You should be able to score your execution honestly</li>
+        <li><strong>Limit per goal:</strong> 3-5 tactics per goal keeps things manageable</li>
+      </ul>
+      <div class="learn-quote">"Knowledge alone is never enough. It's the consistent application of knowledge that produces results."</div>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128200;</span> Lead vs Lag Measures</h2>
+      <p>Understanding the difference between lead and lag measures is critical:</p>
+      <ul>
+        <li><strong>Lag measures</strong> are the results &mdash; revenue, weight lost, product shipped. You cannot directly control them.</li>
+        <li><strong>Lead measures</strong> are the activities that drive the results &mdash; sales calls made, workouts completed, code written. You <em>can</em> control them.</li>
+      </ul>
+      <p>Your <strong>tactics are lead measures</strong>. Your <strong>goals are lag measures</strong>. Focus your weekly energy on executing tactics (lead), and the goals (lag) will follow.</p>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-concept">Concept</span> The weekly execution score measures your <strong>lead indicators</strong>. If your score is consistently above 80%, results will come.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128202;</span> The Weekly Execution Score</h2>
+      <p>The <strong>weekly score</strong> is the percentage of your tactics you executed that week. This is the single most important metric in the 12 Week Year.</p>
+      <ul>
+        <li><strong style="color:var(--success)">80%+ = On track</strong> &mdash; You are executing at a high level. Results will follow.</li>
+        <li><strong style="color:var(--warning)">60-79% = At risk</strong> &mdash; Execution is inconsistent. Identify and remove barriers.</li>
+        <li><strong style="color:var(--danger)">Below 60% = Off track</strong> &mdash; Urgent action needed. Simplify your plan or address obstacles.</li>
+      </ul>
+      <div class="learn-quote">"The key to success in the 12 Week Year is not perfection, but consistent execution at 80% or above."</div>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-key">Key</span> <strong>80% is the target</strong>, not 100%. Perfection is not the goal &mdash; consistent, high-quality execution is.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128172;</span> The Weekly Accountability Meeting (WAM)</h2>
+      <p>The <strong>Weekly Accountability Meeting</strong> is a brief, structured check-in (ideally with a peer or group) that drives accountability and problem-solving.</p>
+      <p>Each week, answer these five questions:</p>
+      <ul>
+        <li><strong>What did you accomplish last week?</strong> &mdash; Report your results honestly</li>
+        <li><strong>Any lessons, insights, or take-aways?</strong> &mdash; Reflect on what you learned</li>
+        <li><strong>What is your plan for this week?</strong> &mdash; Select the tactics you want to focus on from the checklist, and add any additional comments. Your selected tactics will automatically pre-populate the next week's check-in as active tactics.</li>
+        <li><strong>What's your biggest challenge?</strong> &mdash; Surface obstacles early</li>
+        <li><strong>Where do you need help?</strong> &mdash; Ask for support before you fall behind</li>
+      </ul>
+      <p>The WAM should be <strong>15-20 minutes maximum</strong>. It's not a status meeting &mdash; it's an accountability and commitment session.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128161;</span> Week 13: The Recovery & Planning Week</h2>
+      <p>The 13th week is not a week off &mdash; it is a <strong>strategic pause</strong> for reflection and renewal.</p>
+      <p>Use Week 13 to:</p>
+      <ul>
+        <li><strong>Celebrate wins</strong> &mdash; Acknowledge what you achieved</li>
+        <li><strong>Assess honestly</strong> &mdash; Where did execution break down and why?</li>
+        <li><strong>Identify process gaps</strong> &mdash; What systems or habits need improving?</li>
+        <li><strong>Plan the next cycle</strong> &mdash; Set new goals and tactics based on lessons learned</li>
+        <li><strong>Recharge</strong> &mdash; Rest and reset your energy for the next 12 weeks</li>
+      </ul>
+    </div>
+
+    <div class="card learn-section" style="border:1px solid var(--accent)">
+      <h2><span class="icon">&#11088;</span> The 5 Disciplines of Execution</h2>
+      <p>The 12 Week Year framework rests on five disciplines:</p>
+      <ul>
+        <li><strong>1. Vision</strong> &mdash; Create a compelling picture of the future</li>
+        <li><strong>2. Planning</strong> &mdash; Set 12-week goals with specific tactics</li>
+        <li><strong>3. Process Control</strong> &mdash; Use weekly routines and tools to stay on track</li>
+        <li><strong>4. Measurement</strong> &mdash; Track lead and lag indicators weekly</li>
+        <li><strong>5. Time Use</strong> &mdash; Intentionally allocate time to strategic priorities</li>
+      </ul>
+      <div class="learn-divider"></div>
+      <p><span class="learn-badge learn-badge-concept">Concept</span> <strong>Process control</strong> is what My Plan+ provides &mdash; a lightweight system for planning, tracking, and scoring your execution each week.</p>
+    </div>
+
+    <div class="card learn-section">
+      <h2><span class="icon">&#128214;</span> Further Reading</h2>
+      <ul>
+        <li><strong>The 12 Week Year</strong> by Brian P. Moran & Michael Lennington</li>
+        <li><strong>The 12 Week Year Field Guide</strong> &mdash; Practical companion workbook</li>
+        <li><strong>Measure What Matters</strong> by John Doerr &mdash; OKR framework (complementary approach)</li>
+        <li><strong>Atomic Habits</strong> by James Clear &mdash; Building the daily habits that drive tactic execution</li>
+        <li><strong>Deep Work</strong> by Cal Newport &mdash; Protecting focus time for strategic work</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: SETTINGS ========== -->
+<div id="screen-settings" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Settings</h1>
+        <div class="subtitle" style="margin:0">Configure your cycle</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="settings-content"></div>
+  </div>
+</div>
+
+<!-- ========== MODALS ========== -->
+<div class="modal-overlay" id="modal-goal" onclick="if(event.target===this)closeModal('modal-goal')">
+  <div class="modal">
+    <h2 id="modal-goal-title">Add Goal</h2>
+    <input type="hidden" id="modal-goal-id">
+    <div class="form-group">
+      <label class="form-label">Goal Title</label>
+      <input type="text" id="modal-goal-name" placeholder="e.g. Launch new product">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea id="modal-goal-desc" placeholder="What does achieving this goal look like?"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-goal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveGoal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-tactic" onclick="if(event.target===this)closeModal('modal-tactic')">
+  <div class="modal">
+    <h2 id="modal-tactic-title">Add Tactic</h2>
+    <input type="hidden" id="modal-tactic-id">
+    <input type="hidden" id="modal-tactic-goalid">
+    <div class="form-group">
+      <label class="form-label">Tactic Title</label>
+      <input type="text" id="modal-tactic-name" placeholder="e.g. Write 500 words daily">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Description (optional)</label>
+      <textarea id="modal-tactic-desc" placeholder="How will you execute this tactic?"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tactic')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTactic()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RESULT OVERLAY ========== -->
+<div class="result-overlay" id="result-overlay">
+  <div style="text-align:center;max-width:320px">
+    <div class="score-label" id="result-title">Week Score</div>
+    <div class="score-big" id="result-score">--</div>
+    <div class="score-label" id="result-detail"></div>
+    <div style="height:24px"></div>
+    <button class="btn btn-primary" onclick="closeResult()">Done</button>
+  </div>
+</div>
+
+<script>
+/* ========== DATA LAYER ========== */
+const KEYS = {
+  cycle: 'myplanplus_cycle',
+  goals: 'myplanplus_goals',
+  tactics: 'myplanplus_tactics',
+  weekly: 'myplanplus_weekly',
+  theme: 'myplanplus_theme',
+  settings: 'myplanplus_settings'
+};
+
+function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch { return null; } }
+function save(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+function getCycle() { return load(KEYS.cycle) || { name: '', startDate: '' }; }
+function getGoals() { return load(KEYS.goals) || []; }
+function getTactics() { return load(KEYS.tactics) || []; }
+function getWeeklyData() { return load(KEYS.weekly) || {}; }
+function getSettings() { return load(KEYS.settings) || { autoBackup: false }; }
+function saveSettings(s) { save(KEYS.settings, s); }
+
+function autoBackupIfEnabled() {
+  if (!getSettings().autoBackup) return;
+  exportFullBackup();
+}
+
+function getTacticsForGoal(goalId) {
+  return getTactics().filter(t => t.goalId === goalId).sort((a, b) => a.order - b.order);
+}
+
+function genId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+
+/* ========== UTILITIES ========== */
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+function formatDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function localDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function getWeekDates(startDate, weekNum) {
+  if (!startDate) return { start: '', end: '' };
+  const s = new Date(startDate + 'T00:00:00');
+  const weekStart = new Date(s);
+  weekStart.setDate(s.getDate() + (weekNum - 1) * 7);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  return {
+    start: localDateStr(weekStart),
+    end: localDateStr(weekEnd)
+  };
+}
+
+function getCurrentWeek() {
+  const cycle = getCycle();
+  if (!cycle.startDate) return 0;
+  const start = new Date(cycle.startDate + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  if (now < start) return 0;
+  const diffMs = now - start;
+  const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+  return Math.min(diffWeeks + 1, 13);
+}
+
+function getCycleEndDate() {
+  const cycle = getCycle();
+  if (!cycle.startDate) return '';
+  const s = new Date(cycle.startDate + 'T00:00:00');
+  s.setDate(s.getDate() + 13 * 7 - 1);
+  return localDateStr(s);
+}
+
+function scoreColor(pct) {
+  if (pct >= 80) return 'score-green';
+  if (pct >= 60) return 'score-amber';
+  return 'score-red';
+}
+
+function scoreColorHex(pct) {
+  const s = getComputedStyle(document.documentElement);
+  if (pct >= 80) return s.getPropertyValue('--success').trim();
+  if (pct >= 60) return s.getPropertyValue('--warning').trim();
+  return s.getPropertyValue('--danger').trim();
+}
+
+/* ========== SCORING ENGINE ========== */
+// Get tactic scores for a week, supporting both old (completedTactics) and new (tacticScores) format
+function getWeekTacticScores(weekData) {
+  if (!weekData) return {};
+  if (weekData.tacticScores) return weekData.tacticScores;
+  // Migrate old format: completedTactics array → tacticScores object at 100%
+  if (weekData.completedTactics) {
+    const scores = {};
+    weekData.completedTactics.forEach(id => { scores[id] = 100; });
+    return scores;
+  }
+  return {};
+}
+
+// Get the set of active tactic IDs for a week. If not explicitly set, check previous week's planned tactics.
+function getWeekActiveTactics(weekData, allTacticIds) {
+  if (!weekData) {
+    // No data yet for this week — check if previous week had planned tactics
+    if (selectedWeek > 1 && selectedWeek <= 12) {
+      const prevWeekData = getWeeklyData()[String(selectedWeek - 1)];
+      if (prevWeekData && prevWeekData.plannedTactics && prevWeekData.plannedTactics.length > 0) {
+        return new Set(prevWeekData.plannedTactics);
+      }
+    }
+    return new Set(allTacticIds);
+  }
+  if (weekData.activeTactics) return new Set(weekData.activeTactics);
+  // Old data: if tacticScores exists, all tactics with a key are active; treat rest as active too for backwards compat
+  return new Set(allTacticIds);
+}
+
+function calculateWeeklyScore(weekNum) {
+  const allTactics = getTactics();
+  if (allTactics.length === 0) return 0;
+  const weekData = getWeeklyData()[String(weekNum)];
+  if (!weekData) return 0;
+  const scores = getWeekTacticScores(weekData);
+  const allIds = allTactics.map(t => t.id);
+  const active = getWeekActiveTactics(weekData, allIds);
+  const activeTactics = allTactics.filter(t => active.has(t.id));
+  if (activeTactics.length === 0) return 0;
+  let total = 0;
+  activeTactics.forEach(t => { total += (scores[t.id] || 0); });
+  return Math.round(total / activeTactics.length);
+}
+
+// Highest week (1-12) that has check-in data
+function getHighestScoredWeek() {
+  const weeklyData = getWeeklyData();
+  let highest = 0;
+  for (let w = 1; w <= 12; w++) {
+    if (weeklyData[String(w)]) highest = w;
+  }
+  return highest;
+}
+
+// Weeks to include in scoring: max of current calendar week and highest week with data
+function getWeeksToScore() {
+  return Math.max(Math.min(getCurrentWeek(), 12), getHighestScoredWeek());
+}
+
+function calculateGoalScore(goalId) {
+  const tactics = getTacticsForGoal(goalId);
+  if (tactics.length === 0) return 0;
+  const weeklyData = getWeeklyData();
+  const allTacticIds = getTactics().map(t => t.id);
+  const weeksToScore = getWeeksToScore();
+  if (weeksToScore === 0) return 0;
+  let totalPossible = 0;
+  let totalEarned = 0;
+  for (let w = 1; w <= weeksToScore; w++) {
+    const wd = weeklyData[String(w)];
+    if (!wd) continue; // Skip weeks with no data
+    const scores = getWeekTacticScores(wd);
+    const active = getWeekActiveTactics(wd, allTacticIds);
+    tactics.forEach(t => {
+      if (active.has(t.id)) {
+        totalPossible += 100;
+        totalEarned += (scores[t.id] || 0);
+      }
+    });
+  }
+  if (totalPossible === 0) return 0;
+  return Math.round((totalEarned / totalPossible) * 100);
+}
+
+function calculateCycleScore() {
+  const goals = getGoals();
+  if (goals.length === 0) return 0;
+  const scores = goals.map(g => calculateGoalScore(g.id));
+  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+}
+
+/* ========== NAVIGATION ========== */
+let currentScreen = 'dashboard';
+let charts = {};
+let expandedGoals = new Set();
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => navigateTo(btn.dataset.screen));
+});
+
+function navigateTo(screen) {
+  currentScreen = screen;
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.screen === screen));
+  renderScreen(screen);
+}
+
+function renderScreen(screen) {
+  if (screen === 'dashboard') renderDashboard();
+  else if (screen === 'goals') renderGoals();
+  else if (screen === 'checkin') renderCheckin();
+  else if (screen === 'reports') renderReports();
+  else if (screen === 'learn') {} // Static content, no render needed
+  else if (screen === 'settings') renderSettings();
+}
+
+/* ========== DASHBOARD ========== */
+function renderDashboard() {
+  const cycle = getCycle();
+  const goals = getGoals();
+  const el = document.getElementById('dash-content');
+
+  if (!cycle.startDate) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#127919;</div><p>No cycle configured yet.<br>Go to <strong>Settings</strong> to set up your 12 Week Year.</p></div>`;
+    return;
+  }
+
+  const currentWeek = getCurrentWeek();
+  const cycleScore = calculateCycleScore();
+  const weekProgress = Math.min(currentWeek, 13);
+
+  let weekLabel = currentWeek === 0 ? 'Not started yet' :
+    currentWeek === 13 ? 'Week 13 &mdash; Reflection' :
+    `Week ${currentWeek} of 13`;
+
+  const dates = currentWeek > 0 ? getWeekDates(cycle.startDate, currentWeek) : null;
+  const dateRange = dates ? `${formatDate(dates.start)} &ndash; ${formatDate(dates.end)}` : '';
+
+  let html = `
+    <div class="card">
+      <h3>${cycle.name || '12 Week Cycle'}</h3>
+      <div style="font-size:16px;font-weight:600;margin:4px 0">${weekLabel}</div>
+      ${dateRange ? `<div style="font-size:12px;color:var(--text-secondary)">${dateRange}</div>` : ''}
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.round((weekProgress / 13) * 100)}%"></div></div>
+      <div style="font-size:12px;color:var(--text-muted);text-align:right">${weekProgress}/13 weeks</div>
+    </div>`;
+
+  if (goals.length > 0 && (currentWeek > 0 || getHighestScoredWeek() > 0)) {
+    html += `
+    <div class="card" style="text-align:center">
+      <div class="score-label">Cycle Score</div>
+      <div class="score-big ${scoreColor(cycleScore)}">${cycleScore}%</div>
+      <div class="score-label">Average across ${goals.length} goal${goals.length !== 1 ? 's' : ''}</div>
+    </div>`;
+
+    // Goal overview
+    html += `<div class="card"><h3>Goal Progress</h3>`;
+    goals.forEach(g => {
+      const gs = calculateGoalScore(g.id);
+      html += `
+      <div class="goal-progress-row">
+        <div class="goal-progress-name">${esc(g.title)}</div>
+        <div class="goal-progress-bar"><div class="goal-progress-fill ${scoreColor(gs)}" style="width:${gs}%;background:${scoreColorHex(gs)}"></div></div>
+        <div class="goal-progress-pct ${scoreColor(gs)}">${gs}%</div>
+      </div>`;
+    });
+    html += `</div>`;
+
+    // Weekly trend chart
+    html += `<div class="card"><h3>Weekly Trend</h3><div class="chart-container"><canvas id="chart-dash-trend"></canvas></div></div>`;
+  } else if (goals.length === 0) {
+    html += `<div class="card"><div class="empty-state"><p>Add some goals in the <strong>Goals</strong> tab to start tracking.</p></div></div>`;
+  }
+
+  el.innerHTML = html;
+
+  if (goals.length > 0 && (currentWeek > 0 || getHighestScoredWeek() > 0)) {
+    renderDashTrendChart();
+  }
+}
+
+function renderDashTrendChart() {
+  const canvas = document.getElementById('chart-dash-trend');
+  if (!canvas) return;
+  if (charts.dashTrend) charts.dashTrend.destroy();
+
+  const maxWeek = getWeeksToScore();
+  const weeklyData = getWeeklyData();
+  const labels = [];
+  const data = [];
+  for (let w = 1; w <= maxWeek; w++) {
+    if (!weeklyData[String(w)]) continue; // Skip weeks with no data
+    labels.push('Wk ' + w);
+    data.push(calculateWeeklyScore(w));
+  }
+
+  const s = getComputedStyle(document.documentElement);
+  const accent = s.getPropertyValue('--accent').trim();
+  const gridColor = s.getPropertyValue('--chart-grid').trim();
+  const tickColor = s.getPropertyValue('--chart-tick').trim();
+
+  charts.dashTrend = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Weekly Score',
+        data,
+        borderColor: accent,
+        backgroundColor: accent + '22',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: accent
+      }, {
+        label: '80% Target',
+        data: Array(labels.length).fill(80),
+        borderColor: s.getPropertyValue('--success').trim(),
+        borderDash: [5, 5],
+        pointRadius: 0,
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, callback: v => v + '%' } },
+        x: { grid: { color: gridColor }, ticks: { color: tickColor } }
+      },
+      plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12, font: { size: 11 } } } }
+    }
+  });
+}
+
+/* ========== GOALS & TACTICS ========== */
+function renderGoals() {
+  const goals = getGoals();
+  const el = document.getElementById('goals-content');
+
+  if (goals.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state"><div class="empty-state-icon">&#127919;</div>
+      <p>No goals yet.<br>Add your first goal to get started.</p></div>
+      <button class="btn btn-primary" onclick="openGoalModal()">+ Add Goal</button>`;
+    return;
+  }
+
+  let html = '';
+  goals.forEach(g => {
+    const tactics = getTacticsForGoal(g.id);
+    const gs = calculateGoalScore(g.id);
+    const isExpanded = expandedGoals.has(g.id);
+    html += `
+    <div class="card goal-card${isExpanded ? ' expanded' : ''}" id="goal-${g.id}">
+      <div class="goal-header" onclick="toggleGoalExpand('${g.id}')">
+        <div class="goal-header-left">
+          <div class="goal-title">${esc(g.title)}</div>
+          <div class="goal-score-badge ${scoreColor(gs)}">${gs}%</div>
+        </div>
+        <span class="goal-chevron">&#9660;</span>
+      </div>
+      <div class="goal-body">
+        ${g.description ? `<div class="goal-desc">${esc(g.description)}</div>` : ''}
+        <h3>Tactics (${tactics.length})</h3>`;
+    if (tactics.length === 0) {
+      html += `<div style="font-size:13px;color:var(--text-muted);padding:8px 0">No tactics yet.</div>`;
+    }
+    tactics.forEach(t => {
+      html += `
+        <div class="tactic-row">
+          <div class="tactic-title">${esc(t.title)}</div>
+          <div class="tactic-actions">
+            <button class="icon-btn" onclick="openTacticModal('${g.id}','${t.id}')" title="Edit">&#9998;</button>
+            <button class="icon-btn danger" onclick="deleteTactic('${t.id}')" title="Delete">&#10005;</button>
+          </div>
+        </div>`;
+    });
+    html += `
+        <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="openTacticModal('${g.id}')">+ Add Tactic</button>
+        <div class="goal-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openGoalModal('${g.id}')">Edit Goal</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteGoal('${g.id}')">Delete Goal</button>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  html += `<button class="btn btn-primary" style="margin-top:8px" onclick="openGoalModal()">+ Add Goal</button>`;
+  el.innerHTML = html;
+}
+
+function toggleGoalExpand(goalId) {
+  if (expandedGoals.has(goalId)) expandedGoals.delete(goalId);
+  else expandedGoals.add(goalId);
+  document.getElementById('goal-' + goalId).classList.toggle('expanded');
+}
+
+function openGoalModal(goalId) {
+  const isEdit = !!goalId;
+  document.getElementById('modal-goal-title').textContent = isEdit ? 'Edit Goal' : 'Add Goal';
+  if (isEdit) {
+    const g = getGoals().find(x => x.id === goalId);
+    document.getElementById('modal-goal-id').value = goalId;
+    document.getElementById('modal-goal-name').value = g ? g.title : '';
+    document.getElementById('modal-goal-desc').value = g ? g.description : '';
+  } else {
+    document.getElementById('modal-goal-id').value = '';
+    document.getElementById('modal-goal-name').value = '';
+    document.getElementById('modal-goal-desc').value = '';
+  }
+  document.getElementById('modal-goal').classList.add('show');
+  document.getElementById('modal-goal-name').focus();
+}
+
+function saveGoal() {
+  const id = document.getElementById('modal-goal-id').value;
+  const title = document.getElementById('modal-goal-name').value.trim();
+  const desc = document.getElementById('modal-goal-desc').value.trim();
+  if (!title) return;
+
+  const goals = getGoals();
+  if (id) {
+    const g = goals.find(x => x.id === id);
+    if (g) { g.title = title; g.description = desc; }
+  } else {
+    goals.push({ id: genId(), title, description: desc, order: goals.length });
+  }
+  save(KEYS.goals, goals);
+  closeModal('modal-goal');
+  renderGoals();
+}
+
+function deleteGoal(goalId) {
+  if (!confirm('Delete this goal and all its tactics? This cannot be undone.')) return;
+  save(KEYS.goals, getGoals().filter(g => g.id !== goalId));
+  save(KEYS.tactics, getTactics().filter(t => t.goalId !== goalId));
+  cleanupDeletedTactics();
+  renderGoals();
+}
+
+function openTacticModal(goalId, tacticId) {
+  const isEdit = !!tacticId;
+  document.getElementById('modal-tactic-title').textContent = isEdit ? 'Edit Tactic' : 'Add Tactic';
+  document.getElementById('modal-tactic-goalid').value = goalId;
+  if (isEdit) {
+    const t = getTactics().find(x => x.id === tacticId);
+    document.getElementById('modal-tactic-id').value = tacticId;
+    document.getElementById('modal-tactic-name').value = t ? t.title : '';
+    document.getElementById('modal-tactic-desc').value = t ? t.description : '';
+  } else {
+    document.getElementById('modal-tactic-id').value = '';
+    document.getElementById('modal-tactic-name').value = '';
+    document.getElementById('modal-tactic-desc').value = '';
+  }
+  document.getElementById('modal-tactic').classList.add('show');
+  document.getElementById('modal-tactic-name').focus();
+}
+
+function saveTactic() {
+  const id = document.getElementById('modal-tactic-id').value;
+  const goalId = document.getElementById('modal-tactic-goalid').value;
+  const title = document.getElementById('modal-tactic-name').value.trim();
+  const desc = document.getElementById('modal-tactic-desc').value.trim();
+  if (!title) return;
+
+  const isEdit = !!id;
+  const tactics = getTactics();
+  if (isEdit) {
+    const t = tactics.find(x => x.id === id);
+    if (t) { t.title = title; t.description = desc; }
+  } else {
+    const goalTactics = tactics.filter(t => t.goalId === goalId);
+    tactics.push({ id: genId(), goalId, title, description: desc, order: goalTactics.length });
+  }
+  save(KEYS.tactics, tactics);
+  expandedGoals.add(goalId);
+
+  if (isEdit) {
+    closeModal('modal-tactic');
+  } else {
+    // Clear fields for quick consecutive adds
+    document.getElementById('modal-tactic-name').value = '';
+    document.getElementById('modal-tactic-desc').value = '';
+    document.getElementById('modal-tactic-name').focus();
+  }
+  renderGoals();
+}
+
+function deleteTactic(tacticId) {
+  if (!confirm('Delete this tactic?')) return;
+  save(KEYS.tactics, getTactics().filter(t => t.id !== tacticId));
+  cleanupDeletedTactics();
+  renderGoals();
+}
+
+function cleanupDeletedTactics() {
+  const tacticIds = new Set(getTactics().map(t => t.id));
+  const weeklyData = getWeeklyData();
+  let changed = false;
+  Object.values(weeklyData).forEach(week => {
+    if (week.tacticScores) {
+      Object.keys(week.tacticScores).forEach(id => {
+        if (!tacticIds.has(id)) { delete week.tacticScores[id]; changed = true; }
+      });
+    }
+    if (week.completedTactics) {
+      const filtered = week.completedTactics.filter(id => tacticIds.has(id));
+      if (filtered.length !== week.completedTactics.length) {
+        week.completedTactics = filtered;
+        changed = true;
+      }
+    }
+  });
+  if (changed) save(KEYS.weekly, weeklyData);
+}
+
+/* ========== WEEKLY CHECK-IN ========== */
+let selectedWeek = 0;
+
+const WEEKLY_QUESTIONS = [
+  'What did you accomplish LAST week?',
+  'Any lessons, insights, or take-aways?',
+  'What is your plan for THIS week?',
+  "What's your biggest challenge this week?",
+  'Where do you need help?'
+];
+
+const WEEK13_QUESTIONS = [
+  'Proudest Achievements: Looking back over the past quarter, what are the things you have achieved that make you the PROUDEST?',
+  'Areas of Confidence: What are the current areas of focus and progress that make you the MOST CONFIDENT?',
+  'Future Excitement: Looking ahead at the next quarter, what new developments, projects, or goals are giving you THE GREATEST SENSE OF EXCITEMENT?',
+  'Five New "Jumps": What are the five new "jumps" (progress) you can now achieve that will make your next 90 days a great quarter regardless of what else happens?'
+];
+
+function renderCheckin() {
+  const cycle = getCycle();
+  const goals = getGoals();
+  const tactics = getTactics();
+  const el = document.getElementById('checkin-content');
+
+  if (!cycle.startDate) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128203;</div><p>Set up your cycle in <strong>Settings</strong> first.</p></div>`;
+    return;
+  }
+  if (tactics.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128203;</div><p>Add some goals and tactics in the <strong>Goals</strong> tab first.</p></div>`;
+    return;
+  }
+
+  const currentWeek = getCurrentWeek();
+  if (selectedWeek === 0) selectedWeek = Math.max(currentWeek, 1);
+
+  // WAM + tracker links (side by side)
+  let html = '';
+  const navLinks = [];
+  if (cycle.wamLink) {
+    navLinks.push(`<a href="${esc(cycle.wamLink)}" target="_blank" class="wam-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
+      Join Weekly WAM Meeting
+    </a>`);
+  }
+  if (cycle.trackerLink) {
+    navLinks.push(`<a href="${esc(cycle.trackerLink)}" target="_blank" class="wam-link">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+      Open Google Sheet Tracker
+    </a>`);
+  }
+  if (navLinks.length) {
+    html += `<div class="wam-link-row">${navLinks.join('')}</div>`;
+  }
+
+  // Week selector chips
+  html += `<div class="chip-group" id="week-chips">`;
+  for (let w = 1; w <= 13; w++) {
+    const isActive = w === selectedWeek;
+    const isCurrent = w === currentWeek;
+    let cls = 'chip';
+    if (isActive) cls += ' active';
+    else if (isCurrent) cls += ' current-week';
+    const label = w === 13 ? '13*' : w;
+    html += `<button class="${cls}" onclick="selectWeek(${w})">${label}</button>`;
+  }
+  html += `</div>`;
+
+  // Week date range
+  const dates = getWeekDates(cycle.startDate, selectedWeek);
+  const sub = document.getElementById('checkin-subtitle');
+  sub.innerHTML = `Week ${selectedWeek} &mdash; ${formatDate(dates.start)} to ${formatDate(dates.end)}`;
+
+  const weeklyData = getWeeklyData();
+  const weekSaved = weeklyData.hasOwnProperty(String(selectedWeek));
+  const weekData = weeklyData[String(selectedWeek)] || {};
+  const tacticScores = getWeekTacticScores(weekData);
+  const allTacticIds = tactics.map(t => t.id);
+  const activeTactics = getWeekActiveTactics(weekSaved ? weekData : null, allTacticIds);
+  const reflections = weekData.reflections || {};
+
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+
+  if (selectedWeek <= 12) {
+    // Tactic scoring
+    html += `<div class="card"><h3>Tactic Scoring</h3><div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">Uncheck tactics not pursued this week</div>`;
+    goals.forEach(g => {
+      const gt = getTacticsForGoal(g.id);
+      if (gt.length === 0) return;
+      html += `<div class="checkin-goal-header">${esc(g.title)}</div>`;
+      gt.forEach(t => {
+        const isActive = activeTactics.has(t.id);
+        const score = tacticScores[t.id] || 0;
+        html += `
+        <div class="checkin-tactic${isActive ? '' : ' inactive'}" id="ct-row-${t.id}">
+          <div class="checkin-tactic-header">
+            <input type="checkbox" class="checkin-tactic-toggle" data-tactic-id="${t.id}" ${isActive ? 'checked' : ''} onchange="toggleTacticActive(this)" title="Include this week">
+            <div class="checkin-tactic-title">${esc(t.title)}</div>
+            <div class="checkin-tactic-value ${isActive ? scoreColor(score) : ''}" id="val-${t.id}">${isActive ? score + '%' : '--'}</div>
+          </div>
+          <input type="range" min="0" max="100" step="1" value="${isActive ? score : 0}" data-tactic-id="${t.id}" oninput="updateTacticSlider(this)"${isActive ? '' : ' disabled'}>
+        </div>`;
+      });
+    });
+    html += `<div class="checkin-score-preview" id="checkin-preview"></div>`;
+    html += `</div>`;
+  } else {
+    // Week 13 - show cycle score summary
+    const cycleScore = calculateCycleScore();
+    html += `
+    <div class="card" style="text-align:center">
+      <div class="score-label">Final Cycle Score</div>
+      <div class="score-big ${scoreColor(cycleScore)}">${cycleScore}%</div>
+    </div>`;
+  }
+
+  // Reflections
+  html += `<div class="card"><h3>${selectedWeek === 13 ? 'Cycle Reflection' : 'Weekly Reflections'}</h3>`;
+  questions.forEach((q, i) => {
+    const val = reflections['q' + (i + 1)] || '';
+    html += `<div class="reflection-group">
+      <label class="reflection-label">${q}</label>`;
+    // Q3 ("What is your plan for THIS week?") gets tactic checkboxes
+    if (selectedWeek <= 12 && questions === WEEKLY_QUESTIONS && i === 2) {
+      const plannedSet = new Set(weekData.plannedTactics || []);
+      html += `<div class="planned-tactics-list" style="margin-bottom:8px">`;
+      goals.forEach(g => {
+        const gt = getTacticsForGoal(g.id);
+        if (gt.length === 0) return;
+        html += `<div style="font-size:12px;color:var(--text-muted);margin:8px 0 4px;font-weight:600">${esc(g.title)}</div>`;
+        gt.forEach(t => {
+          const checked = plannedSet.has(t.id) ? ' checked' : '';
+          html += `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;font-size:14px">
+            <input type="checkbox" class="planned-tactic-toggle" data-tactic-id="${t.id}"${checked} onchange="updatePlannedTacticsText()">
+            ${esc(t.title)}
+          </label>`;
+        });
+      });
+      html += `</div>`;
+      html += `<textarea id="reflection-q${i + 1}" rows="3" placeholder="Additional comments (optional)">${esc(val)}</textarea>`;
+    } else {
+      html += `<textarea id="reflection-q${i + 1}" rows="3">${esc(val)}</textarea>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  html += `<button class="btn btn-secondary" id="copy-tracker-btn" style="margin-bottom:8px" onclick="copyCheckinForTracker()">Copy answers for Google Sheet</button>`;
+  html += `<button class="btn btn-secondary" style="margin-bottom:8px" onclick="printCheckin()">Print Check-in</button>`;
+  html += `<button class="btn btn-primary" onclick="saveCheckin()">Save Week ${selectedWeek}</button>`;
+  const hasWeekData = !!getWeeklyData()[String(selectedWeek)];
+  if (hasWeekData) {
+    html += `<button class="btn btn-danger" style="margin-top:8px" onclick="resetWeek(${selectedWeek})">Reset Week ${selectedWeek}</button>`;
+  }
+
+  el.innerHTML = html;
+  if (selectedWeek <= 12) updateCheckinPreview();
+}
+
+function selectWeek(w) {
+  selectedWeek = w;
+  renderCheckin();
+}
+
+function toggleTacticActive(checkbox) {
+  const id = checkbox.dataset.tacticId;
+  const row = document.getElementById('ct-row-' + id);
+  const slider = row.querySelector('input[type="range"]');
+  const label = document.getElementById('val-' + id);
+  if (checkbox.checked) {
+    row.classList.remove('inactive');
+    slider.disabled = false;
+    const val = Number(slider.value);
+    label.textContent = val + '%';
+    label.className = 'checkin-tactic-value ' + scoreColor(val);
+  } else {
+    row.classList.add('inactive');
+    slider.disabled = true;
+    label.textContent = '--';
+    label.className = 'checkin-tactic-value';
+  }
+  updateCheckinPreview();
+}
+
+function updateTacticSlider(slider) {
+  const val = slider.value;
+  const id = slider.dataset.tacticId;
+  const label = document.getElementById('val-' + id);
+  if (label) {
+    label.textContent = val + '%';
+    label.className = 'checkin-tactic-value ' + scoreColor(Number(val));
+  }
+  updateCheckinPreview();
+}
+
+function updatePlannedTacticsText() {
+  const textarea = document.getElementById('reflection-q3');
+  if (!textarea) return;
+  const allTactics = getTactics();
+  const tacticMap = {};
+  allTactics.forEach(t => { tacticMap[t.id] = t.title; });
+  const selected = [];
+  document.querySelectorAll('.planned-tactic-toggle:checked').forEach(cb => {
+    const title = tacticMap[cb.dataset.tacticId];
+    if (title) selected.push('- ' + title);
+  });
+  // Preserve any user-added comments after the tactic list
+  const current = textarea.value;
+  const marker = '---';
+  const parts = current.split(marker);
+  const userComments = parts.length > 1 ? parts.slice(1).join(marker).trim() : '';
+  if (selected.length > 0) {
+    textarea.value = selected.join('\n') + (userComments ? '\n' + marker + '\n' + userComments : '');
+  } else {
+    textarea.value = userComments;
+  }
+}
+
+function updateCheckinPreview() {
+  const activeToggles = document.querySelectorAll('.checkin-tactic-toggle:checked');
+  const activeCount = activeToggles.length;
+  const totalCount = document.querySelectorAll('.checkin-tactic-toggle').length;
+  if (activeCount === 0) {
+    const preview = document.getElementById('checkin-preview');
+    if (preview) preview.innerHTML = `<span style="color:var(--text-muted)">No tactics active this week</span>`;
+    return;
+  }
+  let sum = 0;
+  activeToggles.forEach(toggle => {
+    const id = toggle.dataset.tacticId;
+    const slider = document.querySelector(`.checkin-tactic input[type="range"][data-tactic-id="${id}"]`);
+    if (slider) sum += Number(slider.value);
+  });
+  const pct = Math.round(sum / activeCount);
+  const preview = document.getElementById('checkin-preview');
+  if (preview) {
+    preview.innerHTML = `<strong class="${scoreColor(pct)}">${pct}%</strong><br>Average across ${activeCount} of ${totalCount} tactics`;
+  }
+}
+
+function saveCheckin() {
+  const weeklyData = getWeeklyData();
+  const entry = { reflections: {} };
+
+  if (selectedWeek <= 12) {
+    entry.activeTactics = [];
+    entry.tacticScores = {};
+    document.querySelectorAll('.checkin-tactic-toggle').forEach(toggle => {
+      if (toggle.checked) {
+        const id = toggle.dataset.tacticId;
+        entry.activeTactics.push(id);
+        const slider = document.querySelector(`.checkin-tactic input[type="range"][data-tactic-id="${id}"]`);
+        entry.tacticScores[id] = slider ? Number(slider.value) : 0;
+      }
+    });
+  }
+
+  // Save planned tactics for "What is your plan for THIS week?"
+  if (selectedWeek <= 12) {
+    entry.plannedTactics = [];
+    document.querySelectorAll('.planned-tactic-toggle').forEach(cb => {
+      if (cb.checked) entry.plannedTactics.push(cb.dataset.tacticId);
+    });
+  }
+
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+  questions.forEach((q, i) => {
+    const textarea = document.getElementById('reflection-q' + (i + 1));
+    if (textarea) entry.reflections['q' + (i + 1)] = textarea.value.trim();
+  });
+
+  weeklyData[String(selectedWeek)] = entry;
+  save(KEYS.weekly, weeklyData);
+  autoBackupIfEnabled();
+
+  // Show result
+  const score = selectedWeek <= 12 ? calculateWeeklyScore(selectedWeek) : calculateCycleScore();
+  document.getElementById('result-title').textContent = selectedWeek <= 12 ? `Week ${selectedWeek} Score` : 'Cycle Score';
+  document.getElementById('result-score').textContent = score + '%';
+  document.getElementById('result-score').className = 'score-big ' + scoreColor(score);
+  document.getElementById('result-detail').textContent = selectedWeek <= 12 ? 'Keep pushing toward 80%+ weekly execution!' : 'Cycle complete. Time to plan the next one!';
+  document.getElementById('result-overlay').classList.add('show');
+}
+
+function getCurrentCheckinScore() {
+  // Week 13 captures the overall cycle score; weeks 1-12 use the live weekly
+  // score computed from the active tactics and their sliders (matches preview).
+  if (selectedWeek > 12) return calculateCycleScore();
+  const activeToggles = document.querySelectorAll('.checkin-tactic-toggle:checked');
+  if (activeToggles.length === 0) return 0;
+  let sum = 0;
+  activeToggles.forEach(toggle => {
+    const id = toggle.dataset.tacticId;
+    const slider = document.querySelector(`.checkin-tactic input[type="range"][data-tactic-id="${id}"]`);
+    if (slider) sum += Number(slider.value);
+  });
+  return Math.round(sum / activeToggles.length);
+}
+
+function copyCheckinForTracker() {
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+  // Read the answers currently on screen, flattening line breaks/tabs so each
+  // answer stays within a single spreadsheet cell.
+  const answers = questions.map((q, i) => {
+    const ta = document.getElementById('reflection-q' + (i + 1));
+    const v = ta ? ta.value : '';
+    return v.replace(/\t/g, ' ').replace(/\r?\n+/g, '; ').trim();
+  });
+  // Column layout to match the tracker: the week's score sits 3 cells above the
+  // first question, i.e. score, then two blank cells, then the 5 answers.
+  // Paste the score as a decimal fraction (e.g. 0.8) so a percent-formatted
+  // tracker cell shows it as 80% and keeps its existing format.
+  const score = getCurrentCheckinScore();
+  const cells = [String(score / 100), '', '', ...answers];
+  // Newline-separated => one column, one cell per line when pasted down.
+  const row = cells.join('\n');
+  const btn = document.getElementById('copy-tracker-btn');
+  const done = () => {
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = 'Copied! Paste into the tracker';
+    setTimeout(() => { btn.textContent = original; }, 2000);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(row).then(done).catch(() => fallbackCopy(row, done));
+  } else {
+    fallbackCopy(row, done);
+  }
+}
+
+function fallbackCopy(text, onDone) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); onDone && onDone(); }
+  catch (e) { alert('Could not copy automatically. Please copy manually.'); }
+  document.body.removeChild(ta);
+}
+
+function printCheckin() {
+  const cycle = getCycle();
+  if (!cycle.startDate) { alert('Set up your cycle in Settings first.'); return; }
+  const goals = getGoals();
+  const dates = getWeekDates(cycle.startDate, selectedWeek);
+  const score = getCurrentCheckinScore();
+  const questions = selectedWeek === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+  const cycleName = cycle.name || 'My Plan+';
+
+  function sc(pct) { return pct >= 80 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626'; }
+
+  let h = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Week ' + selectedWeek + ' Check-in</title>';
+  h += '<style>';
+  h += '@page{size:A4;margin:15mm}';
+  h += 'body{background:#fff;color:#1a1d27;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px;line-height:1.55;margin:0;padding:24px}';
+  h += '.header-banner{background:linear-gradient(135deg,#4350d4,#6c7bff);border-radius:10px;padding:24px;text-align:center;color:#fff;margin-bottom:16px}';
+  h += '.header-banner h1{margin:0;font-size:22px}.header-banner p{margin:4px 0 0;opacity:.9;font-size:14px}';
+  h += '.card{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
+  h += '.score-big{font-size:28px;font-weight:700}.secondary{color:#6b7280}';
+  h += '.tactic-score-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px}';
+  h += '.reflection-q{color:#4350d4;font-weight:600;font-size:12px;margin-top:10px}';
+  h += '.reflection-a{color:#374151;margin:3px 0 8px;white-space:pre-wrap;word-wrap:break-word;font-size:12px}';
+  h += '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+  h += '</style></head><body>';
+
+  h += '<div class="header-banner"><h1>Weekly Check-in</h1><p>Week ' + selectedWeek + (selectedWeek === 13 ? ' (Review)' : '') + ' &middot; ' + formatDate(dates.start) + ' to ' + formatDate(dates.end) + '</p></div>';
+
+  h += '<div class="card" style="display:flex;justify-content:space-between;align-items:center">';
+  h += '<div class="secondary">' + esc(cycleName) + '</div>';
+  h += '<div style="text-align:right"><div class="secondary">' + (selectedWeek <= 12 ? 'Week Score' : 'Cycle Score') + '</div><div class="score-big" style="color:' + sc(score) + '">' + score + '%</div></div>';
+  h += '</div>';
+
+  // Tactic scoring (weeks 1-12) — read live from the active tactics on screen
+  if (selectedWeek <= 12) {
+    let body = '';
+    goals.forEach(function(g) {
+      let ghtml = '';
+      getTacticsForGoal(g.id).forEach(function(t) {
+        const toggle = document.querySelector('.checkin-tactic-toggle[data-tactic-id="' + t.id + '"]');
+        if (!toggle || !toggle.checked) return;
+        const slider = document.querySelector('.checkin-tactic input[type="range"][data-tactic-id="' + t.id + '"]');
+        const val = slider ? Number(slider.value) : 0;
+        ghtml += '<div class="tactic-score-row"><span>' + esc(t.title) + '</span><span style="font-weight:700;color:' + sc(val) + '">' + val + '%</span></div>';
+      });
+      if (ghtml) body += '<div style="color:#6c7bff;font-weight:700;margin:6px 0 2px">' + esc(g.title) + '</div>' + ghtml;
+    });
+    if (body) h += '<div class="card"><strong>Tactic Scoring</strong>' + body + '</div>';
+  }
+
+  // Reflections — read live from the textareas so the full text prints
+  h += '<div class="card"><strong>' + (selectedWeek === 13 ? 'Cycle Reflection' : 'Weekly Reflections') + '</strong>';
+  questions.forEach(function(q, i) {
+    const ta = document.getElementById('reflection-q' + (i + 1));
+    const ans = ta ? ta.value.trim() : '';
+    h += '<div class="reflection-q">' + q + '</div><div class="reflection-a">' + (ans ? esc(ans) : '<span class="secondary">&mdash;</span>') + '</div>';
+  });
+  h += '</div>';
+
+  h += '</body></html>';
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Please allow pop-ups to print the check-in.'); return; }
+  win.document.write(h);
+  win.document.close();
+  setTimeout(function() { win.print(); }, 500);
+}
+
+function resetWeek(weekNum) {
+  if (!confirm(`Reset Week ${weekNum}? This will remove all scores and reflections for this week.`)) return;
+  const weeklyData = getWeeklyData();
+  delete weeklyData[String(weekNum)];
+  save(KEYS.weekly, weeklyData);
+  autoBackupIfEnabled();
+  renderCheckin();
+}
+
+function closeResult() {
+  document.getElementById('result-overlay').classList.remove('show');
+}
+
+/* ========== REPORTS ========== */
+function renderReports() {
+  const cycle = getCycle();
+  const goals = getGoals();
+  const tactics = getTactics();
+  const el = document.getElementById('reports-content');
+
+  if (!cycle.startDate || goals.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128202;</div><p>Set up your cycle and add goals to see reports.</p></div>`;
+    return;
+  }
+
+  const currentWeek = getCurrentWeek();
+  const weeklyData = getWeeklyData();
+  const weeksCompleted = Object.keys(weeklyData).filter(k => Number(k) >= 1 && Number(k) <= 12 && weeklyData[k]).length;
+  const cycleScore = calculateCycleScore();
+
+  let html = `
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-value ${scoreColor(cycleScore)}">${cycleScore}%</div><div class="stat-label">Cycle Score</div></div>
+    <div class="stat-card"><div class="stat-value">${weeksCompleted}</div><div class="stat-label">Weeks Scored</div></div>
+    <div class="stat-card"><div class="stat-value">${goals.length}</div><div class="stat-label">Goals</div></div>
+  </div>`;
+
+  // Weekly scores line chart
+  html += `<div class="card"><h3>Weekly Scores</h3><div class="chart-container"><canvas id="chart-report-weekly"></canvas></div></div>`;
+
+  // Goal breakdown bar chart
+  html += `<div class="card"><h3>Goal Breakdown</h3><div class="chart-container"><canvas id="chart-report-goals"></canvas></div></div>`;
+
+  // Per-goal detail grids
+  html += `<div class="card"><h3>Tactic Score Grid</h3>`;
+  goals.forEach(g => {
+    const gt = getTacticsForGoal(g.id);
+    const gs = calculateGoalScore(g.id);
+    html += `<div style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><strong style="font-size:14px">${esc(g.title)}</strong><span class="goal-score-badge ${scoreColor(gs)}">${gs}%</span></div>`;
+    if (gt.length > 0) {
+      html += `<div class="tactic-grid"><table><thead><tr><th style="text-align:left">Tactic</th>`;
+      for (let w = 1; w <= 12; w++) html += `<th>${w}</th>`;
+      html += `</tr></thead><tbody>`;
+      gt.forEach(t => {
+        html += `<tr><td class="tactic-name" title="${esc(t.title)}">${esc(t.title)}</td>`;
+        for (let w = 1; w <= 12; w++) {
+          const wd = weeklyData[String(w)];
+          if (!wd) {
+            html += `<td class="future">&mdash;</td>`;
+          } else {
+            const allIds = getTactics().map(x => x.id);
+            const active = getWeekActiveTactics(wd, allIds);
+            if (!active.has(t.id)) {
+              html += `<td class="future" style="font-size:10px">&mdash;</td>`;
+            } else {
+              const scores = getWeekTacticScores(wd);
+              const sc = scores[t.id] || 0;
+              html += `<td class="${sc >= 80 ? 'done' : sc > 0 ? 'missed' : 'future'}" style="font-size:10px">${sc}%</td>`;
+            }
+          }
+        }
+        html += `</tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  // Weekly reports (expandable)
+  html += `<div class="card"><h3>Weekly Reports</h3>`;
+  const maxReportWeek = Math.max(Math.min(currentWeek, 13), getHighestScoredWeek());
+  for (let w = 1; w <= maxReportWeek; w++) {
+    const wd = weeklyData[String(w)];
+    const ws = w <= 12 ? calculateWeeklyScore(w) : calculateCycleScore();
+    const hasData = wd && (wd.tacticScores || wd.completedTactics || wd.reflections);
+    const dates = getWeekDates(cycle.startDate, w);
+    const questions = w === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+
+    html += `
+    <div class="week-report-card card" style="margin-bottom:8px;cursor:pointer" onclick="this.classList.toggle('expanded')">
+      <div class="week-report-header">
+        <div>
+          <div style="font-size:14px;font-weight:600">Week ${w}${w === 13 ? ' (Review)' : ''}</div>
+          <div style="font-size:12px;color:var(--text-secondary)">${formatDate(dates.start)} &ndash; ${formatDate(dates.end)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="goal-score-badge ${scoreColor(ws)}">${hasData ? ws + '%' : '--'}</span>
+          <span class="goal-chevron">&#9660;</span>
+        </div>
+      </div>
+      <div class="week-report-body">`;
+
+    if (!hasData) {
+      html += `<div style="font-size:13px;color:var(--text-muted)">No check-in data for this week.</div>`;
+    } else {
+      if (w <= 12) {
+        const wScores = getWeekTacticScores(wd);
+        const allIds = getTactics().map(t => t.id);
+        const wActive = getWeekActiveTactics(wd, allIds);
+        html += `<div style="margin-bottom:12px"><strong style="font-size:12px;color:var(--text-secondary)">TACTIC SCORES</strong>`;
+        goals.forEach(g => {
+          const gt = getTacticsForGoal(g.id).filter(t => wActive.has(t.id));
+          if (gt.length === 0) return;
+          gt.forEach(t => {
+            const sc = wScores[t.id] || 0;
+            html += `<div style="font-size:13px;padding:3px 0;display:flex;justify-content:space-between"><span>${esc(t.title)}</span><span class="${scoreColor(sc)}" style="font-weight:600">${sc}%</span></div>`;
+          });
+        });
+        html += `</div>`;
+      }
+
+      if (wd.reflections) {
+        questions.forEach((q, i) => {
+          const ans = wd.reflections['q' + (i + 1)];
+          if (ans) {
+            html += `<div class="reflection-answer"><strong>${q}</strong>${esc(ans)}</div>`;
+          }
+        });
+      }
+    }
+
+    html += `</div></div>`;
+  }
+  html += `</div>`;
+
+  el.innerHTML = html;
+  renderReportCharts();
+}
+
+function renderReportCharts() {
+  const s = getComputedStyle(document.documentElement);
+  const accent = s.getPropertyValue('--accent').trim();
+  const gridColor = s.getPropertyValue('--chart-grid').trim();
+  const tickColor = s.getPropertyValue('--chart-tick').trim();
+  const successColor = s.getPropertyValue('--success').trim();
+  const maxChartWeek = getWeeksToScore();
+
+  // Weekly line chart
+  const weeklyCanvas = document.getElementById('chart-report-weekly');
+  if (weeklyCanvas) {
+    if (charts.reportWeekly) charts.reportWeekly.destroy();
+    const weeklyData = getWeeklyData();
+    const chartWeeks = [];
+    const labels = [];
+    const overallData = [];
+    for (let w = 1; w <= maxChartWeek; w++) {
+      if (!weeklyData[String(w)]) continue; // Skip weeks with no data
+      chartWeeks.push(w);
+      labels.push('Wk ' + w);
+      overallData.push(calculateWeeklyScore(w));
+    }
+
+    const datasets = [{
+      label: 'Overall',
+      data: overallData,
+      borderColor: accent,
+      backgroundColor: accent + '22',
+      fill: true,
+      tension: 0.3,
+      pointRadius: 3,
+      pointBackgroundColor: accent
+    }, {
+      label: '80% Target',
+      data: Array(labels.length).fill(80),
+      borderColor: successColor,
+      borderDash: [5, 5],
+      pointRadius: 0,
+      fill: false
+    }];
+
+    // Per-goal lines
+    const goalColors = ['#f472b6', '#fb923c', '#a78bfa', '#34d399', '#fbbf24', '#60a5fa'];
+    const goals = getGoals();
+    goals.forEach((g, i) => {
+      const gData = [];
+      chartWeeks.forEach(w => {
+        const gt = getTacticsForGoal(g.id);
+        if (gt.length === 0) { gData.push(0); return; }
+        const wd = weeklyData[String(w)];
+        const scores = getWeekTacticScores(wd);
+        const allIds = getTactics().map(t => t.id);
+        const active = getWeekActiveTactics(wd, allIds);
+        const activeGt = gt.filter(t => active.has(t.id));
+        if (activeGt.length === 0) { gData.push(0); return; }
+        let sum = 0;
+        activeGt.forEach(t => { sum += (scores[t.id] || 0); });
+        gData.push(Math.round(sum / activeGt.length));
+      });
+      datasets.push({
+        label: g.title,
+        data: gData,
+        borderColor: goalColors[i % goalColors.length],
+        borderDash: [4, 4],
+        pointRadius: 2,
+        fill: false,
+        tension: 0.3
+      });
+    });
+
+    charts.reportWeekly = new Chart(weeklyCanvas, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: {
+          y: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, callback: v => v + '%' } },
+          x: { grid: { color: gridColor }, ticks: { color: tickColor } }
+        },
+        plugins: { legend: { display: true, labels: { color: tickColor, boxWidth: 12, font: { size: 10 } } } }
+      }
+    });
+  }
+
+  // Goal bar chart
+  const goalsCanvas = document.getElementById('chart-report-goals');
+  if (goalsCanvas) {
+    if (charts.reportGoals) charts.reportGoals.destroy();
+    const goals = getGoals();
+    const labels = goals.map(g => g.title);
+    const data = goals.map(g => calculateGoalScore(g.id));
+    const bgColors = data.map(d => scoreColorHex(d) + 'aa');
+    const borderColors = data.map(d => scoreColorHex(d));
+
+    charts.reportGoals = new Chart(goalsCanvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ label: 'Goal Score', data, backgroundColor: bgColors, borderColor: borderColors, borderWidth: 1 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        indexAxis: 'y',
+        scales: {
+          x: { min: 0, max: 100, grid: { color: gridColor }, ticks: { color: tickColor, callback: v => v + '%' } },
+          y: { grid: { display: false }, ticks: { color: tickColor, font: { size: 11 } } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+  }
+}
+
+/* ========== SETTINGS ========== */
+function renderSettings() {
+  const cycle = getCycle();
+  const el = document.getElementById('settings-content');
+
+  const endDate = getCycleEndDate();
+
+  el.innerHTML = `
+  <div class="card">
+    <h3>Cycle Configuration</h3>
+    <div class="form-group">
+      <label class="form-label">Cycle Name</label>
+      <input type="text" id="set-cycle-name" value="${esc(cycle.name)}" placeholder="e.g. Q2 2026">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Start Date</label>
+      <input type="date" id="set-cycle-start" value="${cycle.startDate}">
+    </div>
+    ${endDate ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Cycle ends: ${formatDate(endDate)} (13 weeks)</div>` : ''}
+    <div class="form-group">
+      <label class="form-label">Weekly WAM Meeting Link (Zoom, Teams, etc.)</label>
+      <input type="text" id="set-wam-link" value="${esc(cycle.wamLink || '')}" placeholder="e.g. https://zoom.us/j/123456789">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Google Sheet Tracker Link</label>
+      <input type="text" id="set-tracker-link" value="${esc(cycle.trackerLink || '')}" placeholder="e.g. https://docs.google.com/spreadsheets/...">
+    </div>
+    <button class="btn btn-primary" onclick="saveCycleSettings()">Save Cycle Settings</button>
+  </div>
+
+  <div class="card" style="border:1px solid var(--warning);background:rgba(251,191,36,0.05)">
+    <h3 style="color:var(--warning)">Important: Your Data</h3>
+    <p style="font-size:13px;line-height:1.7;color:var(--text-secondary);margin-bottom:12px">
+      All your data is stored <strong style="color:var(--text-primary)">locally in this browser only</strong>. It is not saved to any server. This means:
+    </p>
+    <ul style="font-size:13px;line-height:1.8;color:var(--text-secondary);padding-left:18px;margin-bottom:12px">
+      <li>Clearing your browser cache or site data will <strong style="color:var(--danger)">permanently delete</strong> all entries</li>
+      <li>Data entered in one browser (e.g. Safari) is <strong style="color:var(--text-primary)">not available</strong> in another (e.g. Chrome)</li>
+      <li>Private/incognito browsing will <strong style="color:var(--danger)">not retain</strong> any data after closing</li>
+      <li>Switching between http:// and https:// creates separate data stores</li>
+      <li>Some mobile browsers may clear storage automatically when space is low</li>
+    </ul>
+    <p style="font-size:13px;line-height:1.7;color:var(--success);font-weight:500;margin-bottom:0">
+      We strongly recommend exporting a full backup regularly. This saves all your goals, tactics, scores, and settings in one file that can be restored at any time.
+    </p>
+  </div>
+
+  <div class="card">
+    <h3>Full Backup</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Saves everything: cycle settings, goals, tactics, weekly scores, and reflections. Use this to transfer data between browsers or restore after cache clearing.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+        <input type="checkbox" id="set-auto-backup" ${getSettings().autoBackup ? 'checked' : ''} onchange="toggleAutoBackup(this.checked)" style="width:18px;height:18px;cursor:pointer">
+        Auto-backup on every save or reset
+      </label>
+    </div>
+    <p style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">When enabled, a backup file will automatically download each time you save a check-in, reset a week, or save cycle settings.</p>
+    <button class="btn btn-primary" style="margin-bottom:8px" onclick="exportFullBackup()">Export Full Backup (JSON)</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">Import Full Backup (JSON)</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importFullBackup(event)">
+  </div>
+
+  <div class="card">
+    <h3>Cycle Archive</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Archive this cycle as a styled PDF report and CSV data export, then optionally reset to start a new cycle.</p>
+    <button class="btn btn-primary" style="margin-bottom:8px" onclick="archiveCycle()">Archive Cycle (PDF + CSV)</button>
+    <button class="btn btn-danger" onclick="resetCycle()">Reset &amp; Start New Cycle</button>
+  </div>
+
+  <div class="card">
+    <h3>Danger Zone</h3>
+    <button class="btn btn-danger" onclick="clearAllData()">Clear All Data</button>
+  </div>
+
+  <div class="card">
+    <h3>How to Use My Plan+</h3>
+    <ol style="font-size:13px;line-height:1.8;color:var(--text-secondary);padding-left:18px;margin:0">
+      <li><strong style="color:var(--text-primary)">Set up your cycle</strong> &mdash; Enter a cycle name, start date, and optional WAM meeting link above.</li>
+      <li><strong style="color:var(--text-primary)">Define goals &amp; tactics</strong> &mdash; Go to the Goals screen to create 2&ndash;5 goals. Add specific, measurable tactics under each goal.</li>
+      <li><strong style="color:var(--text-primary)">Weekly check-in</strong> &mdash; Each week, open the Check-in screen. Score your tactics with the sliders, then select which tactics you plan to focus on next week under &ldquo;What is your plan for this week?&rdquo; &mdash; these will pre-populate the following week&rsquo;s active tactics when you save.</li>
+      <li><strong style="color:var(--text-primary)">Review progress</strong> &mdash; Use the Reports screen to track your scores over time and see how each goal and tactic is trending.</li>
+      <li><strong style="color:var(--text-primary)">Week 13 review</strong> &mdash; At the end of the 13-week cycle, complete the final review to reflect on the full cycle.</li>
+      <li><strong style="color:var(--text-primary)">Back up regularly</strong> &mdash; Use the backup options above to export your data, or enable auto-backup so a file downloads every time you save.</li>
+    </ol>
+  </div>`;
+}
+
+function saveCycleSettings() {
+  const name = document.getElementById('set-cycle-name').value.trim();
+  const startDate = document.getElementById('set-cycle-start').value;
+  const wamLink = document.getElementById('set-wam-link').value.trim();
+  const trackerLink = document.getElementById('set-tracker-link').value.trim();
+  if (!startDate) { alert('Please set a start date.'); return; }
+  save(KEYS.cycle, { name, startDate, wamLink, trackerLink });
+  autoBackupIfEnabled();
+  alert('Cycle settings saved!');
+  renderSettings();
+}
+
+function toggleAutoBackup(enabled) {
+  const s = getSettings();
+  s.autoBackup = enabled;
+  saveSettings(s);
+}
+
+/* ========== EXPORT / IMPORT ========== */
+function exportFullBackup() {
+  const backup = {
+    version: 1,
+    exportDate: todayStr(),
+    cycle: getCycle(),
+    goals: getGoals(),
+    tactics: getTactics(),
+    weeklyData: getWeeklyData()
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const now = new Date();
+  const stamp = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '-' + String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0');
+  a.download = 'myplanplus-backup-' + stamp + '.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importFullBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const backup = JSON.parse(e.target.result);
+      if (!backup.version) { alert('Not a valid My Plan+ backup file.'); return; }
+      if (!confirm('This will replace all current data. Continue?')) return;
+      if (backup.cycle) save(KEYS.cycle, backup.cycle);
+      if (backup.goals) save(KEYS.goals, backup.goals);
+      if (backup.tactics) save(KEYS.tactics, backup.tactics);
+      if (backup.weeklyData) save(KEYS.weekly, backup.weeklyData);
+      alert('Backup imported successfully!');
+      location.reload();
+    } catch (err) {
+      alert('Import error: ' + err.message);
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+/* ========== CYCLE ARCHIVE (PDF + CSV) ========== */
+function archiveCycle() {
+  const cycle = getCycle();
+  if (!cycle.startDate) { alert('No cycle to archive. Set up a cycle first.'); return; }
+  const goals = getGoals();
+  const tactics = getTactics();
+  const weeklyData = getWeeklyData();
+  const cycleName = cycle.name || 'Untitled Cycle';
+  const stamp = todayStr();
+  const safeName = cycleName.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
+  const cycleScore = calculateCycleScore();
+  const startDates = getWeekDates(cycle.startDate, 1);
+  const endDates = getWeekDates(cycle.startDate, 13);
+
+  function sc(pct) { return pct >= 80 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626'; }
+  function e(s) { return esc(s); }
+  function bar(pct, col) {
+    return '<div style="display:flex;align-items:center;gap:8px;margin-top:2px"><div style="flex:1;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + col + ';border-radius:3px"></div></div></div>';
+  }
+
+  let h = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>My Plan+ Archive - ' + e(cycleName) + '</title>';
+  h += '<style>';
+  h += '@page{size:A4;margin:15mm}';
+  h += 'body{background:#ffffff;color:#1a1d27;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:11px;line-height:1.5;margin:0;padding:20px}';
+  h += '.card{background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;page-break-inside:avoid}';
+  h += '.section-title{color:#4350d4;font-size:16px;font-weight:700;margin:20px 0 8px;border-bottom:2px solid #4350d4;padding-bottom:4px}';
+  h += '.header-banner{background:linear-gradient(135deg,#4350d4,#6c7bff);border-radius:10px;padding:24px;text-align:center;color:#fff;margin-bottom:16px}';
+  h += '.header-banner h1{margin:0;font-size:24px}.header-banner p{margin:4px 0 0;opacity:0.9;font-size:14px}';
+  h += '.score-big{font-size:28px;font-weight:700}.goal-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0}';
+  h += '.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px}';
+  h += '.muted{color:#9ca3af}.secondary{color:#6b7280}';
+  h += '.grid-table{width:100%;border-collapse:collapse;font-size:9px}.grid-table th,.grid-table td{padding:3px 4px;text-align:center;border-bottom:1px solid #e5e7eb}';
+  h += '.grid-table th{color:#6b7280;font-weight:600;font-size:8px}.grid-table td.tactic-name{text-align:left;color:#1a1d27;font-size:9px}';
+  h += '.reflection-q{color:#4350d4;font-weight:600;font-size:10px;margin-top:8px}.reflection-a{color:#374151;margin:2px 0 6px;white-space:pre-wrap;font-size:10px}';
+  h += '.week-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}';
+  h += '.tactic-score-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;font-size:10px}';
+  h += '@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+  h += '</style></head><body>';
+
+  // Header banner
+  h += '<div class="header-banner"><h1>My Plan+ Cycle Archive</h1><p>' + e(cycleName) + '</p></div>';
+
+  // Cycle info
+  h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center">';
+  h += '<div><span class="secondary">Start:</span> ' + formatDate(startDates.start) + ' &nbsp; <span class="secondary">End:</span> ' + formatDate(endDates.end) + '<br><span class="secondary">Archived:</span> ' + stamp + '</div>';
+  h += '<div style="text-align:right"><div class="secondary">Cycle Score</div><div class="score-big" style="color:' + sc(cycleScore) + '">' + cycleScore + '%</div></div>';
+  h += '</div></div>';
+
+  // --- DASHBOARD ---
+  h += '<div class="section-title">Dashboard</div>';
+  goals.forEach(function(g) {
+    var gs = calculateGoalScore(g.id);
+    var gt = getTacticsForGoal(g.id);
+    h += '<div class="card"><div class="goal-row"><div><strong>' + e(g.title) + '</strong><br><span class="secondary" style="font-size:10px">' + gt.length + ' tactic' + (gt.length !== 1 ? 's' : '') + '</span></div>';
+    h += '<span class="badge" style="color:' + sc(gs) + ';border:1px solid ' + sc(gs) + '">' + gs + '%</span></div>';
+    h += bar(gs, sc(gs)) + '</div>';
+  });
+
+  // Weekly trend
+  h += '<div class="card"><strong>Weekly Score Trend</strong><div style="display:flex;gap:4px;margin-top:8px">';
+  for (var w = 1; w <= 12; w++) {
+    var ws = calculateWeeklyScore(w);
+    var wd = weeklyData[String(w)];
+    h += '<div style="flex:1;text-align:center"><div class="muted" style="font-size:7px">W' + w + '</div>';
+    h += '<div style="font-weight:700;font-size:10px;color:' + (wd ? sc(ws) : '#5a5e72') + '">' + (wd ? ws + '%' : '--') + '</div></div>';
+  }
+  h += '</div></div>';
+
+  // --- GOALS & TACTICS ---
+  h += '<div class="section-title">Goals &amp; Tactics</div>';
+  goals.forEach(function(g) {
+    var gt = getTacticsForGoal(g.id);
+    var gs = calculateGoalScore(g.id);
+    h += '<div class="card"><div class="goal-row"><strong>' + e(g.title) + '</strong><span style="color:' + sc(gs) + ';font-weight:700">' + gs + '%</span></div>';
+    if (g.description) h += '<div class="secondary" style="font-size:10px;font-style:italic;margin-bottom:4px">' + e(g.description) + '</div>';
+    gt.forEach(function(t) { h += '<div style="padding:2px 0 2px 12px;font-size:10px">&bull; ' + e(t.title) + '</div>'; });
+    h += '</div>';
+  });
+
+  // --- WEEKLY CHECK-INS ---
+  h += '<div class="section-title">Weekly Check-ins</div>';
+  for (var w2 = 1; w2 <= 13; w2++) {
+    var wd2 = weeklyData[String(w2)];
+    if (!wd2) continue;
+    var wDates = getWeekDates(cycle.startDate, w2);
+    var ws2 = w2 <= 12 ? calculateWeeklyScore(w2) : cycleScore;
+    var questions = w2 === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+
+    h += '<div class="card"><div class="week-header"><div><strong>Week ' + w2 + (w2 === 13 ? ' (Review)' : '') + '</strong><br><span class="secondary" style="font-size:9px">' + formatDate(wDates.start) + ' &ndash; ' + formatDate(wDates.end) + '</span></div>';
+    h += '<span class="badge" style="color:' + sc(ws2) + ';border:1px solid ' + sc(ws2) + '">' + ws2 + '%</span></div>';
+
+    if (w2 <= 12) {
+      var wScores = getWeekTacticScores(wd2);
+      var allIds = tactics.map(function(t) { return t.id; });
+      var wActive = getWeekActiveTactics(wd2, allIds);
+      goals.forEach(function(g) {
+        var gt = getTacticsForGoal(g.id).filter(function(t) { return wActive.has(t.id); });
+        gt.forEach(function(t) {
+          var tsc = wScores[t.id] || 0;
+          h += '<div class="tactic-score-row"><span>' + e(t.title) + '</span><span style="font-weight:700;color:' + sc(tsc) + '">' + tsc + '%</span></div>';
+          h += bar(tsc, sc(tsc));
+        });
+      });
+    }
+
+    if (wd2.reflections) {
+      questions.forEach(function(q, i) {
+        var ans = wd2.reflections['q' + (i + 1)];
+        if (!ans) return;
+        h += '<div class="reflection-q">' + q + '</div><div class="reflection-a">' + e(ans) + '</div>';
+      });
+    }
+    h += '</div>';
+  }
+
+  // --- REPORTS: TACTIC SCORE GRID ---
+  h += '<div class="section-title">Reports &mdash; Tactic Score Grid</div>';
+  goals.forEach(function(g) {
+    var gt = getTacticsForGoal(g.id);
+    if (gt.length === 0) return;
+    h += '<div class="card"><div style="color:#6c7bff;font-weight:700;margin-bottom:6px">' + e(g.title) + '</div>';
+    h += '<table class="grid-table"><thead><tr><th style="text-align:left">Tactic</th>';
+    for (var w3 = 1; w3 <= 12; w3++) h += '<th>W' + w3 + '</th>';
+    h += '<th>Avg</th></tr></thead><tbody>';
+    gt.forEach(function(t) {
+      h += '<tr><td class="tactic-name">' + e(t.title) + '</td>';
+      var tot = 0, cnt = 0;
+      for (var w4 = 1; w4 <= 12; w4++) {
+        var wd4 = weeklyData[String(w4)];
+        if (!wd4) { h += '<td class="muted">--</td>'; continue; }
+        var allIds4 = tactics.map(function(t2) { return t2.id; });
+        var active4 = getWeekActiveTactics(wd4, allIds4);
+        if (!active4.has(t.id)) { h += '<td class="muted">--</td>'; continue; }
+        var sc4 = (getWeekTacticScores(wd4)[t.id]) || 0;
+        h += '<td style="font-weight:700;color:' + sc(sc4) + '">' + sc4 + '%</td>';
+        tot += sc4; cnt++;
+      }
+      var avg = cnt > 0 ? Math.round(tot / cnt) : 0;
+      h += '<td style="font-weight:700;color:' + (cnt > 0 ? sc(avg) : '#5a5e72') + '">' + (cnt > 0 ? avg + '%' : '--') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  });
+
+  // Footer
+  h += '<div style="text-align:center;color:#5a5e72;font-size:9px;margin-top:20px;padding-top:10px;border-top:1px solid #2a2d3a">Generated by My Plan+ on ' + stamp + '</div>';
+  h += '</body></html>';
+
+  // Open in new window for Save As PDF
+  var win = window.open('', '_blank');
+  win.document.write(h);
+  win.document.close();
+  setTimeout(function() { win.print(); }, 500);
+
+  // Also generate CSV
+  generateArchiveCSV(cycle, goals, tactics, weeklyData, safeName, stamp);
+}
+
+function generateArchiveCSV(cycle, goals, tactics, weeklyData, safeName, stamp) {
+  const rows = [];
+  // Header
+  const header = ['Goal', 'Tactic', 'W1', 'W2', 'W3', 'W4', 'W5', 'W6', 'W7', 'W8', 'W9', 'W10', 'W11', 'W12', 'Average'];
+  rows.push(header);
+
+  goals.forEach(g => {
+    const gt = getTacticsForGoal(g.id);
+    gt.forEach(t => {
+      const row = ['"' + g.title.replace(/"/g, '""') + '"', '"' + t.title.replace(/"/g, '""') + '"'];
+      let total = 0, count = 0;
+      for (let w = 1; w <= 12; w++) {
+        const wd = weeklyData[String(w)];
+        if (!wd) { row.push(''); continue; }
+        const allIds = tactics.map(t2 => t2.id);
+        const active = getWeekActiveTactics(wd, allIds);
+        if (!active.has(t.id)) { row.push('N/A'); continue; }
+        const sc = (getWeekTacticScores(wd)[t.id]) || 0;
+        row.push(sc);
+        total += sc; count++;
+      }
+      row.push(count > 0 ? Math.round(total / count) : '');
+      rows.push(row);
+    });
+    // Goal average row
+    const gs = calculateGoalScore(g.id);
+    const goalRow = ['"' + g.title.replace(/"/g, '""') + '"', '"(Goal Average)"'];
+    for (let w = 1; w <= 12; w++) { goalRow.push(calculateWeeklyScore(w) || ''); }
+    goalRow.push(gs);
+    rows.push(goalRow);
+    rows.push([]); // Blank separator
+  });
+
+  // Cycle score row
+  const cycleRow = ['"Cycle Score"', '""'];
+  for (let w = 1; w <= 12; w++) { cycleRow.push(calculateWeeklyScore(w) || ''); }
+  cycleRow.push(calculateCycleScore());
+  rows.push(cycleRow);
+
+  // Reflections section
+  rows.push([]);
+  rows.push(['Week', 'Question', 'Response']);
+  for (let w = 1; w <= 13; w++) {
+    const wd = weeklyData[String(w)];
+    if (!wd || !wd.reflections) continue;
+    const questions = w === 13 ? WEEK13_QUESTIONS : WEEKLY_QUESTIONS;
+    questions.forEach((q, i) => {
+      const ans = wd.reflections['q' + (i + 1)];
+      if (ans) {
+        var safeAns = ans.replace(/\r?\n/g, ' | ').replace(/"/g, '""');
+        if (/^[-+=@]/.test(safeAns)) safeAns = "'" + safeAns;
+        rows.push(['Week ' + w, '"' + q.replace(/"/g, '""') + '"', '"' + safeAns + '"']);
+      }
+    });
+  }
+
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `MyPlanPlus-Data-${safeName}-${stamp}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function resetCycle() {
+  if (!confirm('This will clear all goals, tactics, weekly scores, and cycle settings to start a fresh cycle.\n\nHave you archived this cycle first?')) return;
+  if (!confirm('Are you sure? This cannot be undone. All current cycle data will be permanently deleted.')) return;
+  [KEYS.cycle, KEYS.goals, KEYS.tactics, KEYS.weekly].forEach(k => localStorage.removeItem(k));
+  selectedWeek = 0;
+  expandedGoals.clear();
+  location.reload();
+}
+
+function clearAllData() {
+  if (!confirm('Are you sure you want to delete ALL data? This cannot be undone.')) return;
+  if (!confirm('Really delete everything? Export a backup first if needed.')) return;
+  Object.values(KEYS).forEach(k => { if (k !== KEYS.theme && k !== KEYS.settings) localStorage.removeItem(k); });
+  location.reload();
+}
+
+/* ========== MODALS ========== */
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+/* ========== THEME ========== */
+function getTheme() {
+  const saved = localStorage.getItem(KEYS.theme);
+  if (saved) return saved;
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.getElementById('theme-toggle').innerHTML = theme === 'dark' ? '&#9728;&#65039;' : '&#127769;';
+  localStorage.setItem(KEYS.theme, theme);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+  renderScreen(currentScreen);
+}
+
+/* ========== UTILITIES ========== */
+function esc(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ========== INIT ========== */
+function init() {
+  applyTheme(getTheme());
+  const cycle = getCycle();
+  if (!cycle.startDate) {
+    navigateTo('settings');
+  } else {
+    renderDashboard();
+  }
+}
+
+init();
+</script>
+<script src="/tracker.js?v=2"></script>
+</body>
+</html>
