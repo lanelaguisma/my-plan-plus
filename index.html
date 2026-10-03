@@ -1180,6 +1180,12 @@ async function loadCommunity() {
   await loadInbox();
   const wams = await sb.rpc('my_wams');
   APP.wams = wams.error ? [] : (wams.data || []).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const [rsvps, att] = await Promise.all([
+    sb.from('rsvps').select('group_id,cycle_id,week,note'),
+    sb.rpc('my_attendance')
+  ]);
+  APP.rsvps = rsvps.error ? [] : (rsvps.data || []);
+  APP.attendance = att.error ? [] : (att.data || []);
   const offers = await sb.rpc('my_offers');
   APP.offers = offers.error ? [] : (offers.data || []);
   const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
@@ -1270,11 +1276,71 @@ function wamListHtml(group, season) {
   return '<h3 style="margin-top:12px">WAMs this season</h3>' + calendar + propose + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
     <span>Week ${w.week} &middot; ${w.cancelled ? '<s>' + wamTimeLabel(w.starts_at) + '</s> cancelled' : wamTimeLabel(w.starts_at) + (w.rescheduled ? ' (moved)' : '')}
       ${next && next.week === w.week && next.group_id === w.group_id ? ' <span class="badge-pill green">next</span>' : ''}</span>
-    <span style="display:flex;gap:6px">
+    <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+      ${!w.cancelled && new Date(w.starts_at) > new Date() ? rsvpButton(w) : ''}
+      ${commanding && !w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="toggleAttendance('${group.id}','${season.id}',${w.week})">Attendance</button>` : ''}
       ${!w.cancelled && w.link ? `<a class="btn btn-secondary btn-sm" style="text-decoration:none" target="_blank" href="${esc(w.link)}">Join</a>` : ''}
       ${commanding && !w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="moveWam('${group.id}','${season.id}',${w.week},'${w.starts_at}')">Move</button>
         <button class="btn btn-secondary btn-sm" onclick="cancelWam('${group.id}','${season.id}',${w.week})">Cancel</button>` : ''}
-    </span></div>`).join('');
+    </span></div>
+    <div id="att-${group.id}-${w.week}"></div>`).join('') + attendanceSummaryHtml(group, season);
+}
+
+function rsvpButton(w) {
+  const away = (APP.rsvps || []).some(r => r.group_id === w.group_id && r.cycle_id === w.cycle_id && r.week === w.week);
+  return away
+    ? `<button class="btn btn-secondary btn-sm" title="You said you can't make it" onclick="setRsvp('${w.group_id}','${w.cycle_id}',${w.week},true)">I'll be there</button>`
+    : `<button class="btn btn-secondary btn-sm" onclick="setRsvp('${w.group_id}','${w.cycle_id}',${w.week},false)">Can't make it</button>`;
+}
+
+async function setRsvp(groupId, seasonId, week, attending) {
+  let note = null;
+  if (!attending) {
+    note = prompt("Sorry you can't make it. A short note for your group (optional):", '');
+    if (note === null) return;
+  }
+  const { error } = await sb.rpc('set_rsvp', { p_group: groupId, p_season: seasonId, p_week: week, p_attending: attending, p_note: note });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderGroup();
+}
+
+function attendanceSummaryHtml(group, season) {
+  const held = (APP.attendance || []).filter(a => a.group_id === group.id && a.cycle_id === season.id);
+  if (!held.length) return '';
+  const went = held.filter(a => a.attended).length;
+  return `<div style="font-size:12px;color:var(--text-secondary);margin-top:6px">Your attendance this season: ${went} of ${held.length} WAM${held.length === 1 ? '' : 's'}</div>`;
+}
+
+// For a group commander: expected attendance before a WAM, and confirming
+// who attended afterwards (pre-filled from the RSVPs).
+async function toggleAttendance(groupId, seasonId, week) {
+  const holder = document.getElementById('att-' + groupId + '-' + week);
+  if (holder.innerHTML) { holder.innerHTML = ''; return; }
+  const { data, error } = await sb.rpc('wam_attendance', { p_group: groupId, p_season: seasonId });
+  if (error) { alert(error.message); return; }
+  const rows = (data || []).filter(r => r.week === week);
+  const names = {};
+  (APP.myGroupMembers || []).concat(APP.nextGroupMembers || []).forEach(m => { names[m.id] = m.full_name || m.email; });
+  const w = (APP.wams || []).find(x => x.group_id === groupId && x.cycle_id === seasonId && x.week === week);
+  const upcoming = w && new Date(w.starts_at) > new Date();
+  if (upcoming) {
+    const coming = rows.filter(r => r.can_attend).length;
+    holder.innerHTML = `<div style="font-size:12px;margin:4px 0 8px 12px">Expected: <strong>${coming} of ${rows.length}</strong>` +
+      rows.filter(r => !r.can_attend).map(r => `<br>${esc(names[r.member_id] || 'A member')} can't make it${r.note ? ': ' + esc(r.note) : ''}`).join('') + '</div>';
+    return;
+  }
+  holder.innerHTML = `<div style="font-size:12px;margin:4px 0 8px 12px">Who attended?${rows.some(r => r.confirmed) ? ' (confirmed)' : ' (from RSVPs — please confirm)'}<br>` +
+    rows.map(r => `<label style="display:block"><input type="checkbox" data-att="${r.member_id}"${r.attended ? ' checked' : ''}> ${esc(names[r.member_id] || 'A member')}${r.note ? ' — ' + esc(r.note) : ''}</label>`).join('') +
+    `<button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="saveAttendance('${groupId}','${seasonId}',${week})">Confirm attendance</button></div>`;
+}
+
+async function saveAttendance(groupId, seasonId, week) {
+  const holder = document.getElementById('att-' + groupId + '-' + week);
+  const attendees = [...holder.querySelectorAll('input[data-att]:checked')].map(i => i.dataset.att);
+  const { error } = await sb.rpc('confirm_attendance', { p_group: groupId, p_season: seasonId, p_week: week, p_attendees: attendees });
+  if (error) { alert(error.message); return; }
+  holder.innerHTML = '<div style="font-size:12px;margin:4px 0 8px 12px;color:var(--success)">Attendance confirmed.</div>';
 }
 
 // The season's WAMs as an iCalendar file (cancelled ones left out, moved
@@ -1362,6 +1428,7 @@ const NOTICE_ACTIONS = {
   review_offers: { label: 'Review', run: () => navigateTo('group') },
   confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
+  view_attendance: { label: 'View group', run: () => navigateTo('group') },
   review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
   review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
