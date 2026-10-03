@@ -2149,9 +2149,12 @@ async function loadUnplaced() {
   const props = await sb.rpc('pending_wam_time_proposals');
   ADMIN.proposals = props.error ? [] : (props.data || []);
   if (!ADMIN.selCycleId) return;
-  const sel = APP.cycles.find(c => c.id === ADMIN.selCycleId);
-  if (sel && sel.status === 'enrolling') {
-    const { data: prog } = await sb.rpc('continuation_progress', { p_season: sel.id });
+  // Continuation always concerns the season open for enrolment, whichever
+  // season is selected below.
+  const enrolling = APP.cycles.find(c => c.status === 'enrolling');
+  ADMIN.progressSeason = enrolling || null;
+  if (enrolling) {
+    const { data: prog } = await sb.rpc('continuation_progress', { p_season: enrolling.id });
     ADMIN.progress = prog || [];
   }
   const { data } = await sb.rpc('unplaced_members', { p_season: ADMIN.selCycleId });
@@ -2301,9 +2304,10 @@ async function adminSetWamTime() {
   renderAdmin();
 }
 
-function continuationCardHtml(selCycle) {
-  if (!selCycle || !(ADMIN.progress || []).length) return '';
-  return `<div class="card"><h3>Continuation &mdash; ${esc(selCycle.name)}</h3>` +
+function continuationCardHtml() {
+  const season = ADMIN.progressSeason;
+  if (!season || !(ADMIN.progress || []).length) return '';
+  return `<div class="card"><h3>Continuation &mdash; ${esc(season.name)}</h3>` +
     ADMIN.progress.map(p => `<div class="member-row"><span>${esc(p.group_name)}</span>
       <span style="font-size:12px">${p.confirmed} confirmed &middot; <span style="color:var(--warning)">${p.awaiting} awaiting</span> &middot; ${p.declined} not continuing</span></div>`).join('') +
     '<p style="font-size:11px;color:var(--text-muted);margin-top:8px">Anyone still awaiting when you make the season active leaves a vacancy.</p></div>';
@@ -2515,7 +2519,7 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
-  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + movesCardHtml(selCycle, cycleGroups) + pulsesCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
+  html += continuationCardHtml() + unplacedCardHtml(selCycle) + movesCardHtml(selCycle, cycleGroups) + pulsesCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
