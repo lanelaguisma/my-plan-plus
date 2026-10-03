@@ -33,14 +33,33 @@ function migrationFiles() {
   return readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
 }
 
-export async function freshClub() {
+// `upTo` stops after the named migration (e.g. '0001') so a test can seed
+// data in an older shape, then call `club.migrate()` to apply the rest.
+export async function freshClub({ upTo } = {}) {
   const db = await PGlite.create({ extensions: { pgcrypto } });
   await db.exec(SUPABASE_STUB);
-  for (const file of migrationFiles()) {
-    await db.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
+  const pending = migrationFiles();
+  async function applyThrough(stop) {
+    while (pending.length) {
+      const file = pending.shift();
+      await db.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
+      if (stop && file.startsWith(stop)) return;
+    }
   }
+  await applyThrough(upTo);
 
   return {
+    // Applies every migration not yet applied.
+    async migrate() {
+      await applyThrough();
+    },
+
+    // Runs SQL as the database owner, bypassing row-level security (fixtures only).
+    async owner(sql, params = []) {
+      const { rows } = await db.query(sql, params);
+      return rows;
+    },
+
     // Registers a person the way Supabase sign-up does; returns their identity.
     async register({ email, fullName = '' }) {
       const { rows } = await db.query(
