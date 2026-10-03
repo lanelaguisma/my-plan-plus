@@ -64,28 +64,13 @@ describe('group-mates are per season', () => {
 });
 
 describe('creating season groups', () => {
-  test('a member who creates their own group is on its roster for that season', async () => {
-    const { club, carol, s25 } = await friBAcrossTwoSeasons();
-    const mia = await club.register({ email: 'mia@example.com', fullName: 'Mia' });
-
-    const [{ id }] = await club.as(mia).query(
-      "select create_season_group($1, 'Momentum Collective', $2, array[$3]::uuid[]) as id",
-      [s25.id, FRI_4PM_PT, mia.id]
-    );
-
-    const groups = await club.as(carol).query(
-      'select name, member_count from season_groups where id = $1 and cycle_id = $2', [id, s25.id]
-    );
-    expect(groups).toEqual([{ name: 'Momentum Collective', member_count: 1 }]);
-  });
-
-  test('a member cannot put other people into a group they create', async () => {
-    const { club, carol, s25 } = await friBAcrossTwoSeasons();
+  test('a member cannot create a group', async () => {
+    const { club, s25 } = await friBAcrossTwoSeasons();
     const mia = await club.register({ email: 'mia@example.com', fullName: 'Mia' });
 
     const creating = club.as(mia).query(
-      "select create_season_group($1, 'Momentum Collective', $2, array[$3, $4]::uuid[])",
-      [s25.id, FRI_4PM_PT, mia.id, carol.id]
+      "select create_season_group($1, 'Momentum Collective', $2, array[$3]::uuid[])",
+      [s25.id, FRI_4PM_PT, mia.id]
     );
 
     await expect(creating).rejects.toThrow(/only a club manager/i);
@@ -93,8 +78,10 @@ describe('creating season groups', () => {
 
   test('a member cannot be on two rosters in the same season', async () => {
     const { club, carol, s25 } = await friBAcrossTwoSeasons();
+    const manager = await club.register({ email: 'manager@example.com', fullName: 'Manager' });
+    await club.makeClubManager(manager);
 
-    const secondGroup = club.as(carol).query(
+    const secondGroup = club.as(manager).query(
       "select create_season_group($1, 'Second', $2, array[$3]::uuid[])", [s25.id, FRI_4PM_PT, carol.id]
     );
 
