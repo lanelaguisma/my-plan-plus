@@ -1881,7 +1881,7 @@ async function adminDeleteCycle(id) {
 async function adminOpenEnrollment(id) {
   await sb.from('cycles').update({ status: 'setup' }).eq('status', 'enrolling');
   const { error } = await sb.from('cycles').update({ status: 'enrolling' }).eq('id', id);
-  if (error) { alert(error.message + (error.message.indexOf('check') !== -1 ? ' — run supabase-update-3.sql in the Supabase SQL Editor first.' : '')); return; }
+  if (error) { alert(error.message + (error.message.indexOf('check') !== -1 ? ' — apply the pending files in supabase/migrations/ (in order) in the Supabase SQL Editor first.' : '')); return; }
   await loadCommunity();
   renderAdmin();
 }
@@ -2160,7 +2160,7 @@ async function renderTeam() {
     sb.from('checkin_scores').select('user_id,week,score').eq('cycle_id', cid)
   ]);
   if (sRes.error) {
-    el.innerHTML = `<div class="empty-state"><p>The shared check-in tables aren't set up yet.<br>Run <strong>supabase-update-2.sql</strong> in the Supabase SQL Editor.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><p>The shared check-in tables aren't set up yet.<br>Apply the files in <strong>supabase/migrations/</strong> (in order) in the Supabase SQL Editor.</p></div>`;
     return;
   }
   let detail = [];
