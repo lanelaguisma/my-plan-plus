@@ -1,0 +1,13 @@
+{
+  "name": "my-plan-plus",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only tooling: the app itself is a static index.html with no build step.",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "vitest": "^5.0.3"
+  }
+}

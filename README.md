@@ -23,9 +23,9 @@ Privacy: goals, tactics and drafts are private per member (enforced by database 
 One static HTML file (`index.html`) — no build step, no framework — backed by a free [Supabase](https://supabase.com) project for accounts and data (Postgres with row-level security). Charts via Chart.js.
 
 - `index.html` — the community app. Point it at your own Supabase project by editing the `CONFIG` block near the top of its `<script>`.
-- `supabase-schema.sql` — complete database schema for a fresh Supabase project.
-- `supabase-update-1..4.sql` — incremental migrations, only for databases created from the original schema.
-- `SETUP.md` — step-by-step setup guide (~15 minutes): create the Supabase project, run the schema, paste the two keys, host, make yourself admin.
+- `supabase/migrations/` — the database schema as ordered migrations; apply them in filename order.
+- `SETUP.md` — step-by-step setup guide (~15 minutes): create the Supabase project, run the migrations, paste the two keys, host, make yourself admin.
+- `test/` — dev-only tests of the database contract (rules and row-level security), run in-process with PGlite: `npm install && npm test`. No Docker or hosted project needed; the app itself still has no build step.
 - `myPlanPlus-single-user.html` — the original offline, single-user version (localStorage only, no account needed).
 
 > The Supabase URL and *publishable* key embedded in `index.html` are public by design — they identify the project, while row-level security controls what each signed-in user can read or write. To run your own community, replace them with your own project's values.
