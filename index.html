@@ -1178,6 +1178,8 @@ async function loadCommunity() {
   APP.admins = (admins || []).filter(a => a.email);
   if (!APP.boards.some(b => b.id === APP.curBoardId)) APP.curBoardId = APP.boards[0] ? APP.boards[0].id : null;
   await loadInbox();
+  const offers = await sb.rpc('my_offers');
+  APP.offers = offers.error ? [] : (offers.data || []);
   const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
   if (!cycleIds.length) return;
   const { data: gs } = await sb.from('season_groups').select('*').in('cycle_id', cycleIds).order('created_at');
@@ -1204,11 +1206,38 @@ async function loadCommunity() {
   }
 }
 
+/* ========== PLACEMENT OFFERS ========== */
+// Invitations waiting for the member's answer, with what they need to decide.
+function offersCardHtml() {
+  const pending = (APP.offers || []).filter(o => o.status === 'pending' && o.kind === 'invitation');
+  if (!pending.length) return '';
+  return `<div class="card" style="border:1px solid var(--accent)"><h3 style="color:var(--accent)">Invitations</h3>` +
+    pending.map(o => `<div style="border-bottom:1px solid var(--border);padding:8px 0">
+      <strong>${o.emoji ? esc(o.emoji) + ' ' : ''}${esc(o.group_name)}</strong> &middot; ${esc(o.season_name)}
+      ${o.purpose ? `<div style="font-size:13px">${esc(o.purpose)}</div>` : ''}
+      <div style="font-size:12px;color:var(--text-secondary)">WAM: ${esc(o.wam_time)} (your time)${o.commander_name ? ' &middot; Group Commander: ' + esc(o.commander_name) : ''} &middot; ${o.vacancies} open place${o.vacancies === 1 ? '' : 's'}</div>
+      <div class="btn-row" style="margin-top:6px">
+        <button class="btn btn-primary btn-sm" onclick="answerOffer('${o.id}', true)">Accept</button>
+        <button class="btn btn-secondary btn-sm" onclick="answerOffer('${o.id}', false)">Decline</button>
+      </div>
+    </div>`).join('') + '</div>';
+}
+
+async function answerOffer(offerId, accept) {
+  if (accept && !confirm('Join this group? Any other invitations you have this season will be withdrawn.')) return;
+  const { error } = await sb.rpc('respond_to_offer', { p_offer: offerId, p_accept: accept });
+  if (error) { alert(error.message); }
+  await loadCommunity();
+  if (accept && !error) seedCycleFromCommunity();
+  renderGroup();
+}
+
 /* ========== INBOX ========== */
 // What a member can do straight from a notice, by the notice's action code.
 const NOTICE_ACTIONS = {
   view_group: { label: 'View my group', run: () => navigateTo('group') },
-  view_registrants: { label: 'Open Club Manager Panel', run: () => navigateTo('admin') }
+  view_registrants: { label: 'Open Club Manager Panel', run: () => navigateTo('admin') },
+  review_offers: { label: 'Review', run: () => navigateTo('group') }
 };
 
 async function loadInbox() {
@@ -1449,7 +1478,7 @@ function dayTimeSelects(prefix) {
 function renderGroup() {
   const el = document.getElementById('group-content');
   const p = APP.profile || {};
-  let html = inboxCardHtml();
+  let html = inboxCardHtml() + offersCardHtml();
 
   if (APP.myGroup) {
     const others = APP.myGroupMembers.filter(m => m.id !== APP.user.id);
@@ -1552,8 +1581,32 @@ async function loadProspectiveMembers(group, season) {
           <br><span style="font-size:12px;color:${m.available ? 'var(--success)' : 'var(--text-muted)'}">${esc(m.reason)}</span>
           ${m.looking_for ? `<br><span style="font-size:12px;color:var(--text-secondary)">Looking for: ${esc(m.looking_for)}</span>` : ''}
           <br><span style="font-size:11px;color:var(--text-muted)">${esc(m.timezone || '')}</span></span>
-          <span data-pool-actions="${m.member_id}"></span></div>`).join('')
+          <button class="btn btn-secondary btn-sm" onclick="inviteMember('${group.id}', '${season.id}', '${m.member_id}')">Invite</button></div>`).join('')
       : '<p style="font-size:13px;color:var(--text-muted)">Nobody is waiting to be placed right now.</p>');
+  const offers = await sb.rpc('group_offers', { p_group: group.id, p_season: season.id });
+  const invitations = (offers.data || []).filter(o => o.kind === 'invitation');
+  if (invitations.length) {
+    holder.innerHTML += `<h3 style="margin-top:12px">Invitations sent</h3>` + invitations.map(o => `<div class="member-row">
+      <span>${esc(o.member_name)} <span class="badge-pill ${o.status === 'accepted' ? 'green' : o.status === 'pending' ? 'amber' : ''}">${o.status}</span></span>
+      <span style="display:flex;gap:6px">
+        ${o.status === 'pending' ? `<button class="btn btn-secondary btn-sm" onclick="withdrawOffer('${o.id}')">Withdraw</button>` : ''}
+        ${o.status === 'expired' || o.status === 'declined' ? `<button class="btn btn-secondary btn-sm" onclick="inviteMember('${group.id}', '${season.id}', '${o.member_id}')">Resend</button>` : ''}
+      </span></div>`).join('');
+  }
+}
+
+async function inviteMember(groupId, seasonId, memberId) {
+  const { error } = await sb.rpc('send_invitation', { p_group: groupId, p_season: seasonId, p_member: memberId });
+  if (error) { alert(error.message); return; }
+  alert('Invitation sent.');
+  renderGroup();
+}
+
+async function withdrawOffer(offerId) {
+  if (!confirm('Withdraw this invitation?')) return;
+  const { error } = await sb.rpc('withdraw_offer', { p_offer: offerId });
+  if (error) alert(error.message);
+  renderGroup();
 }
 
 /* ========== BOARDS SCREEN ========== */
