@@ -1272,8 +1272,12 @@ function wamListHtml(group, season) {
       ${dayTimeSelects('wamtime')}
       <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="proposeWamTime('${group.id}')">Send to the club manager</button>
     </details>` : '';
+  const announce = commanding ? `<details style="margin-top:8px"><summary style="font-size:13px;cursor:pointer">Announce to my group</summary>
+      <textarea id="grp-ann-body" rows="2" maxlength="2000" placeholder="e.g. Reminder: bring your week 6 numbers"></textarea>
+      <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="commanderAnnounce('${group.id}', '${season.id}')">Send to ${esc(group.name)}</button>
+    </details>` : '';
   const calendar = `<button class="btn btn-secondary btn-sm" style="margin:4px 0" onclick="downloadWamCalendar('${group.id}', '${season.id}')">Add to my calendar (.ics)</button>`;
-  return '<h3 style="margin-top:12px">WAMs this season</h3>' + calendar + propose + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
+  return announce + '<h3 style="margin-top:12px">WAMs this season</h3>' + calendar + propose + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
     <span>Week ${w.week} &middot; ${w.cancelled ? '<s>' + wamTimeLabel(w.starts_at) + '</s> cancelled' : wamTimeLabel(w.starts_at) + (w.rescheduled ? ' (moved)' : '')}
       ${next && next.week === w.week && next.group_id === w.group_id ? ' <span class="badge-pill green">next</span>' : ''}</span>
     <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
@@ -1368,6 +1372,15 @@ function downloadWamCalendar(groupId, seasonId) {
   if (!wams.length) return;
   const name = (wams[0].group_name + '-' + wams[0].season_name).replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
   downloadFile(name + '-WAMs.ics', 'text/calendar', buildWamCalendar(wams));
+}
+
+async function commanderAnnounce(groupId, seasonId) {
+  const body = document.getElementById('grp-ann-body').value.trim();
+  if (!body) { alert('Write something to announce.'); return; }
+  const { error } = await sb.rpc('send_announcement', { p_season: seasonId, p_audience: 'groups', p_groups: [groupId], p_body: body });
+  if (error) { alert(error.message); return; }
+  alert('Sent to your group.');
+  renderGroup();
 }
 
 async function proposeWamTime(groupId) {
@@ -2026,6 +2039,8 @@ async function loadUnplaced() {
   ADMIN.unplaced = [];
   ADMIN.suggestions = {};
   ADMIN.progress = [];
+  const sent = await sb.rpc('sent_announcements');
+  ADMIN.announcements = sent.error ? [] : (sent.data || []);
   const props = await sb.rpc('pending_wam_time_proposals');
   ADMIN.proposals = props.error ? [] : (props.data || []);
   if (!ADMIN.selCycleId) return;
@@ -2038,6 +2053,37 @@ async function loadUnplaced() {
   ADMIN.unplaced = data || [];
   const lists = await Promise.all(ADMIN.unplaced.map(m => sb.rpc('suggested_groups', { p_member: m.member_id, p_season: ADMIN.selCycleId })));
   ADMIN.unplaced.forEach((m, i) => { ADMIN.suggestions[m.member_id] = lists[i].data || []; });
+}
+
+function announcementsCardHtml(selCycle, cycleGroups) {
+  if (!selCycle) return '';
+  const sent = (ADMIN.announcements || []).slice(0, 5);
+  return `<div class="card"><h3>Announcements &mdash; ${esc(selCycle.name)}</h3>
+    <textarea id="ann-body" rows="3" maxlength="2000" placeholder="What does everyone need to know?"></textarea>
+    <div class="form-group" style="margin-top:8px"><label class="form-label">Send to</label>
+      <select id="ann-audience" onchange="document.getElementById('ann-groups').style.display = this.value === 'groups' ? 'block' : 'none'">
+        <option value="everyone">Everyone</option>
+        <option value="groups">Selected groups</option>
+        <option value="commanders">All group commanders</option>
+        <option value="unplaced">Unplaced members</option>
+      </select></div>
+    <div id="ann-groups" style="display:none;font-size:13px;margin-bottom:8px">${cycleGroups.map(g =>
+      `<label style="display:block"><input type="checkbox" data-ann-group="${g.id}"> ${esc(g.name)}</label>`).join('')}</div>
+    <button class="btn btn-primary btn-sm" onclick="adminSendAnnouncement()">Send announcement</button>` +
+    (sent.length ? '<h3 style="margin-top:12px">Sent</h3>' + sent.map(a => `<div style="font-size:12px;border-bottom:1px solid var(--border);padding:6px 0">
+      <strong>${esc(a.audience)}</strong> &middot; reached ${a.recipient_count} &middot; ${formatDate(String(a.created_at).slice(0, 10))}<br>${esc(a.body)}</div>`).join('') : '') +
+    '</div>';
+}
+
+async function adminSendAnnouncement() {
+  const body = document.getElementById('ann-body').value.trim();
+  const audience = document.getElementById('ann-audience').value;
+  const groups = [...document.querySelectorAll('input[data-ann-group]:checked')].map(i => i.dataset.annGroup);
+  if (!body) { alert('Write something to announce.'); return; }
+  if (audience === 'groups' && !groups.length) { alert('Choose at least one group.'); return; }
+  const { error } = await sb.rpc('send_announcement', { p_season: ADMIN.selCycleId, p_audience: audience, p_groups: groups, p_body: body });
+  if (error) { alert(error.message); return; }
+  renderAdmin();
 }
 
 function wamTimeCardHtml(cycleGroups) {
@@ -2285,7 +2331,7 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
-  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + wamTimeCardHtml(cycleGroups);
+  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
