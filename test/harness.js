@@ -8,26 +8,8 @@ import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 
 const MIGRATIONS_DIR = new URL('../supabase/migrations/', import.meta.url).pathname;
 
-// The slice of Supabase the migrations rely on: the auth schema, auth.uid()
-// reading the signed-in user from the request claims, and the API roles.
-const SUPABASE_STUB = `
-  create role anon nologin;
-  create role authenticated nologin;
-  grant usage on schema public to anon, authenticated;
-  alter default privileges in schema public grant all on tables to anon, authenticated;
-  alter default privileges in schema public grant all on functions to anon, authenticated;
-
-  create schema auth;
-  create table auth.users (
-    id uuid primary key default gen_random_uuid(),
-    email text,
-    raw_user_meta_data jsonb not null default '{}'::jsonb
-  );
-  create function auth.uid() returns uuid language sql stable as $$
-    select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
-  $$;
-  grant usage on schema auth to anon, authenticated;
-`;
+// The slice of Supabase the migrations rely on (shared with the e2e stack).
+const SUPABASE_STUB = readFileSync(new URL('./supabase-stub.sql', import.meta.url), 'utf8');
 
 function migrationFiles() {
   return readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();

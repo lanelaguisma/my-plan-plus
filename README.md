@@ -25,6 +25,7 @@ One static HTML file (`index.html`) — no build step, no framework — backed b
 - `index.html` — the community app. Point it at your own Supabase project by editing the `CONFIG` block near the top of its `<script>`.
 - `supabase/migrations/` — the database schema as ordered migrations; apply them in filename order.
 - `SETUP.md` — step-by-step setup guide (~15 minutes): create the Supabase project, run the migrations, paste the two keys, host, make yourself admin.
+- `e2e/` — end-to-end tests that drive the real `index.html` in Chromium with [e2e](https://github.com/tester-army/e2e): `npm run e2e`. They run against a local, Docker-free stand-in for Supabase (`e2e/stack`: PGlite with every migration, [PostgREST](https://postgrest.org) — `brew install postgrest` — and a small auth service), which the runner starts and stops itself.
 - `test/` — dev-only tests of the database contract (rules and row-level security), run in-process with PGlite: `npm install && npm test`. No Docker or hosted project needed; the app itself still has no build step.
 - `myPlanPlus-single-user.html` — the original offline, single-user version (localStorage only, no account needed).
 
