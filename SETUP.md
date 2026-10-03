@@ -27,6 +27,8 @@ It needs a free [Supabase](https://supabase.com) project as its backend (account
 2. Run each file in `supabase/migrations/` **in filename order** (`0000_baseline.sql` first): paste its entire contents and click **Run**.
    You should see "Success. No rows returned" for each.
 
+> **Season 24 import (12WC only, once):** after the migrations, run `supabase/seeds/season_24_import.sql` the same way. It creates Season 24 and the four tracker groups with their rosters, matching tracker names to registered accounts. Its result lists anyone who hasn't registered yet; assign them from the Club Manager Panel once they have, and appoint the group commanders there too.
+
 > **Upgrading an existing project?** Only run the migrations your database hasn't had yet, in order. A project set up from the old `supabase-schema.sql` plus `supabase-update-1..4.sql` is already at `0000_baseline.sql`, so start from `0001`. Never edit a migration once it has been applied anywhere; add a new one instead.
 
 ## 3. Connect the app to the project
