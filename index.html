@@ -1186,6 +1186,8 @@ async function loadCommunity() {
   ]);
   APP.rsvps = rsvps.error ? [] : (rsvps.data || []);
   APP.attendance = att.error ? [] : (att.data || []);
+  const tr = await sb.from('transfer_requests').select('id,cycle_id,status').eq('status', 'open');
+  APP.openTransfer = tr.error ? null : ((tr.data || []).find(t => APP.activeCycle && t.cycle_id === APP.activeCycle.id) || null);
   const offers = await sb.rpc('my_offers');
   APP.offers = offers.error ? [] : (offers.data || []);
   const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
@@ -1483,6 +1485,8 @@ const NOTICE_ACTIONS = {
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
   view_attendance: { label: 'View group', run: () => navigateTo('group') },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
+  review_transfers: { label: 'Review', run: () => navigateTo('admin') },
+  review_departures: { label: 'Review', run: () => navigateTo('admin') },
   review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
   review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
@@ -1745,13 +1749,17 @@ function renderGroup() {
       <h3 style="margin-top:12px">Members</h3>
       ${APP.myGroupMembers.map(m => `<div class="member-row">
         <span>${esc(m.full_name || 'Unnamed')}${m.id === APP.user.id ? ' (you)' : ''}</span>
-        <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--text-muted);font-size:12px">${esc(m.timezone || '')}</span>${m.id !== APP.user.id && m.email ? `<a class="mail-icon" href="${mailtoOne(m.email, 'My Plan+ — ' + (APP.myGroup ? APP.myGroup.name : ''))}" title="Email ${esc(m.full_name || '')}">&#9993;</a>` : ''}</span>
+        <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--text-muted);font-size:12px">${esc(m.timezone || '')}</span>${APP.myGroup.commander_id === APP.user.id && m.id !== APP.user.id ? `<button class="btn btn-secondary btn-sm" onclick="recordDeparture('${m.id}', '${esc(m.full_name || 'this member').replace(/'/g, '')}')">Record departure</button>` : ''}${m.id !== APP.user.id && m.email ? `<a class="mail-icon" href="${mailtoOne(m.email, 'My Plan+ — ' + (APP.myGroup ? APP.myGroup.name : ''))}" title="Email ${esc(m.full_name || '')}">&#9993;</a>` : ''}</span>
       </div>`).join('')}
       <div class="btn-row" style="margin-top:10px">
         <button class="btn btn-secondary btn-sm" onclick="navigateTo('boards')">Message Board</button>
         ${otherEmails.length ? `<a class="btn btn-secondary btn-sm" style="text-align:center;text-decoration:none;display:block" href="${mailtoMany(otherEmails, 'My Plan+ — ' + APP.myGroup.name)}">Email Group</a>` : ''}
+        ${APP.openTransfer
+          ? '<button class="btn btn-secondary btn-sm" onclick="cancelTransfer()">Cancel transfer request</button>'
+          : '<button class="btn btn-secondary btn-sm" onclick="requestTransfer()">Request a transfer</button>'}
         <button class="btn btn-danger btn-sm" onclick="leaveGroup()">Leave Group</button>
       </div>
+      ${APP.openTransfer ? '<div style="font-size:12px;color:var(--warning);margin-top:6px">Transfer requested — the club manager will move you.</div>' : ''}
       <p style="font-size:13px;color:var(--text-secondary);margin-top:12px">You have full access to the planning tools &mdash; set your focus for the 12 weeks in <strong>Goals</strong> and record your <strong>Check-in</strong> each week.</p>
     </div>`;
 
@@ -1969,16 +1977,43 @@ function groupChooserHtml(cycle, groups, counts, prefix, title) {
 async function leaveNextGroup() {
   if (!APP.myNextGroup) return;
   if (!confirm('Leave "' + APP.myNextGroup.name + '" for the next season?')) return;
-  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myNextGroup.id).eq('cycle_id', APP.nextCycle.id).eq('user_id', APP.user.id);
+  const { error } = await sb.rpc('leave_group', { p_season: APP.nextCycle.id });
   if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderGroup();
+}
+
+async function requestTransfer() {
+  const reason = prompt('Tell the club manager why you would like to move (it helps them find a better fit). Update your preferences below too if your availability has changed.', '');
+  if (reason === null) return;
+  const { error } = await sb.rpc('request_transfer', { p_season: APP.activeCycle.id, p_reason: reason });
+  if (error) { alert(error.message); return; }
+  alert('Request sent — you stay in your group until the club manager moves you.');
+  await loadCommunity();
+  renderGroup();
+}
+
+async function cancelTransfer() {
+  const { error } = await sb.rpc('cancel_transfer_request', { p_season: APP.activeCycle.id });
+  if (error) alert(error.message);
+  await loadCommunity();
+  renderGroup();
+}
+
+async function recordDeparture(memberId, name) {
+  const reason = prompt('Record that ' + name + ' has left the group. Reason (e.g. "stopped attending" or "asked to leave"):', 'stopped attending');
+  if (reason === null) return;
+  const { error } = await sb.rpc('record_departure', { p_member: memberId, p_group: APP.myGroup.id, p_season: APP.activeCycle.id, p_reason: reason });
+  if (error) { alert(error.message); return; }
+  alert('Recorded. The place is open again, and the club manager has been told.');
   await loadCommunity();
   renderGroup();
 }
 
 async function leaveGroup() {
   if (!APP.myGroup) return;
-  if (!confirm('Leave "' + APP.myGroup.name + '"? The planning tools lock again until you join another group or are allocated.')) return;
-  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myGroup.id).eq('cycle_id', APP.activeCycle.id).eq('user_id', APP.user.id);
+  if (!confirm('Leave "' + APP.myGroup.name + '" now? Your group commander is told, your plan stays yours, and the planning tools lock until you are placed again. (To move to another group instead, use Request a transfer.)')) return;
+  const { error } = await sb.rpc('leave_group', { p_season: APP.activeCycle.id });
   if (error) { alert(error.message); return; }
   await loadCommunity();
   renderGroup();
@@ -2082,6 +2117,11 @@ async function loadUnplaced() {
   ADMIN.unplaced = [];
   ADMIN.suggestions = {};
   ADMIN.progress = [];
+  const [trs, deps] = ADMIN.selCycleId
+    ? await Promise.all([sb.rpc('open_transfer_requests', { p_season: ADMIN.selCycleId }), sb.rpc('season_departures', { p_season: ADMIN.selCycleId })])
+    : [{ data: [] }, { data: [] }];
+  ADMIN.transfers = trs.error ? [] : (trs.data || []);
+  ADMIN.departures = deps.error ? [] : (deps.data || []);
   const sent = await sb.rpc('sent_announcements');
   const pulses = ADMIN.selCycleId ? await sb.rpc('season_pulses', { p_season: ADMIN.selCycleId }) : { data: [] };
   ADMIN.pulses = pulses.error ? [] : (pulses.data || []);
@@ -2098,6 +2138,45 @@ async function loadUnplaced() {
   ADMIN.unplaced = data || [];
   const lists = await Promise.all(ADMIN.unplaced.map(m => sb.rpc('suggested_groups', { p_member: m.member_id, p_season: ADMIN.selCycleId })));
   ADMIN.unplaced.forEach((m, i) => { ADMIN.suggestions[m.member_id] = lists[i].data || []; });
+}
+
+function movesCardHtml(selCycle, cycleGroups) {
+  if (!selCycle || (!(ADMIN.transfers || []).length && !(ADMIN.departures || []).length)) return '';
+  let h = `<div class="card"><h3>Transfers &amp; Departures &mdash; ${esc(selCycle.name)}</h3>`;
+  if (ADMIN.transfers.length) {
+    h += '<h3>Transfer requests</h3>' + ADMIN.transfers.map(t => `<div style="border-bottom:1px solid var(--border);padding:6px 0;font-size:13px">
+      <strong>${esc(t.member_name)}</strong> wants to move from ${esc(t.from_group || '—')}${t.reason ? ': ' + esc(t.reason) : ''}
+      <div class="btn-row" style="margin-top:4px"><select id="tr-${t.id}">${cycleGroups.filter(g => g.name !== t.from_group).map(g => `<option value="${g.id}">${esc(g.name)} (${g.vacancies} open)</option>`).join('')}</select>
+      <button class="btn btn-primary btn-sm" onclick="adminMoveForTransfer('${t.member_id}', '${t.id}')">Move</button>
+      <button class="btn btn-secondary btn-sm" onclick="adminCloseTransfer('${t.id}')">Close</button></div></div>`).join('');
+  }
+  if (ADMIN.departures.length) {
+    h += '<h3 style="margin-top:10px">Departures</h3>' + ADMIN.departures.slice(0, 15).map(d => `<div class="member-row" style="font-size:13px">
+      <span><strong>${esc(d.member_name)}</strong> left ${esc(d.group_name)} &middot; ${esc(d.reason || '')}</span>
+      <button class="btn btn-secondary btn-sm" onclick="adminReverseDeparture('${d.member_id}', '${d.group_id}')">Reverse</button></div>`).join('');
+  }
+  return h + '</div>';
+}
+
+async function adminMoveForTransfer(memberId, requestId) {
+  const groupId = document.getElementById('tr-' + requestId).value;
+  if (!groupId) return;
+  const { error } = await sb.rpc('assign_member', { p_member: memberId, p_group: groupId, p_season: ADMIN.selCycleId });
+  if (error) { alert(error.message); return; }
+  renderAdmin();
+}
+
+async function adminCloseTransfer(requestId) {
+  if (!confirm('Close this request without moving them?')) return;
+  const { error } = await sb.rpc('resolve_transfer_request', { p_request: requestId });
+  if (error) alert(error.message);
+  renderAdmin();
+}
+
+async function adminReverseDeparture(memberId, groupId) {
+  const { error } = await sb.rpc('reverse_departure', { p_member: memberId, p_group: groupId, p_season: ADMIN.selCycleId });
+  if (error) { alert(error.message); return; }
+  renderAdmin();
 }
 
 function pulsesCardHtml(selCycle) {
@@ -2386,7 +2465,7 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
-  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + pulsesCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
+  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + movesCardHtml(selCycle, cycleGroups) + pulsesCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
@@ -2765,11 +2844,8 @@ async function renderTeam() {
   }
   let detail = [];
   if (APP.myGroup) {
-    const ids = (mRes.data || []).filter(m => m.group_id === APP.myGroup.id).map(m => m.user_id);
-    if (ids.length) {
-      const dRes = await sb.from('checkins').select('user_id,week,score,author_name,reflections').eq('cycle_id', cid).in('user_id', ids);
-      detail = dRes.data || [];
-    }
+    const dRes = await sb.rpc('group_checkins', { p_group: APP.myGroup.id, p_season: cid });
+    detail = dRes.data || [];
   }
   TEAM_CACHE = { groups: gRes.data || [], members: mRes.data || [], scores: sRes.data || [], detail };
   drawTeam();
