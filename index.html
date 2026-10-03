@@ -1266,7 +1266,8 @@ function wamListHtml(group, season) {
       ${dayTimeSelects('wamtime')}
       <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="proposeWamTime('${group.id}')">Send to the club manager</button>
     </details>` : '';
-  return '<h3 style="margin-top:12px">WAMs this season</h3>' + propose + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
+  const calendar = `<button class="btn btn-secondary btn-sm" style="margin:4px 0" onclick="downloadWamCalendar('${group.id}', '${season.id}')">Add to my calendar (.ics)</button>`;
+  return '<h3 style="margin-top:12px">WAMs this season</h3>' + calendar + propose + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
     <span>Week ${w.week} &middot; ${w.cancelled ? '<s>' + wamTimeLabel(w.starts_at) + '</s> cancelled' : wamTimeLabel(w.starts_at) + (w.rescheduled ? ' (moved)' : '')}
       ${next && next.week === w.week && next.group_id === w.group_id ? ' <span class="badge-pill green">next</span>' : ''}</span>
     <span style="display:flex;gap:6px">
@@ -1274,6 +1275,33 @@ function wamListHtml(group, season) {
       ${commanding && !w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="moveWam('${group.id}','${season.id}',${w.week},'${w.starts_at}')">Move</button>
         <button class="btn btn-secondary btn-sm" onclick="cancelWam('${group.id}','${season.id}',${w.week})">Cancel</button>` : ''}
     </span></div>`).join('');
+}
+
+// The season's WAMs as an iCalendar file (cancelled ones left out, moved
+// ones at their new time), built in the browser.
+function buildWamCalendar(wams) {
+  const stamp = d => new Date(d).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+  const text = v => String(v || '').replace(/\\/g, '\\\\').replace(/[;,]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  const now = stamp(Date.now());
+  const events = wams.filter(w => !w.cancelled).map(w => [
+    'BEGIN:VEVENT',
+    'UID:wam-' + w.group_id + '-' + w.cycle_id + '-' + w.week + '@myplanplus',
+    'DTSTAMP:' + now,
+    'DTSTART:' + stamp(w.starts_at),
+    'DURATION:PT45M',
+    'SUMMARY:' + text('WAM — ' + w.group_name + ' (week ' + w.week + ')'),
+    w.link ? 'URL:' + w.link : null,
+    'DESCRIPTION:' + text('Weekly Accountability Meeting, ' + w.season_name + (w.link ? '\nJoin: ' + w.link : '')),
+    'END:VEVENT'
+  ].filter(Boolean).join('\r\n'));
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//My Plan+//WAMs//EN', 'CALSCALE:GREGORIAN', ...events, 'END:VCALENDAR'].join('\r\n') + '\r\n';
+}
+
+function downloadWamCalendar(groupId, seasonId) {
+  const wams = (APP.wams || []).filter(w => w.group_id === groupId && w.cycle_id === seasonId);
+  if (!wams.length) return;
+  const name = (wams[0].group_name + '-' + wams[0].season_name).replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
+  downloadFile(name + '-WAMs.ics', 'text/calendar', buildWamCalendar(wams));
 }
 
 async function proposeWamTime(groupId) {
