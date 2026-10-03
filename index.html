@@ -1171,8 +1171,8 @@ async function loadCommunity() {
   if (!APP.boards.some(b => b.id === APP.curBoardId)) APP.curBoardId = APP.boards[0] ? APP.boards[0].id : null;
   const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
   if (!cycleIds.length) return;
-  const { data: gs } = await sb.from('groups').select('*').in('cycle_id', cycleIds).order('created_at');
-  const { data: allMems } = await sb.from('group_members').select('group_id,user_id,cycle_id').in('cycle_id', cycleIds);
+  const { data: gs } = await sb.from('season_groups').select('*').in('cycle_id', cycleIds).order('created_at');
+  const { data: allMems } = await sb.from('group_members').select('group_id,user_id,cycle_id').in('cycle_id', cycleIds).neq('status', 'departed');
   const groups = gs || [], mems = allMems || [];
   if (APP.activeCycle) {
     APP.cycleGroups = groups.filter(g => g.cycle_id === APP.activeCycle.id);
@@ -1187,7 +1187,7 @@ async function loadCommunity() {
     if (mineNext) APP.myNextGroup = APP.nextGroups.find(g => g.id === mineNext.group_id) || null;
   }
   if (APP.myGroup) {
-    const ids = mems.filter(m => m.group_id === APP.myGroup.id).map(m => m.user_id);
+    const ids = mems.filter(m => m.group_id === APP.myGroup.id && m.cycle_id === APP.activeCycle.id).map(m => m.user_id);
     if (ids.length) {
       const { data: profs } = await sb.from('profiles').select('id,full_name,email,timezone').in('id', ids);
       APP.myGroupMembers = profs || [];
@@ -1536,20 +1536,17 @@ async function createOwnGroup(cycleId, prefix) {
   const day = Number(document.getElementById(prefix + '-day').value);
   const hour = Number(document.getElementById(prefix + '-hour').value);
   const slot = localToMow(day, hour);
-  const { data, error } = await sb.from('groups')
-    .insert({ cycle_id: cycleId, name, slot_mow: slot, created_by: APP.user.id })
-    .select().single();
+  const { error } = await sb.rpc('create_season_group', { p_season: cycleId, p_name: name, p_slot: slot, p_members: [APP.user.id] });
   if (error) { alert('Could not create group: ' + error.message); return; }
-  const { error: e2 } = await sb.from('group_members').insert({ group_id: data.id, user_id: APP.user.id, cycle_id: cycleId });
-  if (e2) { alert('Group created, but joining it failed: ' + e2.message); }
   await loadCommunity();
   seedCycleFromCommunity();
   renderGroup();
 }
 
 async function joinGroup(groupId, cycleId) {
-  const g = APP.cycleGroups.concat(APP.nextGroups).find(x => x.id === groupId);
-  const count = (APP.cycleCounts[groupId] || 0) + (APP.nextCounts[groupId] || 0);
+  const isNext = APP.nextCycle && APP.nextCycle.id === cycleId;
+  const g = (isNext ? APP.nextGroups : APP.cycleGroups).find(x => x.id === groupId);
+  const count = (isNext ? APP.nextCounts : APP.cycleCounts)[groupId] || 0;
   if (g && count >= (g.max_size || 4)) {
     alert('That group already has its full complement of ' + (g.max_size || 4) + '. Join another, create your own, or email the admin — they can add you to a full group manually.');
     return;
@@ -1564,7 +1561,7 @@ async function joinGroup(groupId, cycleId) {
 async function leaveNextGroup() {
   if (!APP.myNextGroup) return;
   if (!confirm('Leave "' + APP.myNextGroup.name + '" for the next season?')) return;
-  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myNextGroup.id).eq('user_id', APP.user.id);
+  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myNextGroup.id).eq('cycle_id', APP.nextCycle.id).eq('user_id', APP.user.id);
   if (error) { alert(error.message); return; }
   await loadCommunity();
   renderGroup();
@@ -1573,7 +1570,7 @@ async function leaveNextGroup() {
 async function leaveGroup() {
   if (!APP.myGroup) return;
   if (!confirm('Leave "' + APP.myGroup.name + '"? The planning tools lock again until you join another group or are allocated.')) return;
-  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myGroup.id).eq('user_id', APP.user.id);
+  const { error } = await sb.from('group_members').delete().eq('group_id', APP.myGroup.id).eq('cycle_id', APP.activeCycle.id).eq('user_id', APP.user.id);
   if (error) { alert(error.message); return; }
   await loadCommunity();
   renderGroup();
@@ -1650,8 +1647,8 @@ async function renderAdmin() {
   el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
   const [pr, gr, gm, cy, bd, ss] = await Promise.all([
     sb.from('profiles').select('id,full_name,email,timezone,slots,preferred_slot,is_admin,created_at').order('created_at'),
-    sb.from('groups').select('*').order('created_at'),
-    sb.from('group_members').select('group_id,user_id'),
+    sb.from('season_groups').select('*').order('created_at'),
+    sb.from('group_members').select('group_id,user_id,cycle_id').neq('status', 'departed'),
     sb.from('cycles').select('*').order('start_date', { ascending: false }),
     sb.from('boards').select('*').order('created_at'),
     sb.rpc('suggested_season_start')
@@ -1678,8 +1675,9 @@ function drawAdmin() {
   const cycleGroups = ADMIN.groups.filter(g => selCycle && g.cycle_id === selCycle.id);
   const groupById = {};
   cycleGroups.forEach(g => { groupById[g.id] = g; });
+  const seasonMembers = ADMIN.members.filter(m => selCycle && m.cycle_id === selCycle.id);
   const memberGroup = {};
-  ADMIN.members.forEach(m => { if (groupById[m.group_id]) memberGroup[m.user_id] = groupById[m.group_id]; });
+  seasonMembers.forEach(m => { if (groupById[m.group_id]) memberGroup[m.user_id] = groupById[m.group_id]; });
   const allEmails = ADMIN.profiles.map(p => p.email).filter(Boolean);
 
   let html = '';
@@ -1735,7 +1733,7 @@ function drawAdmin() {
     if (cycleGroups.length) {
       html += `<h3>Groups in ${esc(selCycle.name)}</h3>`;
       cycleGroups.forEach(g => {
-        const mem = ADMIN.members.filter(m => m.group_id === g.id);
+        const mem = seasonMembers.filter(m => m.group_id === g.id);
         const memEmails = mem.map(m => (profById[m.user_id] || {}).email).filter(Boolean);
         html += `<div style="margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1922,9 +1920,7 @@ async function adminCreateGroup() {
   if (!name) { alert('Enter a group name.'); return; }
   const day = Number(document.getElementById('admgrp-day').value);
   const hour = Number(document.getElementById('admgrp-hour').value);
-  const { error } = await sb.from('groups').insert({
-    cycle_id: selCycle.id, name, slot_mow: localToMow(day, hour), created_by: APP.user.id
-  });
+  const { error } = await sb.rpc('create_season_group', { p_season: selCycle.id, p_name: name, p_slot: localToMow(day, hour), p_members: [] });
   if (error) { alert(error.message); return; }
   await loadCommunity();
   renderAdmin();
@@ -1933,7 +1929,7 @@ async function adminCreateGroup() {
 async function adminDeleteGroup(groupId) {
   const g = ADMIN.groups.find(x => x.id === groupId);
   if (!g) return;
-  if (!confirm('Delete "' + g.name + '"? Its members become ungrouped and its message board is removed.')) return;
+  if (!confirm('Delete "' + g.name + '"? This removes the group from every season, its rosters and its message board.')) return;
   const { error } = await sb.from('groups').delete().eq('id', groupId);
   if (error) { alert(error.message); return; }
   await loadCommunity();
@@ -1956,7 +1952,7 @@ function runAllocation() {
   const maxSize = Math.max(minSize, Number(document.getElementById('alloc-max').value) || 4);
   // People already in a group for this season keep their choice
   const cycleGroupIds = new Set(ADMIN.groups.filter(g => g.cycle_id === selCycle.id).map(g => g.id));
-  const grouped = new Set(ADMIN.members.filter(m => cycleGroupIds.has(m.group_id)).map(m => m.user_id));
+  const grouped = new Set(ADMIN.members.filter(m => m.cycle_id === selCycle.id && cycleGroupIds.has(m.group_id)).map(m => m.user_id));
   const people = ADMIN.profiles.filter(p => (p.slots || []).length > 0 && !grouped.has(p.id));
   const unassigned = new Map(people.map(p => [p.id, p]));
   const groups = [];
@@ -2002,19 +1998,9 @@ function runAllocation() {
 async function saveAllocation() {
   const selCycle = APP.cycles.find(c => c.id === ADMIN.selCycleId);
   if (!selCycle || !ADMIN.alloc || !ADMIN.alloc.groups.length) return;
-  const rows = ADMIN.alloc.groups.map(g => ({ cycle_id: selCycle.id, name: g.name, slot_mow: g.slot_mow, created_by: APP.user.id }));
-  const ins = await sb.from('groups').insert(rows).select();
-  if (ins.error) { alert('Save failed: ' + ins.error.message); return; }
-  const byName = {};
-  (ins.data || []).forEach(row => { byName[row.name] = row.id; });
-  const memberRows = [];
-  ADMIN.alloc.groups.forEach(g => {
-    const gid = byName[g.name];
-    if (gid) g.memberIds.forEach(uid => memberRows.push({ group_id: gid, user_id: uid, cycle_id: selCycle.id }));
-  });
-  if (memberRows.length) {
-    const mi = await sb.from('group_members').insert(memberRows);
-    if (mi.error) { alert('Groups created, but adding members failed: ' + mi.error.message); return; }
+  for (const g of ADMIN.alloc.groups) {
+    const { error } = await sb.rpc('create_season_group', { p_season: selCycle.id, p_name: g.name, p_slot: g.slot_mow, p_members: g.memberIds });
+    if (error) { alert('Saving "' + g.name + '" failed: ' + error.message); await loadCommunity(); renderAdmin(); return; }
   }
   ADMIN.alloc = null;
   alert('Groups saved! Members will see their group next time they open the app.');
@@ -2026,10 +2012,10 @@ async function adminMoveMember(userId, newGroupId) {
   const selCycle = APP.cycles.find(c => c.id === ADMIN.selCycleId);
   if (!selCycle) return;
   const cycleGroupIds = new Set(ADMIN.groups.filter(g => g.cycle_id === selCycle.id).map(g => g.id));
-  const current = ADMIN.members.find(m => m.user_id === userId && cycleGroupIds.has(m.group_id));
+  const current = ADMIN.members.find(m => m.user_id === userId && m.cycle_id === selCycle.id && cycleGroupIds.has(m.group_id));
   if ((current ? current.group_id : '') === (newGroupId || '')) return;
   if (current) {
-    const del = await sb.from('group_members').delete().eq('group_id', current.group_id).eq('user_id', userId);
+    const del = await sb.from('group_members').delete().eq('group_id', current.group_id).eq('cycle_id', selCycle.id).eq('user_id', userId);
     if (del.error) { alert(del.error.message); renderAdmin(); return; }
   }
   if (newGroupId) {
@@ -2042,7 +2028,7 @@ async function adminMoveMember(userId, newGroupId) {
 
 async function adminRemoveMember(groupId, userId) {
   if (!confirm('Remove this member from the group?')) return;
-  await sb.from('group_members').delete().eq('group_id', groupId).eq('user_id', userId);
+  await sb.from('group_members').delete().eq('group_id', groupId).eq('cycle_id', ADMIN.selCycleId).eq('user_id', userId);
   renderAdmin();
 }
 
@@ -2171,8 +2157,8 @@ async function renderTeam() {
   el.innerHTML = '<div class="empty-state"><p>Loading team scores…</p></div>';
   const cid = APP.activeCycle.id;
   const [gRes, mRes, sRes] = await Promise.all([
-    sb.from('groups').select('id,name,slot_mow').eq('cycle_id', cid).order('created_at'),
-    sb.from('group_members').select('group_id,user_id').eq('cycle_id', cid),
+    sb.from('season_groups').select('id,name,slot_mow').eq('cycle_id', cid).order('created_at'),
+    sb.from('group_members').select('group_id,user_id').eq('cycle_id', cid).neq('status', 'departed'),
     sb.from('checkin_scores').select('user_id,week,score').eq('cycle_id', cid)
   ]);
   if (sRes.error) {
