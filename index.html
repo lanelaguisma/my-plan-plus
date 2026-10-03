@@ -1237,7 +1237,8 @@ async function answerOffer(offerId, accept) {
 const NOTICE_ACTIONS = {
   view_group: { label: 'View my group', run: () => navigateTo('group') },
   view_registrants: { label: 'Open Club Manager Panel', run: () => navigateTo('admin') },
-  review_offers: { label: 'Review', run: () => navigateTo('group') }
+  review_offers: { label: 'Review', run: () => navigateTo('group') },
+  review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
 };
 
 async function loadInbox() {
@@ -1584,6 +1585,15 @@ async function loadProspectiveMembers(group, season) {
           <button class="btn btn-secondary btn-sm" onclick="inviteMember('${group.id}', '${season.id}', '${m.member_id}')">Invite</button></div>`).join('')
       : '<p style="font-size:13px;color:var(--text-muted)">Nobody is waiting to be placed right now.</p>');
   const offers = await sb.rpc('group_offers', { p_group: group.id, p_season: season.id });
+  const requests = (offers.data || []).filter(o => o.kind === 'join_request' && o.status === 'pending');
+  if (requests.length) {
+    holder.innerHTML += `<h3 style="margin-top:12px">Join requests</h3>` + requests.map(o => `<div class="member-row">
+      <span>${esc(o.member_name)}</span>
+      <span style="display:flex;gap:6px">
+        <button class="btn btn-primary btn-sm" onclick="answerJoinRequest('${o.id}', true)">Approve</button>
+        <button class="btn btn-secondary btn-sm" onclick="answerJoinRequest('${o.id}', false)">Decline</button>
+      </span></div>`).join('');
+  }
   const invitations = (offers.data || []).filter(o => o.kind === 'invitation');
   if (invitations.length) {
     holder.innerHTML += `<h3 style="margin-top:12px">Invitations sent</h3>` + invitations.map(o => `<div class="member-row">
@@ -1593,6 +1603,13 @@ async function loadProspectiveMembers(group, season) {
         ${o.status === 'expired' || o.status === 'declined' ? `<button class="btn btn-secondary btn-sm" onclick="inviteMember('${group.id}', '${season.id}', '${o.member_id}')">Resend</button>` : ''}
       </span></div>`).join('');
   }
+}
+
+async function answerJoinRequest(offerId, approve) {
+  const { error } = await sb.rpc('respond_to_offer', { p_offer: offerId, p_accept: approve });
+  if (error) alert(error.message);
+  await loadCommunity();
+  renderGroup();
 }
 
 async function inviteMember(groupId, seasonId, memberId) {
@@ -1644,6 +1661,32 @@ function groupProfileHtml(g, count) {
     ${g.commander_name ? ' &middot; Group Commander: ' + esc(g.commander_name) : ''}</span>`;
 }
 
+// "Ask to join" for an unplaced member, or the state of their request.
+function joinRequestButton(g, cycle) {
+  const placed = (APP.activeCycle && cycle.id === APP.activeCycle.id && APP.myGroup) ||
+                 (APP.nextCycle && cycle.id === APP.nextCycle.id && APP.myNextGroup);
+  if (placed) return '';
+  const mine = (APP.offers || []).find(o => o.kind === 'join_request' && o.group_id === g.id && o.cycle_id === cycle.id && o.status === 'pending');
+  if (mine) return `<span style="display:flex;gap:6px;align-items:center"><span class="badge-pill amber">requested</span>
+    <button class="btn btn-secondary btn-sm" onclick="cancelJoinRequest('${mine.id}')">Cancel</button></span>`;
+  return `<button class="btn btn-secondary btn-sm" onclick="askToJoin('${g.id}', '${cycle.id}')">Ask to join</button>`;
+}
+
+async function askToJoin(groupId, seasonId) {
+  const { error } = await sb.rpc('send_join_request', { p_group: groupId, p_season: seasonId });
+  if (error) { alert(error.message); return; }
+  alert('Request sent — the group commander will let you know.');
+  await loadCommunity();
+  renderGroup();
+}
+
+async function cancelJoinRequest(offerId) {
+  const { error } = await sb.rpc('withdraw_offer', { p_offer: offerId });
+  if (error) alert(error.message);
+  await loadCommunity();
+  renderGroup();
+}
+
 function groupChooserHtml(cycle, groups, counts, prefix, title) {
   let h = `<div class="card" style="border:1px solid var(--accent)">
     <h3 style="color:var(--accent)">${title} &mdash; ${esc(cycle.name)}</h3>
@@ -1655,7 +1698,7 @@ function groupChooserHtml(cycle, groups, counts, prefix, title) {
       const full = count >= cap;
       return `<div class="member-row">
         <span>${groupProfileHtml(g, count)}</span>
-        ${full ? '<span class="badge-pill">Full</span>' : ''}
+        ${full ? '<span class="badge-pill">Full</span>' : joinRequestButton(g, cycle)}
       </div>`;
     }).join('');
   } else {
