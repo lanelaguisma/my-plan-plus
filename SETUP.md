@@ -24,10 +24,10 @@ It needs a free [Supabase](https://supabase.com) project as its backend (account
 ## 2. Create the database
 
 1. In the Supabase dashboard, open **SQL Editor → New query**.
-2. Paste the entire contents of `supabase-schema.sql` (in this folder) and click **Run**.
-   You should see "Success. No rows returned".
+2. Run each file in `supabase/migrations/` **in filename order** (`0000_baseline.sql` first): paste its entire contents and click **Run**.
+   You should see "Success. No rows returned" for each.
 
-> **Already ran the original schema?** (i.e. you set the project up before groups/boards were added): run `supabase-update-1.sql`, `supabase-update-2.sql` and `supabase-update-3.sql` in order instead — they add self-service groups, message boards, preferred availability, the shared check-in scoreboard, and overlapping cycle sign-up to the existing database. Fresh projects only need `supabase-schema.sql`.
+> **Upgrading an existing project?** Only run the migrations your database hasn't had yet, in order. A project set up from the old `supabase-schema.sql` plus `supabase-update-1..4.sql` is already at `0000_baseline.sql`, so start from `0001`. Never edit a migration once it has been applied anywhere; add a new one instead.
 
 ## 3. Connect the app to the project
 
