@@ -87,6 +87,14 @@ body {
   transition: color 0.2s; min-width: 44px;
 }
 .nav-btn.active { color: var(--accent); }
+.nav-btn { position: relative; }
+.nav-badge {
+  position: absolute; top: 2px; left: calc(50% + 4px);
+  background: var(--danger); color: #fff; border-radius: 8px;
+  font-size: 9px; font-weight: 700; line-height: 14px; min-width: 14px; padding: 0 4px; text-align: center;
+}
+.notice-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.notice-row.unread { font-weight: 600; }
 .nav-btn svg { width: 24px; height: 24px; }
 
 /* ========== TYPOGRAPHY ========== */
@@ -494,7 +502,7 @@ textarea { resize: vertical; min-height: 60px; }
   </button>
   <button class="nav-btn" data-screen="group">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-    Group
+    Group<span class="nav-badge" id="inbox-badge" hidden></span>
   </button>
   <button class="nav-btn" data-screen="team">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
@@ -1169,6 +1177,7 @@ async function loadCommunity() {
   const { data: admins } = await sb.from('profiles').select('id,full_name,email').eq('is_admin', true);
   APP.admins = (admins || []).filter(a => a.email);
   if (!APP.boards.some(b => b.id === APP.curBoardId)) APP.curBoardId = APP.boards[0] ? APP.boards[0].id : null;
+  await loadInbox();
   const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
   if (!cycleIds.length) return;
   const { data: gs } = await sb.from('season_groups').select('*').in('cycle_id', cycleIds).order('created_at');
@@ -1193,6 +1202,42 @@ async function loadCommunity() {
       APP.myGroupMembers = profs || [];
     }
   }
+}
+
+/* ========== INBOX ========== */
+// What a member can do straight from a notice, by the notice's action code.
+const NOTICE_ACTIONS = {
+  view_group: { label: 'View my group', run: () => navigateTo('group') }
+};
+
+async function loadInbox() {
+  const { data, error } = await sb.rpc('my_notices');
+  APP.notices = error ? [] : (data || []).sort((a, b) => (a.read - b.read) || (new Date(b.created_at) - new Date(a.created_at)));
+  const unread = APP.notices.filter(n => !n.read).length;
+  const badge = document.getElementById('inbox-badge');
+  if (badge) { badge.hidden = !unread; badge.textContent = unread > 9 ? '9+' : String(unread); }
+}
+
+function inboxCardHtml() {
+  const notices = (APP.notices || []).slice(0, 10);
+  if (!notices.length) return '';
+  return `<div class="card"><h3>Inbox</h3>` + notices.map(n => {
+    const act = n.action && NOTICE_ACTIONS[n.action];
+    return `<div class="notice-row${n.read ? '' : ' unread'}">
+      <span>${esc(n.message)}<br><span style="font-size:11px;color:var(--text-muted);font-weight:400">${formatDate(String(n.created_at).slice(0, 10))}</span></span>
+      <span style="display:flex;gap:6px;flex-shrink:0">
+        ${act ? `<button class="btn btn-primary btn-sm" onclick="openNotice('${esc(n.key)}', '${esc(n.action)}')">${act.label}</button>` : ''}
+        ${n.read ? '' : `<button class="btn btn-secondary btn-sm" onclick="openNotice('${esc(n.key)}', '')">Mark read</button>`}
+      </span>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+async function openNotice(key, action) {
+  await sb.rpc('mark_notice_read', { p_key: key });
+  await loadInbox();
+  const act = action && NOTICE_ACTIONS[action];
+  if (act) act.run(); else if (currentScreen === 'group') renderGroup();
 }
 
 // When a member is allocated, pre-fill their plan season from the community season
@@ -1403,7 +1448,7 @@ function dayTimeSelects(prefix) {
 function renderGroup() {
   const el = document.getElementById('group-content');
   const p = APP.profile || {};
-  let html = '';
+  let html = inboxCardHtml();
 
   if (APP.myGroup) {
     const others = APP.myGroupMembers.filter(m => m.id !== APP.user.id);
@@ -1517,7 +1562,7 @@ function groupProfileHtml(g, count) {
 function groupChooserHtml(cycle, groups, counts, prefix, title) {
   let h = `<div class="card" style="border:1px solid var(--accent)">
     <h3 style="color:var(--accent)">${title} &mdash; ${esc(cycle.name)}</h3>
-    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(cycle.start_date)}. Join a group with open places, or simply keep your availability up to date and the club manager will place you in a group that matches it.</p>`;
+    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(cycle.start_date)}. Keep your availability up to date and the club manager will place you in a group that matches it. Here are the groups this season.</p>`;
   if (groups.length) {
     h += groups.map(g => {
       const count = counts[g.id] || 0;
@@ -1525,7 +1570,7 @@ function groupChooserHtml(cycle, groups, counts, prefix, title) {
       const full = count >= cap;
       return `<div class="member-row">
         <span>${groupProfileHtml(g, count)}</span>
-        ${full ? '<span class="badge-pill">Full</span>' : `<button class="btn btn-secondary btn-sm" onclick="joinGroup('${g.id}','${cycle.id}')">Join</button>`}
+        ${full ? '<span class="badge-pill">Full</span>' : ''}
       </div>`;
     }).join('');
   } else {
@@ -1533,21 +1578,6 @@ function groupChooserHtml(cycle, groups, counts, prefix, title) {
   }
   h += `</div>`;
   return h;
-}
-
-async function joinGroup(groupId, cycleId) {
-  const isNext = APP.nextCycle && APP.nextCycle.id === cycleId;
-  const g = (isNext ? APP.nextGroups : APP.cycleGroups).find(x => x.id === groupId);
-  const count = (isNext ? APP.nextCounts : APP.cycleCounts)[groupId] || 0;
-  if (g && count >= (g.capacity || 4)) {
-    alert('That group already has its full complement of ' + (g.capacity || 4) + '. Join another, or email the club manager — they can add you to a full group.');
-    return;
-  }
-  const { error } = await sb.from('group_members').insert({ group_id: groupId, user_id: APP.user.id, cycle_id: cycleId });
-  if (error) { alert('Could not join: ' + error.message); return; }
-  await loadCommunity();
-  seedCycleFromCommunity();
-  renderGroup();
 }
 
 async function leaveNextGroup() {
@@ -2031,21 +2061,18 @@ async function adminMoveMember(userId, newGroupId) {
   const cycleGroupIds = new Set(ADMIN.groups.filter(g => g.cycle_id === selCycle.id).map(g => g.id));
   const current = ADMIN.members.find(m => m.user_id === userId && m.cycle_id === selCycle.id && cycleGroupIds.has(m.group_id));
   if ((current ? current.group_id : '') === (newGroupId || '')) return;
-  if (current) {
-    const del = await sb.from('group_members').delete().eq('group_id', current.group_id).eq('cycle_id', selCycle.id).eq('user_id', userId);
-    if (del.error) { alert(del.error.message); renderAdmin(); return; }
-  }
-  if (newGroupId) {
-    const ins = await sb.from('group_members').insert({ group_id: newGroupId, user_id: userId, cycle_id: selCycle.id });
-    if (ins.error) { alert(ins.error.message); renderAdmin(); return; }
-  }
+  const { error } = newGroupId
+    ? await sb.rpc('assign_member', { p_member: userId, p_group: newGroupId, p_season: selCycle.id })
+    : await sb.rpc('remove_from_roster', { p_member: userId, p_season: selCycle.id });
+  if (error) { alert(error.message); renderAdmin(); return; }
   await loadCommunity();
   renderAdmin();
 }
 
 async function adminRemoveMember(groupId, userId) {
   if (!confirm('Remove this member from the group?')) return;
-  await sb.from('group_members').delete().eq('group_id', groupId).eq('cycle_id', ADMIN.selCycleId).eq('user_id', userId);
+  const { error } = await sb.rpc('remove_from_roster', { p_member: userId, p_season: ADMIN.selCycleId });
+  if (error) alert(error.message);
   renderAdmin();
 }
 
