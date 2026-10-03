@@ -753,7 +753,7 @@ textarea { resize: vertical; min-height: 60px; }
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
       <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
       <div>
-        <h1 style="margin:0">Admin</h1>
+        <h1 style="margin:0">Club Manager</h1>
         <div class="subtitle" style="margin:0">Seasons, registrations &amp; group allocation</div>
       </div>
     </div>
@@ -1444,7 +1444,7 @@ function renderGroup() {
       html += `<div class="card" style="border:1px solid var(--warning)">
         <h3 style="color:var(--warning)">Next season: ${esc(APP.nextCycle.name)}</h3>
         <div style="font-size:14px;font-weight:600;margin:4px 0">You're in ${esc(APP.myNextGroup.name)} &middot; ${mowLabel(APP.myNextGroup.slot_mow)}</div>
-        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the admin makes the season active.</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the club manager makes the season active.</div>
         <button class="btn btn-danger btn-sm" onclick="leaveNextGroup()">Leave This Group</button>
       </div>`;
     } else {
@@ -1467,13 +1467,13 @@ function renderGroup() {
 
   if (!APP.isAdmin && APP.admins.length) {
     html += `<div class="card"><h3>Questions or Problems?</h3>
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Stuck with registration, groups, times or your plan? Email ${esc(APP.admins.map(a => a.full_name).filter(Boolean).join(', ') || 'the admin')} — the button opens a pre-addressed draft in your mail app.</p>
-      <a class="btn btn-secondary" style="display:block;text-align:center;text-decoration:none" href="${contactAdminHref()}">Email the Admin</a>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Stuck with registration, groups, times or your plan? Email ${esc(APP.admins.map(a => a.full_name).filter(Boolean).join(', ') || 'the club manager')} — the button opens a pre-addressed draft in your mail app.</p>
+      <a class="btn btn-secondary" style="display:block;text-align:center;text-decoration:none" href="${contactAdminHref()}">Email the Club Manager</a>
     </div>`;
   }
 
   if (APP.isAdmin) {
-    html += `<button class="btn btn-secondary" onclick="navigateTo('admin')">Open Admin Panel</button>`;
+    html += `<button class="btn btn-secondary" onclick="navigateTo('admin')">Open Club Manager Panel</button>`;
   }
 
   el.innerHTML = html;
@@ -1635,7 +1635,7 @@ const ADMIN = { profiles: [], groups: [], members: [], selCycleId: null, alloc: 
 
 async function renderAdmin() {
   const el = document.getElementById('admin-content');
-  if (!APP.isAdmin) { el.innerHTML = '<div class="empty-state"><p>Admins only.</p></div>'; return; }
+  if (!APP.isAdmin) { el.innerHTML = '<div class="empty-state"><p>Club managers only.</p></div>'; return; }
   el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
   const [pr, gr, gm, cy, bd, ss] = await Promise.all([
     sb.from('profiles').select('id,full_name,email,timezone,slots,preferred_slot,is_admin,created_at').order('created_at'),
@@ -1741,14 +1741,34 @@ function drawAdmin() {
             </span>
           </div>
           <div style="font-size:13px;color:var(--text-secondary);margin:4px 0">${mowLabel(g.slot_mow)} (45 min) &middot; ${g.member_count}/${g.capacity}${g.capacity_override ? ' (override)' : ''}${g.vacancies ? ' &middot; ' + g.vacancies + ' vacanc' + (g.vacancies === 1 ? 'y' : 'ies') : ''}${g.wam_link ? ' &middot; has meeting link' : ''}</div>
-          ${g.purpose ? `<div style="font-size:12px;margin-bottom:4px">${esc(g.purpose)}</div>` : ''}` +
+          ${g.purpose ? `<div style="font-size:12px;margin-bottom:4px">${esc(g.purpose)}</div>` : ''}
+          <div style="font-size:13px;margin:6px 0">Group Commander:
+            <select onchange="adminAppointCommander('${g.id}', this.value)">
+              <option value=""${!g.commander_id ? ' selected' : ''}>&mdash; none &mdash;</option>` +
+              mem.map(m => `<option value="${m.user_id}"${g.commander_id === m.user_id ? ' selected' : ''}>${esc(displayName(m.user_id))}</option>`).join('') +
+            `</select></div>` +
           (mem.length
-            ? mem.map(m => `<div class="member-row"><span>${esc(displayName(m.user_id))}</span><button class="icon-btn danger" title="Remove from group" onclick="adminRemoveMember('${g.id}','${m.user_id}')">&#10005;</button></div>`).join('')
+            ? mem.map(m => `<div class="member-row"><span>${esc(displayName(m.user_id))}${g.commander_id === m.user_id ? ' <span class="badge-pill green">commander</span>' : ''}</span><button class="icon-btn danger" title="Remove from group" onclick="adminRemoveMember('${g.id}','${m.user_id}')">&#10005;</button></div>`).join('')
             : '<div style="font-size:12px;color:var(--text-muted)">No members yet.</div>') +
           `</div>`;
       });
     } else {
       html += `<p style="font-size:13px;color:var(--text-muted)">No groups in this season yet.</p>`;
+    }
+
+    // Group commander coverage
+    if (cycleGroups.length) {
+      const led = cycleGroups.filter(g => g.commander_id);
+      const unled = cycleGroups.filter(g => !g.commander_id && !g.dormant);
+      html += `<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+        <h3>Group Commanders</h3>` +
+        (led.length
+          ? led.map(g => `<div class="member-row"><span>${esc(g.commander_name || displayName(g.commander_id))}</span><span style="font-size:12px;color:var(--text-secondary)">${esc(g.name)}</span></div>`).join('')
+          : '<p style="font-size:13px;color:var(--text-muted)">No group commanders appointed yet.</p>') +
+        (unled.length
+          ? `<p style="font-size:13px;color:var(--warning);margin-top:8px"><strong>Needs a group commander:</strong> ${unled.map(g => esc(g.name)).join(', ')}</p>`
+          : '') +
+        `</div>`;
     }
 
     // Admin create group
@@ -1802,7 +1822,7 @@ function drawAdmin() {
         `</select>`
       : (g ? esc(g.name) : '—');
     html += `<tr>
-      <td>${esc(p.full_name || '—')}${p.is_admin ? ' <span class="badge-pill">admin</span>' : ''}</td>
+      <td>${esc(p.full_name || '—')}${p.is_admin ? ' <span class="badge-pill">club manager</span>' : ''}</td>
       <td>${p.email ? `<a class="auth-link" href="${mailtoOne(p.email, 'My Plan+')}">${esc(p.email)}</a>` : ''}</td>
       <td title="${availTitle}">${(p.slots || []).length}${p.preferred_slot != null ? '\u2605' : ''}</td>
       <td>${groupCell}</td>
@@ -1813,7 +1833,7 @@ function drawAdmin() {
       ${allEmails.length ? `<a class="btn btn-secondary btn-sm" style="text-decoration:none;text-align:center" href="${mailtoMany(allEmails, 'My Plan+')}">Email all users</a>` : ''}
       <button class="btn btn-secondary btn-sm" onclick="copyEmails(${esc(JSON.stringify(allEmails)).replace(/"/g, '&quot;')})">Copy all emails</button>
     </div>
-    <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and admin moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
@@ -1824,7 +1844,7 @@ function drawAdmin() {
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Community boards are visible to all registered users on their Group tab. Each group also has its own private board automatically.</p></div>`;
 
   // --- Export ---
-  html += `<div class="card"><h3>Admin Export</h3>
+  html += `<div class="card"><h3>Club Export</h3>
     <button class="btn btn-secondary" style="margin-bottom:8px" onclick="adminExportCSV()">Export Registrants &amp; Groups (CSV)</button>
     <button class="btn btn-secondary" onclick="adminExportJSON()">Export Community Data (JSON)</button>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Members' plan entries are private to each member &mdash; everyone can export their own backup from Settings.</p>
@@ -2029,6 +2049,12 @@ async function adminRemoveMember(groupId, userId) {
   renderAdmin();
 }
 
+async function adminAppointCommander(groupId, memberId) {
+  const { error } = await sb.rpc('appoint_group_commander', { p_group: groupId, p_season: ADMIN.selCycleId, p_member: memberId || null });
+  if (error) { alert(error.message); }
+  renderAdmin();
+}
+
 async function adminEditGroupProfile(groupId) {
   const g = ADMIN.groups.find(x => x.id === groupId);
   if (!g) return;
@@ -2101,9 +2127,9 @@ function adminExportCSV() {
 function renderAccountCard() {
   const p = APP.profile || {};
   return `<div class="card"><h3>Account</h3>
-    <div style="font-size:14px;margin-bottom:4px"><strong>${esc(p.full_name || 'Unnamed')}</strong>${APP.isAdmin ? ' <span class="badge-pill">admin</span>' : ''}</div>
+    <div style="font-size:14px;margin-bottom:4px"><strong>${esc(p.full_name || 'Unnamed')}</strong>${APP.isAdmin ? ' <span class="badge-pill">club manager</span>' : ''}</div>
     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">${esc(APP.user ? APP.user.email : '')} &middot; your plan syncs to your account</div>
-    <div class="btn-row">${APP.isAdmin ? '<button class="btn btn-secondary btn-sm" onclick="navigateTo(\'admin\')">Admin Panel</button>' : ''}${(!APP.isAdmin && APP.admins.length) ? `<a class="btn btn-secondary btn-sm" style="text-align:center;text-decoration:none" href="${contactAdminHref()}">Email Admin</a>` : ''}<button class="btn btn-danger btn-sm" onclick="signOut()">Sign Out</button></div>
+    <div class="btn-row">${APP.isAdmin ? '<button class="btn btn-secondary btn-sm" onclick="navigateTo(\'admin\')">Club Manager Panel</button>' : ''}${(!APP.isAdmin && APP.admins.length) ? `<a class="btn btn-secondary btn-sm" style="text-align:center;text-decoration:none" href="${contactAdminHref()}">Email the Club Manager</a>` : ''}<button class="btn btn-danger btn-sm" onclick="signOut()">Sign Out</button></div>
   </div>`;
 }
 
