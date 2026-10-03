@@ -33,12 +33,22 @@ function migrationFiles() {
   return readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
 }
 
+// Building the schema is the slow part, so each test worker builds the fully
+// migrated database once and every test starts from a copy of it.
+let migratedSnapshot = null;
+
 // `upTo` stops after the named migration (e.g. '0001') so a test can seed
 // data in an older shape, then call `club.migrate()` to apply the rest.
 export async function freshClub({ upTo } = {}) {
-  const db = await PGlite.create({ extensions: { pgcrypto } });
-  await db.exec(SUPABASE_STUB);
   const pending = migrationFiles();
+  let db;
+  if (!upTo && migratedSnapshot) {
+    db = await PGlite.create({ extensions: { pgcrypto }, loadDataDir: migratedSnapshot });
+    pending.length = 0;
+  } else {
+    db = await PGlite.create({ extensions: { pgcrypto } });
+    await db.exec(SUPABASE_STUB);
+  }
   async function applyThrough(stop) {
     while (pending.length) {
       const file = pending.shift();
@@ -47,6 +57,7 @@ export async function freshClub({ upTo } = {}) {
     }
   }
   await applyThrough(upTo);
+  if (!upTo && !migratedSnapshot) migratedSnapshot = await db.dumpDataDir('none');
 
   return {
     // Applies every migration not yet applied.

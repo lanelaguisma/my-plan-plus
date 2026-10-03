@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { freshClub } from './harness.js';
 
-const FRI_4PM_PT = 5 * 1440 + 23 * 60; // Friday 16:00 PDT = Friday 23:00 UTC
+const FRI_4PM_PT = 4 * 1440 + 23 * 60; // Friday 16:00 PDT = Friday 23:00 UTC
 
 // Fixture: a lasting group running in two seasons, with a roster for each.
 async function friBAcrossTwoSeasons() {
