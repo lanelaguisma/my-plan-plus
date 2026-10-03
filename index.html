@@ -1178,6 +1178,8 @@ async function loadCommunity() {
   APP.admins = (admins || []).filter(a => a.email);
   if (!APP.boards.some(b => b.id === APP.curBoardId)) APP.curBoardId = APP.boards[0] ? APP.boards[0].id : null;
   await loadInbox();
+  const wams = await sb.rpc('my_wams');
+  APP.wams = wams.error ? [] : (wams.data || []).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const offers = await sb.rpc('my_offers');
   APP.offers = offers.error ? [] : (offers.data || []);
   const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
@@ -1233,6 +1235,66 @@ async function answerOffer(offerId, accept) {
   renderGroup();
 }
 
+/* ========== WAMS ========== */
+function wamTimeLabel(iso) {
+  return new Date(iso).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+}
+
+function nextWam() {
+  const now = Date.now();
+  return (APP.wams || []).find(w => !w.cancelled && new Date(w.starts_at).getTime() + 45 * 60000 > now) || null;
+}
+
+// The next WAM, one tap from the home screen.
+function nextWamCardHtml() {
+  const w = nextWam();
+  if (!w) return '';
+  return `<div class="card" style="border:1px solid var(--accent);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+    <span><strong>Next WAM</strong> &middot; ${esc(w.group_name)} &middot; week ${w.week}<br>
+      <span style="font-size:13px;color:var(--text-secondary)">${wamTimeLabel(w.starts_at)}${w.rescheduled ? ' (moved)' : ''}</span></span>
+    ${w.link ? `<a class="btn btn-primary btn-sm" style="text-decoration:none" target="_blank" href="${esc(w.link)}">Join</a>` : ''}
+  </div>`;
+}
+
+// This season's WAMs for the member's group; commanders can move or cancel one.
+function wamListHtml(group, season) {
+  const list = (APP.wams || []).filter(w => w.group_id === group.id && w.cycle_id === season.id);
+  if (!list.length) return '';
+  const commanding = group.commander_id === APP.user.id;
+  const next = nextWam();
+  return '<h3 style="margin-top:12px">WAMs this season</h3>' + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
+    <span>Week ${w.week} &middot; ${w.cancelled ? '<s>' + wamTimeLabel(w.starts_at) + '</s> cancelled' : wamTimeLabel(w.starts_at) + (w.rescheduled ? ' (moved)' : '')}
+      ${next && next.week === w.week && next.group_id === w.group_id ? ' <span class="badge-pill green">next</span>' : ''}</span>
+    <span style="display:flex;gap:6px">
+      ${!w.cancelled && w.link ? `<a class="btn btn-secondary btn-sm" style="text-decoration:none" target="_blank" href="${esc(w.link)}">Join</a>` : ''}
+      ${commanding && !w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="moveWam('${group.id}','${season.id}',${w.week},'${w.starts_at}')">Move</button>
+        <button class="btn btn-secondary btn-sm" onclick="cancelWam('${group.id}','${season.id}',${w.week})">Cancel</button>` : ''}
+    </span></div>`).join('');
+}
+
+async function moveWam(groupId, seasonId, week, currentIso) {
+  const d = new Date(currentIso);
+  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  const when = prompt('New date and time for week ' + week + ' (your local time, YYYY-MM-DDTHH:MM):', local);
+  if (!when) return;
+  const startsAt = new Date(when);
+  if (isNaN(startsAt)) { alert('That date and time was not recognised.'); return; }
+  const link = prompt('Meeting link for this WAM only (leave blank to keep the usual link):', '');
+  if (link === null) return;
+  const { error } = await sb.rpc('reschedule_wam', { p_group: groupId, p_season: seasonId, p_week: week, p_starts_at: startsAt.toISOString(), p_link: link.trim() });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderGroup();
+}
+
+async function cancelWam(groupId, seasonId, week) {
+  if (!confirm('Cancel the week ' + week + ' WAM? Your group is told; check-ins for that week still count.')) return;
+  const { error } = await sb.rpc('cancel_wam', { p_group: groupId, p_season: seasonId, p_week: week });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderGroup();
+}
+
 /* ========== CONTINUATION ========== */
 async function answerContinuation(continuing) {
   if (!continuing && !confirm('Free your place in this group for next season?')) return;
@@ -1260,6 +1322,8 @@ const NOTICE_ACTIONS = {
   view_registrants: { label: 'Open Club Manager Panel', run: () => navigateTo('admin') },
   review_offers: { label: 'Review', run: () => navigateTo('group') },
   confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
+  view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
+  join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
   review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
 };
 
@@ -1290,7 +1354,8 @@ async function openNotice(key, action) {
   await sb.rpc('mark_notice_read', { p_key: key });
   await loadInbox();
   const act = action && NOTICE_ACTIONS[action];
-  if (act) act.run(); else if (currentScreen === 'group') renderGroup();
+  const notice = (APP.notices || []).find(n => n.key === key);
+  if (act) act.run(notice); else if (currentScreen === 'group') renderGroup();
 }
 
 // When a member is allocated, pre-fill their plan season from the community season
@@ -1514,7 +1579,8 @@ function renderGroup() {
       ${APP.myGroup.wam_link ? `<a class="wam-link" target="_blank" href="${esc(APP.myGroup.wam_link)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
         Join weekly session</a>` : ''}
-      <h3>Members</h3>
+      ${APP.activeCycle ? wamListHtml(APP.myGroup, APP.activeCycle) : ''}
+      <h3 style="margin-top:12px">Members</h3>
       ${APP.myGroupMembers.map(m => `<div class="member-row">
         <span>${esc(m.full_name || 'Unnamed')}${m.id === APP.user.id ? ' (you)' : ''}</span>
         <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--text-muted);font-size:12px">${esc(m.timezone || '')}</span>${m.id !== APP.user.id && m.email ? `<a class="mail-icon" href="${mailtoOne(m.email, 'My Plan+ — ' + (APP.myGroup ? APP.myGroup.name : ''))}" title="Email ${esc(m.full_name || '')}">&#9993;</a>` : ''}</span>
@@ -2915,7 +2981,7 @@ function renderDashboard() {
     html += `<div class="card"><div class="empty-state"><p>Add some goals in the <strong>Goals</strong> tab to start tracking.</p></div></div>`;
   }
 
-  el.innerHTML = html;
+  el.innerHTML = nextWamCardHtml() + html;
 
   if (goals.length > 0 && (currentWeek > 0 || getHighestScoredWeek() > 0)) {
     renderDashTrendChart();
