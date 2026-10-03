@@ -50,6 +50,11 @@ export async function freshClub() {
       return { id: rows[0].id, email };
     },
 
+    // Makes a registered person a club manager (done by hand in SQL in production).
+    async makeClubManager(person) {
+      await db.query('update public.profiles set is_admin = true where id = $1', [person.id]);
+    },
+
     // Runs SQL as the given signed-in person, under row-level security.
     as(person) {
       return {

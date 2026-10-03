@@ -584,9 +584,9 @@ textarea { resize: vertical; min-height: 60px; }
 
     <div class="card learn-section">
       <h2><span class="icon">&#128218;</span> What Is the 12 Week Year?</h2>
-      <p>The <strong>12 Week Year</strong> is a planning and execution system created by Brian P. Moran and Michael Lennington. Instead of setting annual goals that lose momentum by February, you compress your year into <strong>12-week cycles</strong>.</p>
+      <p>The <strong>12 Week Year</strong> is a planning and execution system created by Brian P. Moran and Michael Lennington. Instead of setting annual goals that lose momentum by February, you compress your year into <strong>12-week seasons</strong>.</p>
       <div class="learn-quote">"The number one thing that you will need to do differently is to change how you think about time. Most people think in terms of a 12-month year. The 12 Week Year redefines your year to be 12 weeks long."</div>
-      <p>Each cycle has <strong>12 active weeks</strong> followed by a <strong>13th week for reflection and planning</strong>. This creates urgency, focus, and predictability that annual planning simply cannot.</p>
+      <p>Each season has <strong>12 active weeks</strong> followed by a <strong>13th week for reflection and planning</strong>. This creates urgency, focus, and predictability that annual planning simply cannot.</p>
     </div>
 
     <div class="card learn-section">
@@ -603,7 +603,7 @@ textarea { resize: vertical; min-height: 60px; }
 
     <div class="card learn-section">
       <h2><span class="icon">&#128204;</span> Setting Your Vision</h2>
-      <p>Before setting goals, define your <strong>long-term vision</strong>. Where do you want to be in 3-5 years? Your vision provides direction and motivation for each 12-week cycle.</p>
+      <p>Before setting goals, define your <strong>long-term vision</strong>. Where do you want to be in 3-5 years? Your vision provides direction and motivation for each 12-week season.</p>
       <p>A compelling vision should be:</p>
       <ul>
         <li><strong>Specific and vivid</strong> &mdash; paint a clear picture of your desired future</li>
@@ -615,7 +615,7 @@ textarea { resize: vertical; min-height: 60px; }
 
     <div class="card learn-section">
       <h2><span class="icon">&#127793;</span> Goals: The 12 Week Targets</h2>
-      <p>Each cycle should have <strong>2-3 goals maximum</strong>. More than that dilutes focus and reduces execution quality.</p>
+      <p>Each season should have <strong>2-3 goals maximum</strong>. More than that dilutes focus and reduces execution quality.</p>
       <p>Effective 12-week goals are:</p>
       <ul>
         <li><strong>Specific and measurable</strong> &mdash; you should know unambiguously whether you achieved them</li>
@@ -685,7 +685,7 @@ textarea { resize: vertical; min-height: 60px; }
         <li><strong>Celebrate wins</strong> &mdash; Acknowledge what you achieved</li>
         <li><strong>Assess honestly</strong> &mdash; Where did execution break down and why?</li>
         <li><strong>Identify process gaps</strong> &mdash; What systems or habits need improving?</li>
-        <li><strong>Plan the next cycle</strong> &mdash; Set new goals and tactics based on lessons learned</li>
+        <li><strong>Plan the next season</strong> &mdash; Set new goals and tactics based on lessons learned</li>
         <li><strong>Recharge</strong> &mdash; Rest and reset your energy for the next 12 weeks</li>
       </ul>
     </div>
@@ -724,7 +724,7 @@ textarea { resize: vertical; min-height: 60px; }
       <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
       <div>
         <h1 style="margin:0">Settings</h1>
-        <div class="subtitle" style="margin:0">Configure your cycle</div>
+        <div class="subtitle" style="margin:0">Configure your season</div>
       </div>
     </div>
     <div style="height:16px"></div>
@@ -754,7 +754,7 @@ textarea { resize: vertical; min-height: 60px; }
       <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
       <div>
         <h1 style="margin:0">Admin</h1>
-        <div class="subtitle" style="margin:0">Cycles, registrations &amp; group allocation</div>
+        <div class="subtitle" style="margin:0">Seasons, registrations &amp; group allocation</div>
       </div>
     </div>
     <div style="height:16px"></div>
@@ -1049,7 +1049,7 @@ function showAuth(mode) {
   const err = `<div class="auth-error" id="auth-error"></div>`;
   if (mode === 'signup') {
     card.innerHTML = authHeader() + `
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Register to join the next 12-week cycle. After registering you'll nominate the weekly 45-minute session times you can attend, then choose or create a group — or be randomly allocated to one.</p>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Register to join the next 12-week season. After registering you'll nominate the weekly 45-minute session times you can attend, then choose or create a group — or be randomly allocated to one.</p>
       <div class="form-group"><label class="form-label">Your name</label><input type="text" id="auth-name" autocomplete="name"></div>
       <div class="form-group"><label class="form-label">Email</label><input type="text" id="auth-email" autocomplete="email" inputmode="email"></div>
       <div class="form-group"><label class="form-label">Password (8+ characters)</label><input type="password" id="auth-pass" autocomplete="new-password" onkeydown="if(event.key==='Enter')doSignUp()"></div>
@@ -1158,8 +1158,8 @@ async function loadProfile() {
 }
 
 async function loadCommunity() {
-  const { data: cycles } = await sb.from('cycles').select('*').order('start_date', { ascending: false });
-  APP.cycles = cycles || [];
+  const { data: seasons } = await sb.from('cycles').select('*').order('start_date', { ascending: false });
+  APP.cycles = seasons || [];
   APP.activeCycle = APP.cycles.find(c => c.status === 'active') || null;
   APP.nextCycle = APP.cycles.find(c => c.status === 'enrolling') || null;
   APP.cycleGroups = []; APP.cycleCounts = {}; APP.myGroup = null; APP.myGroupMembers = [];
@@ -1195,7 +1195,7 @@ async function loadCommunity() {
   }
 }
 
-// When a member is allocated, pre-fill their plan cycle from the community cycle
+// When a member is allocated, pre-fill their plan season from the community season
 function seedCycleFromCommunity() {
   if (!APP.activeCycle || !APP.myGroup) return;
   const cycle = getCycle();
@@ -1249,7 +1249,7 @@ function renderLockedScreen(screen) {
   if (!el) return;
   el.innerHTML = `
     <div class="empty-state"><div class="empty-state-icon">&#128274;</div>
-    <p>The planning tools unlock once you're in a group for the current 12-week cycle.<br><br>
+    <p>The planning tools unlock once you're in a group for the current 12-week season.<br><br>
     Go to the <strong>Group</strong> tab to join or create a group — or set your availability and you'll be randomly allocated.</p></div>
     <button class="btn btn-primary" onclick="navigateTo('group')">Go to Group</button>`;
 }
@@ -1412,7 +1412,7 @@ function renderGroup() {
       <h3 style="color:var(--success)">Your Group: ${esc(APP.myGroup.name)}</h3>
       <div style="font-size:15px;font-weight:600;margin:4px 0">${mowLabel(APP.myGroup.slot_mow)}</div>
       <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Weekly 45-minute session, shown in your local time.</div>
-      ${APP.activeCycle ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Cycle: <strong>${esc(APP.activeCycle.name)}</strong> &middot; starts ${formatDate(APP.activeCycle.start_date)}</div>` : ''}
+      ${APP.activeCycle ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">Season: <strong>${esc(APP.activeCycle.name)}</strong> &middot; starts ${formatDate(APP.activeCycle.start_date)}</div>` : ''}
       ${APP.myGroup.wam_link ? `<a class="wam-link" target="_blank" href="${esc(APP.myGroup.wam_link)}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
         Join weekly session</a>` : ''}
@@ -1434,21 +1434,21 @@ function renderGroup() {
   } else if (!APP.nextCycle) {
     html += `<div class="card">
       <h3>You're registered</h3>
-      <p style="font-size:13px;line-height:1.6;color:var(--text-secondary)">The next 12-week cycle hasn't been opened yet. Nominate your availability below &mdash; when sign-up opens you can join or create a group, or be randomly allocated to one that suits your times.</p>
+      <p style="font-size:13px;line-height:1.6;color:var(--text-secondary)">The next 12-week season hasn't been opened yet. Nominate your availability below &mdash; when sign-up opens you can join or create a group, or be randomly allocated to one that suits your times.</p>
     </div>`;
   }
 
-  // The NEXT cycle can be open for sign-up while the current one runs
+  // The NEXT season can be open for sign-up while the current one runs
   if (APP.nextCycle) {
     if (APP.myNextGroup) {
       html += `<div class="card" style="border:1px solid var(--warning)">
-        <h3 style="color:var(--warning)">Next cycle: ${esc(APP.nextCycle.name)}</h3>
+        <h3 style="color:var(--warning)">Next season: ${esc(APP.nextCycle.name)}</h3>
         <div style="font-size:14px;font-weight:600;margin:4px 0">You're in ${esc(APP.myNextGroup.name)} &middot; ${mowLabel(APP.myNextGroup.slot_mow)}</div>
-        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the admin makes the cycle active.</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the admin makes the season active.</div>
         <button class="btn btn-danger btn-sm" onclick="leaveNextGroup()">Leave This Group</button>
       </div>`;
     } else {
-      html += groupChooserHtml(APP.nextCycle, APP.nextGroups, APP.nextCounts, 'nextgrp', 'Next cycle — sign-up open');
+      html += groupChooserHtml(APP.nextCycle, APP.nextGroups, APP.nextCounts, 'nextgrp', 'Next season — sign-up open');
     }
   }
 
@@ -1563,7 +1563,7 @@ async function joinGroup(groupId, cycleId) {
 
 async function leaveNextGroup() {
   if (!APP.myNextGroup) return;
-  if (!confirm('Leave "' + APP.myNextGroup.name + '" for the next cycle?')) return;
+  if (!confirm('Leave "' + APP.myNextGroup.name + '" for the next season?')) return;
   const { error } = await sb.from('group_members').delete().eq('group_id', APP.myNextGroup.id).eq('user_id', APP.user.id);
   if (error) { alert(error.message); return; }
   await loadCommunity();
@@ -1642,19 +1642,21 @@ async function saveProfileName() {
 }
 
 /* ========== ADMIN SCREEN ========== */
-const ADMIN = { profiles: [], groups: [], members: [], selCycleId: null, alloc: null, editCycleId: null };
+const ADMIN = { profiles: [], groups: [], members: [], selCycleId: null, alloc: null, editCycleId: null, suggestedStart: '' };
 
 async function renderAdmin() {
   const el = document.getElementById('admin-content');
   if (!APP.isAdmin) { el.innerHTML = '<div class="empty-state"><p>Admins only.</p></div>'; return; }
   el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
-  const [pr, gr, gm, cy, bd] = await Promise.all([
+  const [pr, gr, gm, cy, bd, ss] = await Promise.all([
     sb.from('profiles').select('id,full_name,email,timezone,slots,preferred_slot,is_admin,created_at').order('created_at'),
     sb.from('groups').select('*').order('created_at'),
     sb.from('group_members').select('group_id,user_id'),
     sb.from('cycles').select('*').order('start_date', { ascending: false }),
-    sb.from('boards').select('*').order('created_at')
+    sb.from('boards').select('*').order('created_at'),
+    sb.rpc('suggested_season_start')
   ]);
+  ADMIN.suggestedStart = ss.data || '';
   ADMIN.profiles = pr.data || [];
   ADMIN.groups = gr.data || [];
   ADMIN.members = gm.data || [];
@@ -1682,22 +1684,22 @@ function drawAdmin() {
 
   let html = '';
 
-  // --- Cycles ---
-  html += '<div class="card"><h3>12-Week Cycles</h3>';
-  if (APP.cycles.length === 0) html += '<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">No cycles yet — create the next 12-week year below.</p>';
+  // --- Seasons ---
+  html += '<div class="card"><h3>12-Week Seasons</h3>';
+  if (APP.cycles.length === 0) html += '<p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">No seasons yet — create the next 12-week year below.</p>';
   APP.cycles.forEach(c => {
     const badge = c.status === 'active' ? 'green' : c.status === 'enrolling' ? 'amber' : '';
     const label = c.status === 'enrolling' ? 'sign-up open' : c.status;
     if (ADMIN.editCycleId === c.id) {
       html += `<div style="border:1px solid var(--accent);border-radius:var(--radius-sm);padding:10px;margin:8px 0">
-        <div class="form-group"><label class="form-label">Cycle name</label><input type="text" id="edit-cycle-name" value="${esc(c.name)}"></div>
-        <div class="form-group"><label class="form-label">Start date</label><input type="date" id="edit-cycle-start" value="${c.start_date}"></div>
+        <div class="form-group"><label class="form-label">Season name</label><input type="text" id="edit-cycle-name" value="${esc(c.name)}"></div>
+        <div class="form-group"><label class="form-label">Start date</label><input type="date" id="edit-cycle-start" value="${c.start_date}"${c.status === 'active' || c.status === 'archived' ? ' disabled title="Locked once the season has started"' : ''}></div>
         <div class="btn-row">
           <button class="btn btn-primary btn-sm" onclick="adminSaveCycleEdit('${c.id}')">Save Changes</button>
           <button class="btn btn-secondary btn-sm" onclick="ADMIN.editCycleId=null;drawAdmin()">Cancel</button>
         </div>
-        <button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="adminDeleteCycle('${c.id}')">Delete Cycle</button>
-        <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Changing the start date shifts week numbering for the whole cycle. Members' personal plan dates don't move automatically &mdash; each member can pull the new dates via Settings &rarr; "Use these dates". Deleting a cycle also removes its groups, their message boards and shared check-ins.</p>
+        <button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="adminDeleteCycle('${c.id}')">Delete Season</button>
+        <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Changing the start date shifts week numbering for the whole season, so it is locked once the season has started (move individual WAMs instead). Members' personal plan dates don't move automatically &mdash; each member can pull the new dates via Settings &rarr; "Use these dates". Deleting a season also removes its groups, their message boards and shared check-ins.</p>
       </div>`;
       return;
     }
@@ -1712,19 +1714,19 @@ function drawAdmin() {
     html += `<div class="member-row"><span><strong>${esc(c.name)}</strong> &middot; starts ${formatDate(c.start_date)} <span class="badge-pill ${badge}">${esc(label)}</span></span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${btns}</span></div>`;
   });
   html += `<div class="btn-row">
-      <input type="text" id="new-cycle-name" placeholder="Cycle name e.g. Q1 2027">
-      <input type="date" id="new-cycle-start">
+      <input type="text" id="new-cycle-name" placeholder="Season name e.g. Q1 2027">
+      <input type="date" id="new-cycle-start" value="${ADMIN.suggestedStart}" title="Suggested: the Monday after the latest season ends">
     </div>
-    <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminCreateCycle()">+ Create Cycle</button>
-    <p style="font-size:11px;color:var(--text-muted);margin-top:8px"><strong>Open sign-up</strong> lets people join and create groups for the NEXT cycle while the current one is still running (you can also pre-allocate it below via the Cycle selector). <strong>Make active</strong> starts a cycle — the previously active one is archived — and its group members get the planning tools.</p>
+    <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminCreateCycle()">+ Create Season</button>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px"><strong>Open sign-up</strong> lets people join and create groups for the NEXT season while the current one is still running (you can also pre-allocate it below via the Season selector). <strong>Make active</strong> starts a season — the previously active one is archived — and its group members get the planning tools.</p>
   </div>`;
 
   // --- Groups & Allocation ---
   html += `<div class="card"><h3>Groups &amp; Allocation</h3>`;
   if (!selCycle) {
-    html += '<p style="font-size:13px;color:var(--text-muted)">Create a cycle first.</p></div>';
+    html += '<p style="font-size:13px;color:var(--text-muted)">Create a season first.</p></div>';
   } else {
-    html += `<div class="form-group"><label class="form-label">Cycle</label>
+    html += `<div class="form-group"><label class="form-label">Season</label>
       <select id="admin-cycle-sel" onchange="ADMIN.selCycleId=this.value;ADMIN.alloc=null;drawAdmin()">` +
       APP.cycles.map(c => `<option value="${c.id}"${c.id === ADMIN.selCycleId ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
       `</select></div>`;
@@ -1751,7 +1753,7 @@ function drawAdmin() {
           `</div>`;
       });
     } else {
-      html += `<p style="font-size:13px;color:var(--text-muted)">No groups in this cycle yet.</p>`;
+      html += `<p style="font-size:13px;color:var(--text-muted)">No groups in this season yet.</p>`;
     }
 
     // Admin create group
@@ -1770,7 +1772,7 @@ function drawAdmin() {
         <div><label class="form-label">Max group size</label><input type="number" id="alloc-max" value="4" min="2"></div>
       </div>
       <button class="btn btn-primary" style="margin-top:12px" onclick="runAllocation()">Randomly Allocate Ungrouped People</button>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Covers everyone who has nominated availability but hasn't joined or created a group in this cycle. Existing groups are kept. Re-run for a different random mix, then save.</p>`;
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Covers everyone who has nominated availability but hasn't joined or created a group in this season. Existing groups are kept. Re-run for a different random mix, then save.</p>`;
 
     if (ADMIN.alloc) {
       html += `<div style="margin-top:12px">`;
@@ -1837,10 +1839,22 @@ function drawAdmin() {
   el.innerHTML = html;
 }
 
+// Asks the club manager to confirm a start date that overlaps, or leaves a
+// gap with, an adjacent season. Returns true to go ahead.
+async function confirmSeasonDates(start, seasonId) {
+  const { data, error } = await sb.rpc('season_date_warnings', { p_start: start, p_season: seasonId });
+  if (error || !data || !data.length) return true;
+  const lines = data.map(w => w.kind === 'overlap'
+    ? '• It overlaps ' + w.other_season + '.'
+    : '• It leaves a gap next to ' + w.other_season + '.');
+  return confirm('Check this start date:\n' + lines.join('\n') + '\n\nSave anyway?');
+}
+
 async function adminCreateCycle() {
   const name = document.getElementById('new-cycle-name').value.trim();
   const start = document.getElementById('new-cycle-start').value;
-  if (!name || !start) { alert('Enter a cycle name and start date.'); return; }
+  if (!name || !start) { alert('Enter a season name and start date.'); return; }
+  if (!(await confirmSeasonDates(start, null))) return;
   const { error } = await sb.from('cycles').insert({ name, start_date: start, status: 'setup' });
   if (error) { alert(error.message); return; }
   renderAdmin();
@@ -1857,7 +1871,9 @@ async function adminActivateCycle(id) {
 async function adminSaveCycleEdit(id) {
   const name = document.getElementById('edit-cycle-name').value.trim();
   const start = document.getElementById('edit-cycle-start').value;
-  if (!name || !start) { alert('Enter a cycle name and start date.'); return; }
+  if (!name || !start) { alert('Enter a season name and start date.'); return; }
+  const c = APP.cycles.find(x => x.id === id);
+  if (c && c.start_date !== start && !(await confirmSeasonDates(start, id))) return;
   const { error } = await sb.from('cycles').update({ name, start_date: start }).eq('id', id);
   if (error) { alert('Could not save: ' + error.message); return; }
   ADMIN.editCycleId = null;
@@ -1868,7 +1884,7 @@ async function adminSaveCycleEdit(id) {
 async function adminDeleteCycle(id) {
   const c = APP.cycles.find(x => x.id === id);
   if (!c) return;
-  if (!confirm('Delete the cycle "' + c.name + '"? This also deletes its groups, group message boards and shared check-ins. Members\' own plan data is not affected.')) return;
+  if (!confirm('Delete the season "' + c.name + '"? This also deletes its groups, group message boards and shared check-ins. Members\' own plan data is not affected.')) return;
   if (!confirm('Really delete "' + c.name + '"? This cannot be undone.')) return;
   const { error } = await sb.from('cycles').delete().eq('id', id);
   if (error) { alert('Could not delete: ' + error.message); return; }
@@ -1893,7 +1909,7 @@ async function adminCloseEnrollment(id) {
 }
 
 async function adminArchiveCycleRow(id) {
-  if (!confirm('Archive this cycle? Its group members lose access to the planning tools until a new cycle is active and they are in a group.')) return;
+  if (!confirm('Archive this season? Its group members lose access to the planning tools until a new season is active and they are in a group.')) return;
   await sb.from('cycles').update({ status: 'archived' }).eq('id', id);
   await loadCommunity();
   renderAdmin();
@@ -1938,7 +1954,7 @@ function runAllocation() {
   if (!selCycle) return;
   const minSize = Math.max(2, Number(document.getElementById('alloc-min').value) || 3);
   const maxSize = Math.max(minSize, Number(document.getElementById('alloc-max').value) || 4);
-  // People already in a group for this cycle keep their choice
+  // People already in a group for this season keep their choice
   const cycleGroupIds = new Set(ADMIN.groups.filter(g => g.cycle_id === selCycle.id).map(g => g.id));
   const grouped = new Set(ADMIN.members.filter(m => cycleGroupIds.has(m.group_id)).map(m => m.user_id));
   const people = ADMIN.profiles.filter(p => (p.slots || []).length > 0 && !grouped.has(p.id));
@@ -2085,7 +2101,7 @@ function renderAccountCard() {
 
 function communityCycleNote() {
   if (!APP.activeCycle) return '';
-  return `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Community cycle: <strong>${esc(APP.activeCycle.name)}</strong> starting ${formatDate(APP.activeCycle.start_date)}. <a href="#" class="auth-link" onclick="useCommunityCycle();return false">Use these dates</a></div>`;
+  return `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Community season: <strong>${esc(APP.activeCycle.name)}</strong> starting ${formatDate(APP.activeCycle.start_date)}. <a href="#" class="auth-link" onclick="useCommunityCycle();return false">Use these dates</a></div>`;
 }
 
 function useCommunityCycle() {
@@ -2149,7 +2165,7 @@ async function syncAllCheckinShares() {
 async function renderTeam() {
   const el = document.getElementById('team-content');
   if (!APP.activeCycle) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128101;</div><p>No active 12-week cycle yet.<br>The team scoreboard appears once a cycle is running.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128101;</div><p>No active 12-week season yet.<br>The team scoreboard appears once a season is running.</p></div>`;
     return;
   }
   el.innerHTML = '<div class="empty-state"><p>Loading team scores…</p></div>';
@@ -2573,7 +2589,7 @@ function renderDashboard() {
   const el = document.getElementById('dash-content');
 
   if (!cycle.startDate) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#127919;</div><p>No cycle configured yet.<br>Go to <strong>Settings</strong> to set up your 12 Week Year.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#127919;</div><p>No season configured yet.<br>Go to <strong>Settings</strong> to set up your 12 Week Year.</p></div>`;
     return;
   }
 
@@ -2590,7 +2606,7 @@ function renderDashboard() {
 
   let html = `
     <div class="card">
-      <h3>${cycle.name || '12 Week Cycle'}</h3>
+      <h3>${cycle.name || '12 Week Season'}</h3>
       <div style="font-size:16px;font-weight:600;margin:4px 0">${weekLabel}</div>
       ${dateRange ? `<div style="font-size:12px;color:var(--text-secondary)">${dateRange}</div>` : ''}
       <div class="progress-bar"><div class="progress-fill" style="width:${Math.round((weekProgress / 13) * 100)}%"></div></div>
@@ -2600,7 +2616,7 @@ function renderDashboard() {
   if (goals.length > 0 && (currentWeek > 0 || getHighestScoredWeek() > 0)) {
     html += `
     <div class="card" style="text-align:center">
-      <div class="score-label">Cycle Score</div>
+      <div class="score-label">Season Score</div>
       <div class="score-big ${scoreColor(cycleScore)}">${cycleScore}%</div>
       <div class="score-label">Average across ${goals.length} goal${goals.length !== 1 ? 's' : ''}</div>
     </div>`;
@@ -2892,7 +2908,7 @@ function renderCheckin() {
   const el = document.getElementById('checkin-content');
 
   if (!cycle.startDate) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128203;</div><p>Set up your cycle in <strong>Settings</strong> first.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128203;</div><p>Set up your season in <strong>Settings</strong> first.</p></div>`;
     return;
   }
   if (tactics.length === 0) {
@@ -2974,17 +2990,17 @@ function renderCheckin() {
     html += `<div class="checkin-score-preview" id="checkin-preview"></div>`;
     html += `</div>`;
   } else {
-    // Week 13 - show cycle score summary
+    // Week 13 - show season score summary
     const cycleScore = calculateCycleScore();
     html += `
     <div class="card" style="text-align:center">
-      <div class="score-label">Final Cycle Score</div>
+      <div class="score-label">Final Season Score</div>
       <div class="score-big ${scoreColor(cycleScore)}">${cycleScore}%</div>
     </div>`;
   }
 
   // Reflections
-  html += `<div class="card"><h3>${selectedWeek === 13 ? 'Cycle Reflection' : 'Weekly Reflections'}</h3>`;
+  html += `<div class="card"><h3>${selectedWeek === 13 ? 'Season Reflection' : 'Weekly Reflections'}</h3>`;
   questions.forEach((q, i) => {
     const val = reflections['q' + (i + 1)] || '';
     html += `<div class="reflection-group">
@@ -3145,15 +3161,15 @@ function saveCheckin() {
 
   // Show result
   const score = selectedWeek <= 12 ? calculateWeeklyScore(selectedWeek) : calculateCycleScore();
-  document.getElementById('result-title').textContent = selectedWeek <= 12 ? `Week ${selectedWeek} Score` : 'Cycle Score';
+  document.getElementById('result-title').textContent = selectedWeek <= 12 ? `Week ${selectedWeek} Score` : 'Season Score';
   document.getElementById('result-score').textContent = score + '%';
   document.getElementById('result-score').className = 'score-big ' + scoreColor(score);
-  document.getElementById('result-detail').textContent = selectedWeek <= 12 ? 'Keep pushing toward 80%+ weekly execution!' : 'Cycle complete. Time to plan the next one!';
+  document.getElementById('result-detail').textContent = selectedWeek <= 12 ? 'Keep pushing toward 80%+ weekly execution!' : 'Season complete. Time to plan the next one!';
   document.getElementById('result-overlay').classList.add('show');
 }
 
 function getCurrentCheckinScore() {
-  // Week 13 captures the overall cycle score; weeks 1-12 use the live weekly
+  // Week 13 captures the overall season score; weeks 1-12 use the live weekly
   // score computed from the active tactics and their sliders (matches preview).
   if (selectedWeek > 12) return calculateCycleScore();
   const activeToggles = document.querySelectorAll('.checkin-tactic-toggle:checked');
@@ -3212,7 +3228,7 @@ function fallbackCopy(text, onDone) {
 
 function printCheckin() {
   const cycle = getCycle();
-  if (!cycle.startDate) { alert('Set up your cycle in Settings first.'); return; }
+  if (!cycle.startDate) { alert('Set up your season in Settings first.'); return; }
   const goals = getGoals();
   const dates = getWeekDates(cycle.startDate, selectedWeek);
   const score = getCurrentCheckinScore();
@@ -3239,7 +3255,7 @@ function printCheckin() {
 
   h += '<div class="card" style="display:flex;justify-content:space-between;align-items:center">';
   h += '<div class="secondary">' + esc(cycleName) + '</div>';
-  h += '<div style="text-align:right"><div class="secondary">' + (selectedWeek <= 12 ? 'Week Score' : 'Cycle Score') + '</div><div class="score-big" style="color:' + sc(score) + '">' + score + '%</div></div>';
+  h += '<div style="text-align:right"><div class="secondary">' + (selectedWeek <= 12 ? 'Week Score' : 'Season Score') + '</div><div class="score-big" style="color:' + sc(score) + '">' + score + '%</div></div>';
   h += '</div>';
 
   // Tactic scoring (weeks 1-12) — read live from the active tactics on screen
@@ -3260,7 +3276,7 @@ function printCheckin() {
   }
 
   // Reflections — read live from the textareas so the full text prints
-  h += '<div class="card"><strong>' + (selectedWeek === 13 ? 'Cycle Reflection' : 'Weekly Reflections') + '</strong>';
+  h += '<div class="card"><strong>' + (selectedWeek === 13 ? 'Season Reflection' : 'Weekly Reflections') + '</strong>';
   questions.forEach(function(q, i) {
     const ta = document.getElementById('reflection-q' + (i + 1));
     const ans = ta ? ta.value.trim() : '';
@@ -3299,7 +3315,7 @@ function renderReports() {
   const el = document.getElementById('reports-content');
 
   if (!cycle.startDate || goals.length === 0) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128202;</div><p>Set up your cycle and add goals to see reports.</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#128202;</div><p>Set up your season and add goals to see reports.</p></div>`;
     return;
   }
 
@@ -3310,7 +3326,7 @@ function renderReports() {
 
   let html = `
   <div class="stat-grid">
-    <div class="stat-card"><div class="stat-value ${scoreColor(cycleScore)}">${cycleScore}%</div><div class="stat-label">Cycle Score</div></div>
+    <div class="stat-card"><div class="stat-value ${scoreColor(cycleScore)}">${cycleScore}%</div><div class="stat-label">Season Score</div></div>
     <div class="stat-card"><div class="stat-value">${weeksCompleted}</div><div class="stat-label">Weeks Scored</div></div>
     <div class="stat-card"><div class="stat-value">${goals.length}</div><div class="stat-label">Goals</div></div>
   </div>`;
@@ -3540,17 +3556,17 @@ function renderSettings() {
 
   el.innerHTML = renderAccountCard() + `
   <div class="card">
-    <h3>Cycle Configuration</h3>
+    <h3>Season Configuration</h3>
     ${communityCycleNote()}
     <div class="form-group">
-      <label class="form-label">Cycle Name</label>
+      <label class="form-label">Season Name</label>
       <input type="text" id="set-cycle-name" value="${esc(cycle.name)}" placeholder="e.g. Q2 2026">
     </div>
     <div class="form-group">
       <label class="form-label">Start Date</label>
       <input type="date" id="set-cycle-start" value="${cycle.startDate}">
     </div>
-    ${endDate ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Cycle ends: ${formatDate(endDate)} (13 weeks)</div>` : ''}
+    ${endDate ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Season ends: ${formatDate(endDate)} (13 weeks)</div>` : ''}
     <div class="form-group">
       <label class="form-label">Weekly WAM Meeting Link (Zoom, Teams, etc.)</label>
       <input type="text" id="set-wam-link" value="${esc(cycle.wamLink || '')}" placeholder="e.g. https://zoom.us/j/123456789">
@@ -3559,7 +3575,7 @@ function renderSettings() {
       <label class="form-label">Google Sheet Tracker Link</label>
       <input type="text" id="set-tracker-link" value="${esc(cycle.trackerLink || '')}" placeholder="e.g. https://docs.google.com/spreadsheets/...">
     </div>
-    <button class="btn btn-primary" onclick="saveCycleSettings()">Save Cycle Settings</button>
+    <button class="btn btn-primary" onclick="saveCycleSettings()">Save Season Settings</button>
   </div>
 
   <div class="card" style="border:1px solid var(--warning);background:rgba(251,191,36,0.05)">
@@ -3571,24 +3587,24 @@ function renderSettings() {
 
   <div class="card">
     <h3>Full Backup</h3>
-    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Saves everything: cycle settings, goals, tactics, weekly scores, and reflections. Use this to transfer data between browsers or restore after cache clearing.</p>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Saves everything: season settings, goals, tactics, weekly scores, and reflections. Use this to transfer data between browsers or restore after cache clearing.</p>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
         <input type="checkbox" id="set-auto-backup" ${getSettings().autoBackup ? 'checked' : ''} onchange="toggleAutoBackup(this.checked)" style="width:18px;height:18px;cursor:pointer">
         Auto-backup on every save or reset
       </label>
     </div>
-    <p style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">When enabled, a backup file will automatically download each time you save a check-in, reset a week, or save cycle settings.</p>
+    <p style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">When enabled, a backup file will automatically download each time you save a check-in, reset a week, or save season settings.</p>
     <button class="btn btn-primary" style="margin-bottom:8px" onclick="exportFullBackup()">Export Full Backup (JSON)</button>
     <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()">Import Full Backup (JSON)</button>
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="importFullBackup(event)">
   </div>
 
   <div class="card">
-    <h3>Cycle Archive</h3>
-    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Archive this cycle as a styled PDF report and CSV data export, then optionally reset to start a new cycle.</p>
-    <button class="btn btn-primary" style="margin-bottom:8px" onclick="archiveCycle()">Archive Cycle (PDF + CSV)</button>
-    <button class="btn btn-danger" onclick="resetCycle()">Reset &amp; Start New Cycle</button>
+    <h3>Season Archive</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Archive this season as a styled PDF report and CSV data export, then optionally reset to start a new season.</p>
+    <button class="btn btn-primary" style="margin-bottom:8px" onclick="archiveCycle()">Archive Season (PDF + CSV)</button>
+    <button class="btn btn-danger" onclick="resetCycle()">Reset &amp; Start New Season</button>
   </div>
 
   <div class="card">
@@ -3599,11 +3615,11 @@ function renderSettings() {
   <div class="card">
     <h3>How to Use My Plan+</h3>
     <ol style="font-size:13px;line-height:1.8;color:var(--text-secondary);padding-left:18px;margin:0">
-      <li><strong style="color:var(--text-primary)">Set up your cycle</strong> &mdash; Enter a cycle name, start date, and optional WAM meeting link above.</li>
+      <li><strong style="color:var(--text-primary)">Set up your season</strong> &mdash; Enter a season name, start date, and optional WAM meeting link above.</li>
       <li><strong style="color:var(--text-primary)">Define goals &amp; tactics</strong> &mdash; Go to the Goals screen to create 2&ndash;5 goals. Add specific, measurable tactics under each goal.</li>
       <li><strong style="color:var(--text-primary)">Weekly check-in</strong> &mdash; Each week, open the Check-in screen. Score your tactics with the sliders, then select which tactics you plan to focus on next week under &ldquo;What is your plan for this week?&rdquo; &mdash; these will pre-populate the following week&rsquo;s active tactics when you save.</li>
       <li><strong style="color:var(--text-primary)">Review progress</strong> &mdash; Use the Reports screen to track your scores over time and see how each goal and tactic is trending.</li>
-      <li><strong style="color:var(--text-primary)">Week 13 review</strong> &mdash; At the end of the 13-week cycle, complete the final review to reflect on the full cycle.</li>
+      <li><strong style="color:var(--text-primary)">Week 13 review</strong> &mdash; At the end of the 13-week season, complete the final review to reflect on the full season.</li>
       <li><strong style="color:var(--text-primary)">Back up regularly</strong> &mdash; Use the backup options above to export your data, or enable auto-backup so a file downloads every time you save.</li>
     </ol>
   </div>`;
@@ -3617,7 +3633,7 @@ function saveCycleSettings() {
   if (!startDate) { alert('Please set a start date.'); return; }
   save(KEYS.cycle, { name, startDate, wamLink, trackerLink });
   autoBackupIfEnabled();
-  alert('Cycle settings saved!');
+  alert('Season settings saved!');
   renderSettings();
 }
 
@@ -3673,11 +3689,11 @@ function importFullBackup(event) {
 /* ========== CYCLE ARCHIVE (PDF + CSV) ========== */
 function archiveCycle() {
   const cycle = getCycle();
-  if (!cycle.startDate) { alert('No cycle to archive. Set up a cycle first.'); return; }
+  if (!cycle.startDate) { alert('No season to archive. Set up a season first.'); return; }
   const goals = getGoals();
   const tactics = getTactics();
   const weeklyData = getWeeklyData();
-  const cycleName = cycle.name || 'Untitled Cycle';
+  const cycleName = cycle.name || 'Untitled Season';
   const stamp = todayStr();
   const safeName = cycleName.replace(/[^a-zA-Z0-9 _-]/g, '').replace(/\s+/g, '-');
   const cycleScore = calculateCycleScore();
@@ -3710,12 +3726,12 @@ function archiveCycle() {
   h += '</style></head><body>';
 
   // Header banner
-  h += '<div class="header-banner"><h1>My Plan+ Cycle Archive</h1><p>' + e(cycleName) + '</p></div>';
+  h += '<div class="header-banner"><h1>My Plan+ Season Archive</h1><p>' + e(cycleName) + '</p></div>';
 
-  // Cycle info
+  // Season info
   h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center">';
   h += '<div><span class="secondary">Start:</span> ' + formatDate(startDates.start) + ' &nbsp; <span class="secondary">End:</span> ' + formatDate(endDates.end) + '<br><span class="secondary">Archived:</span> ' + stamp + '</div>';
-  h += '<div style="text-align:right"><div class="secondary">Cycle Score</div><div class="score-big" style="color:' + sc(cycleScore) + '">' + cycleScore + '%</div></div>';
+  h += '<div style="text-align:right"><div class="secondary">Season Score</div><div class="score-big" style="color:' + sc(cycleScore) + '">' + cycleScore + '%</div></div>';
   h += '</div></div>';
 
   // --- DASHBOARD ---
@@ -3860,8 +3876,8 @@ function generateArchiveCSV(cycle, goals, tactics, weeklyData, safeName, stamp) 
     rows.push([]); // Blank separator
   });
 
-  // Cycle score row
-  const cycleRow = ['"Cycle Score"', '""'];
+  // Season score row
+  const cycleRow = ['"Season Score"', '""'];
   for (let w = 1; w <= 12; w++) { cycleRow.push(calculateWeeklyScore(w) || ''); }
   cycleRow.push(calculateCycleScore());
   rows.push(cycleRow);
@@ -3893,8 +3909,8 @@ function generateArchiveCSV(cycle, goals, tactics, weeklyData, safeName, stamp) 
 }
 
 function resetCycle() {
-  if (!confirm('This will clear all goals, tactics, weekly scores, and cycle settings to start a fresh cycle.\n\nHave you archived this cycle first?')) return;
-  if (!confirm('Are you sure? This cannot be undone. All current cycle data will be permanently deleted.')) return;
+  if (!confirm('This will clear all goals, tactics, weekly scores, and season settings to start a fresh season.\n\nHave you archived this season first?')) return;
+  if (!confirm('Are you sure? This cannot be undone. All current season data will be permanently deleted.')) return;
   const keys = [KEYS.cycle, KEYS.goals, KEYS.tactics, KEYS.weekly];
   keys.forEach(k => removeKey(k));
   selectedWeek = 0;
