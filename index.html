@@ -1183,7 +1183,7 @@ async function loadCommunity() {
   const cycleIds = [APP.activeCycle, APP.nextCycle].filter(Boolean).map(c => c.id);
   if (!cycleIds.length) return;
   const { data: gs } = await sb.from('season_groups').select('*').in('cycle_id', cycleIds).order('created_at');
-  const { data: allMems } = await sb.from('group_members').select('group_id,user_id,cycle_id').in('cycle_id', cycleIds).neq('status', 'departed');
+  const { data: allMems } = await sb.from('group_members').select('group_id,user_id,cycle_id,status').in('cycle_id', cycleIds).neq('status', 'departed');
   const groups = gs || [], mems = allMems || [];
   if (APP.activeCycle) {
     APP.cycleGroups = groups.filter(g => g.cycle_id === APP.activeCycle.id);
@@ -1196,6 +1196,7 @@ async function loadCommunity() {
     mems.filter(m => m.cycle_id === APP.nextCycle.id).forEach(m => { APP.nextCounts[m.group_id] = (APP.nextCounts[m.group_id] || 0) + 1; });
     const mineNext = mems.find(m => m.cycle_id === APP.nextCycle.id && m.user_id === APP.user.id);
     if (mineNext) APP.myNextGroup = APP.nextGroups.find(g => g.id === mineNext.group_id) || null;
+    APP.myNextStatus = mineNext ? mineNext.status : null;
   }
   if (APP.myGroup) {
     const ids = mems.filter(m => m.group_id === APP.myGroup.id && m.cycle_id === APP.activeCycle.id).map(m => m.user_id);
@@ -1232,12 +1233,33 @@ async function answerOffer(offerId, accept) {
   renderGroup();
 }
 
+/* ========== CONTINUATION ========== */
+async function answerContinuation(continuing) {
+  if (!continuing && !confirm('Free your place in this group for next season?')) return;
+  const { error } = await sb.rpc('confirm_continuation', { p_season: APP.nextCycle.id, p_continue: continuing });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderGroup();
+}
+
+// For a group commander: who has and hasn't confirmed for next season.
+async function loadContinuations(group, season) {
+  const holder = document.getElementById('continuations-holder');
+  if (!holder) return;
+  const { data, error } = await sb.rpc('group_continuations', { p_group: group.id, p_season: season.id });
+  if (error || !data) return;
+  const label = { on_roster: 'confirmed', awaiting_continuation: 'not yet confirmed', departed: 'not continuing' };
+  holder.innerHTML = '<h3 style="margin-top:8px">Continuation</h3>' + data.map(r => `<div class="member-row">
+    <span>${esc(r.member_name)}</span><span class="badge-pill ${r.status === 'on_roster' ? 'green' : r.status === 'awaiting_continuation' ? 'amber' : ''}">${label[r.status]}</span></div>`).join('');
+}
+
 /* ========== INBOX ========== */
 // What a member can do straight from a notice, by the notice's action code.
 const NOTICE_ACTIONS = {
   view_group: { label: 'View my group', run: () => navigateTo('group') },
   view_registrants: { label: 'Open Club Manager Panel', run: () => navigateTo('admin') },
   review_offers: { label: 'Review', run: () => navigateTo('group') },
+  confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
   review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
 };
 
@@ -1520,6 +1542,12 @@ function renderGroup() {
       html += `<div class="card" style="border:1px solid var(--warning)">
         <h3 style="color:var(--warning)">Next season: ${esc(APP.nextCycle.name)}</h3>
         <div style="font-size:14px;font-weight:600;margin:4px 0">You're in ${esc(APP.myNextGroup.name)} &middot; ${mowLabel(APP.myNextGroup.slot_mow)}</div>
+        ${APP.myNextStatus === 'awaiting_continuation' ? `<div style="margin:8px 0;padding:10px;border-radius:var(--radius-sm);background:var(--bg-input)">
+          <strong>Are you continuing with ${esc(APP.myNextGroup.name)} for ${esc(APP.nextCycle.name)}?</strong>
+          <div style="font-size:12px;color:var(--text-secondary);margin:4px 0 8px">If you don't confirm before the season starts, your place goes to someone else.</div>
+          <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="answerContinuation(true)">Yes, I'm continuing</button>
+          <button class="btn btn-secondary btn-sm" onclick="answerContinuation(false)">No, free my place</button></div></div>` : ''}
+        <div id="continuations-holder"></div>
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the club manager makes the season active.</div>
         <button class="btn btn-danger btn-sm" onclick="leaveNextGroup()">Leave This Group</button>
       </div>`;
@@ -1556,6 +1584,7 @@ function renderGroup() {
 
   const led = commandedGroup();
   el.innerHTML = html;
+  if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id) loadContinuations(APP.myNextGroup, APP.nextCycle);
   if (led) loadProspectiveMembers(led.group, led.season);
 }
 
@@ -1823,11 +1852,25 @@ async function renderAdmin() {
 async function loadUnplaced() {
   ADMIN.unplaced = [];
   ADMIN.suggestions = {};
+  ADMIN.progress = [];
   if (!ADMIN.selCycleId) return;
+  const sel = APP.cycles.find(c => c.id === ADMIN.selCycleId);
+  if (sel && sel.status === 'enrolling') {
+    const { data: prog } = await sb.rpc('continuation_progress', { p_season: sel.id });
+    ADMIN.progress = prog || [];
+  }
   const { data } = await sb.rpc('unplaced_members', { p_season: ADMIN.selCycleId });
   ADMIN.unplaced = data || [];
   const lists = await Promise.all(ADMIN.unplaced.map(m => sb.rpc('suggested_groups', { p_member: m.member_id, p_season: ADMIN.selCycleId })));
   ADMIN.unplaced.forEach((m, i) => { ADMIN.suggestions[m.member_id] = lists[i].data || []; });
+}
+
+function continuationCardHtml(selCycle) {
+  if (!selCycle || !(ADMIN.progress || []).length) return '';
+  return `<div class="card"><h3>Continuation &mdash; ${esc(selCycle.name)}</h3>` +
+    ADMIN.progress.map(p => `<div class="member-row"><span>${esc(p.group_name)}</span>
+      <span style="font-size:12px">${p.confirmed} confirmed &middot; <span style="color:var(--warning)">${p.awaiting} awaiting</span> &middot; ${p.declined} not continuing</span></div>`).join('') +
+    '<p style="font-size:11px;color:var(--text-muted);margin-top:8px">Anyone still awaiting when you make the season active leaves a vacancy.</p></div>';
 }
 
 function unplacedCardHtml(selCycle) {
@@ -2034,7 +2077,7 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
-  html += unplacedCardHtml(selCycle);
+  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle);
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
@@ -2111,9 +2154,9 @@ async function adminDeleteCycle(id) {
 }
 
 async function adminOpenEnrollment(id) {
-  await sb.from('cycles').update({ status: 'setup' }).eq('status', 'enrolling');
-  const { error } = await sb.from('cycles').update({ status: 'enrolling' }).eq('id', id);
-  if (error) { alert(error.message + (error.message.indexOf('check') !== -1 ? ' — apply the pending files in supabase/migrations/ (in order) in the Supabase SQL Editor first.' : '')); return; }
+  if (!confirm('Open enrolment? Every running group\'s roster is carried into this season, and members are asked to confirm they are continuing.')) return;
+  const { error } = await sb.rpc('open_enrolment', { p_season: id });
+  if (error) { alert(error.message); return; }
   await loadCommunity();
   renderAdmin();
 }
