@@ -80,6 +80,13 @@ export async function freshClub({ upTo } = {}) {
       return { id: rows[0].id, email };
     },
 
+    // Runs a multi-statement SQL script as the database owner; returns the
+    // rows of its last statement (how seed scripts report back).
+    async ownerScript(sql) {
+      const results = await db.exec(sql);
+      return results.length ? results[results.length - 1].rows : [];
+    },
+
     // Makes a registered person a club manager (done by hand in SQL in production).
     async makeClubManager(person) {
       await db.query('update public.profiles set is_admin = true where id = $1', [person.id]);
