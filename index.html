@@ -1442,6 +1442,16 @@ async function answerPulse(seasonId, week, rating) {
   renderGroup();
 }
 
+// For a group commander: what needs attention in their group.
+async function loadGroupHealth(group, season) {
+  const holder = document.getElementById('group-health-holder');
+  if (!holder) return;
+  const { data, error } = await sb.rpc('group_health_flags', { p_group: group.id, p_season: season.id });
+  if (error) return;
+  holder.innerHTML = '<h3 style="margin-top:12px">Group health</h3>' +
+    ((data || []).length ? flagListHtml(data) : '<div style="font-size:13px;color:var(--success)">All good &mdash; nothing needs attention.</div>');
+}
+
 // For a group commander: the group's combined pulse for each pulse week so far.
 async function loadGroupPulse(group, season) {
   const holder = document.getElementById('group-pulse-holder');
@@ -1486,6 +1496,7 @@ const NOTICE_ACTIONS = {
   view_attendance: { label: 'View group', run: () => navigateTo('group') },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_transfers: { label: 'Review', run: () => navigateTo('admin') },
+  view_health: { label: 'View', run: () => navigateTo(APP.isAdmin ? 'admin' : 'group') },
   review_departures: { label: 'Review', run: () => navigateTo('admin') },
   review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
@@ -1745,6 +1756,7 @@ function renderGroup() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
         Join weekly session</a>` : ''}
       ${APP.activeCycle ? wamListHtml(APP.myGroup, APP.activeCycle) : ''}
+      <div id="group-health-holder"></div>
       <div id="group-pulse-holder"></div>
       <h3 style="margin-top:12px">Members</h3>
       ${APP.myGroupMembers.map(m => `<div class="member-row">
@@ -1821,7 +1833,10 @@ function renderGroup() {
   const led = commandedGroup();
   el.innerHTML = html;
   if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id) loadContinuations(APP.myNextGroup, APP.nextCycle);
-  if (APP.myGroup && APP.activeCycle && APP.myGroup.commander_id === APP.user.id) loadGroupPulse(APP.myGroup, APP.activeCycle);
+  if (APP.myGroup && APP.activeCycle && APP.myGroup.commander_id === APP.user.id) {
+    loadGroupPulse(APP.myGroup, APP.activeCycle);
+    loadGroupHealth(APP.myGroup, APP.activeCycle);
+  }
   if (led) loadProspectiveMembers(led.group, led.season);
 }
 
@@ -2122,6 +2137,11 @@ async function loadUnplaced() {
     : [{ data: [] }, { data: [] }];
   ADMIN.transfers = trs.error ? [] : (trs.data || []);
   ADMIN.departures = deps.error ? [] : (deps.data || []);
+  const [ov, hf] = ADMIN.selCycleId
+    ? await Promise.all([sb.rpc('club_overview', { p_season: ADMIN.selCycleId }), sb.rpc('season_health_flags', { p_season: ADMIN.selCycleId })])
+    : [{ data: [] }, { data: [] }];
+  ADMIN.overview = ov.error ? null : ((ov.data || [])[0] || null);
+  ADMIN.flags = hf.error ? [] : (hf.data || []);
   const sent = await sb.rpc('sent_announcements');
   const pulses = ADMIN.selCycleId ? await sb.rpc('season_pulses', { p_season: ADMIN.selCycleId }) : { data: [] };
   ADMIN.pulses = pulses.error ? [] : (pulses.data || []);
@@ -2138,6 +2158,34 @@ async function loadUnplaced() {
   ADMIN.unplaced = data || [];
   const lists = await Promise.all(ADMIN.unplaced.map(m => sb.rpc('suggested_groups', { p_member: m.member_id, p_season: ADMIN.selCycleId })));
   ADMIN.unplaced.forEach((m, i) => { ADMIN.suggestions[m.member_id] = lists[i].data || []; });
+}
+
+const FLAG_LABELS = {
+  no_commander: 'No commander', below_minimum: 'Below minimum', vacancy: 'Vacancy', stale_invitation: 'Stale invitation',
+  few_continuations: 'Continuations', low_attendance: 'Low attendance', missed_wams: 'Missed WAMs',
+  no_checkins: 'No check-ins', pulse_concern: 'Pulse', transfer_request: 'Transfer request'
+};
+
+function flagListHtml(flags) {
+  return flags.map(f => `<div style="font-size:12px;margin:2px 0"><span class="badge-pill amber">${FLAG_LABELS[f.flag] || f.flag}</span> ${esc(f.detail)}</div>`).join('');
+}
+
+// What needs the club manager's attention this season.
+function overviewCardHtml(selCycle) {
+  const o = ADMIN.overview;
+  if (!selCycle || !o) return '';
+  const byGroup = {};
+  (ADMIN.flags || []).forEach(f => { (byGroup[f.group_name] = byGroup[f.group_name] || []).push(f); });
+  const stat = (n, label) => `<div class="stat-card"><div class="stat-value ${n ? 'amber' : ''}" style="${n ? 'color:var(--warning)' : ''}">${n}</div><div class="stat-label">${label}</div></div>`;
+  return `<div class="card"><h3>Club Overview &mdash; ${esc(selCycle.name)}</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:10px">
+      ${stat(o.at_risk, 'of ' + o.groups + ' groups at risk')}${stat(o.unplaced, 'unplaced members')}${stat(o.without_commander, 'without a commander')}
+      ${stat(o.below_minimum, 'below minimum')}${stat(o.open_transfers, 'transfer requests')}
+    </div>` +
+    (Object.keys(byGroup).length
+      ? Object.keys(byGroup).sort().map(name => `<div style="border-top:1px solid var(--border);padding:8px 0"><strong>${esc(name)}</strong> <span class="badge-pill amber">at risk</span>${flagListHtml(byGroup[name])}</div>`).join('')
+      : '<p style="font-size:13px;color:var(--success)">Every group is healthy.</p>') +
+    '</div>';
 }
 
 function movesCardHtml(selCycle, cycleGroups) {
@@ -2303,6 +2351,8 @@ function drawAdmin() {
   const allEmails = ADMIN.profiles.map(p => p.email).filter(Boolean);
 
   let html = '';
+
+  html += overviewCardHtml(APP.cycles.find(c => c.id === ADMIN.selCycleId) || null);
 
   // --- Seasons ---
   html += '<div class="card"><h3>12-Week Seasons</h3>';
