@@ -1,7 +1,7 @@
 import { freshClub } from './harness.js';
 
 export const WED_230PM_PT = 2 * 1440 + 21 * 60 + 30; // Wednesday 14:30 PDT = 21:30 UTC
-export const FRI_4PM_PT = 5 * 1440 + 23 * 60;        // Friday 16:00 PDT = 23:00 UTC
+export const FRI_4PM_PT = 4 * 1440 + 23 * 60;        // Friday 16:00 PDT = 23:00 UTC
 
 // A club with one club manager, Season 25 open for enrolment, and Wed
 // Mavericks running in it with the first `rosterSize` of Sia, Jessica,

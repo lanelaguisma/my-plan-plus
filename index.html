@@ -1207,7 +1207,8 @@ async function loadCommunity() {
 /* ========== INBOX ========== */
 // What a member can do straight from a notice, by the notice's action code.
 const NOTICE_ACTIONS = {
-  view_group: { label: 'View my group', run: () => navigateTo('group') }
+  view_group: { label: 'View my group', run: () => navigateTo('group') },
+  view_registrants: { label: 'Open Club Manager Panel', run: () => navigateTo('admin') }
 };
 
 async function loadInbox() {
@@ -1503,11 +1504,13 @@ function renderGroup() {
     <button class="btn btn-secondary btn-sm" onclick="saveProfileName()">Save Name</button>
   </div>`;
 
-  html += `<div class="card"><h3>Meeting Availability</h3>
-    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Tick every weekly <strong>45-minute session</strong> start time you could regularly attend (shown in your local time). Used for random allocation into a group that shares a suitable time.</p>
+  html += `<div class="card"><h3>Your Preferences</h3>
+    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Tick every weekly <strong>45-minute session</strong> start time you could regularly attend (shown in your local time). Group commanders and the club manager use this to match you to a group whose WAM time you can make.</p>
     <div class="slot-grid">${renderSlotGrid()}</div>
     <div style="font-size:12px;color:var(--text-muted);margin:8px 0"><span id="slot-count">${((p.slots || []).length)}</span> time(s) selected &middot; tap once = available, tap again = your <strong>preferred</strong> time (&#9733;, one only), tap a third time = clear</div>
-    <button class="btn btn-primary" onclick="saveAvailability()">Save Availability</button>
+    <div class="form-group" style="margin-top:10px"><label class="form-label">What I'm looking for in a group</label>
+      <textarea id="looking-for" maxlength="300" rows="2" placeholder="e.g. Other founders, a supportive pace, accountability for fitness goals">${esc(p.looking_for || '')}</textarea></div>
+    <button class="btn btn-primary" onclick="saveAvailability()">Save Preferences</button>
   </div>`;
 
   if (!APP.isAdmin && APP.admins.length) {
@@ -1521,7 +1524,36 @@ function renderGroup() {
     html += `<button class="btn btn-secondary" onclick="navigateTo('admin')">Open Club Manager Panel</button>`;
   }
 
+  const led = commandedGroup();
   el.innerHTML = html;
+  if (led) loadProspectiveMembers(led.group, led.season);
+}
+
+// The group (and season) the signed-in member commands and can still fill.
+function commandedGroup() {
+  if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id && APP.myNextGroup.vacancies > 0) return { group: APP.myNextGroup, season: APP.nextCycle };
+  if (APP.myGroup && APP.myGroup.commander_id === APP.user.id && APP.myGroup.vacancies > 0) return { group: APP.myGroup, season: APP.activeCycle };
+  return null;
+}
+
+async function loadProspectiveMembers(group, season) {
+  const holder = document.createElement('div');
+  holder.className = 'card';
+  holder.id = 'pool-card';
+  document.getElementById('group-content').appendChild(holder);
+  holder.innerHTML = '<h3>Prospective Members</h3><p style="font-size:13px;color:var(--text-muted)">Loading…</p>';
+  const { data, error } = await sb.rpc('prospective_members', { p_group: group.id, p_season: season.id });
+  if (error) { holder.innerHTML = '<h3>Prospective Members</h3><p style="font-size:13px;color:var(--danger)">' + esc(error.message) + '</p>'; return; }
+  APP.pool = data || [];
+  holder.innerHTML = `<h3>Prospective Members &mdash; ${esc(group.name)}</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} for ${esc(season.name)}. People who can make your WAM time come first.</p>` +
+    (APP.pool.length
+      ? APP.pool.map(m => `<div class="member-row"><span><strong>${esc(m.full_name || 'Unnamed')}</strong>
+          <br><span style="font-size:12px;color:${m.available ? 'var(--success)' : 'var(--text-muted)'}">${esc(m.reason)}</span>
+          ${m.looking_for ? `<br><span style="font-size:12px;color:var(--text-secondary)">Looking for: ${esc(m.looking_for)}</span>` : ''}
+          <br><span style="font-size:11px;color:var(--text-muted)">${esc(m.timezone || '')}</span></span>
+          <span data-pool-actions="${m.member_id}"></span></div>`).join('')
+      : '<p style="font-size:13px;color:var(--text-muted)">Nobody is waiting to be placed right now.</p>');
 }
 
 /* ========== BOARDS SCREEN ========== */
@@ -1642,12 +1674,14 @@ function toggleSlot(btn) {
 async function saveAvailability() {
   const slots = [...slotSel].sort((a, b) => a - b);
   const tz = userTimezone();
-  const { error } = await sb.from('profiles').update({ slots, preferred_slot: slotPref, timezone: tz }).eq('id', APP.user.id);
-  if (error) { alert('Could not save availability: ' + error.message); return; }
+  const lookingFor = (document.getElementById('looking-for') || {}).value || '';
+  const { error } = await sb.from('profiles').update({ slots, preferred_slot: slotPref, timezone: tz, looking_for: lookingFor.trim() }).eq('id', APP.user.id);
+  if (error) { alert('Could not save your preferences: ' + error.message); return; }
+  APP.profile.looking_for = lookingFor.trim();
   APP.profile.slots = slots;
   APP.profile.preferred_slot = slotPref;
   APP.profile.timezone = tz;
-  alert('Availability saved — ' + slots.length + ' session time(s)' + (slotPref != null ? ', preferred: ' + mowLabel(slotPref) : '') + '.');
+  alert('Preferences saved — ' + slots.length + ' session time(s)' + (slotPref != null ? ', preferred: ' + mowLabel(slotPref) : '') + '.');
   renderGroup();
 }
 
@@ -1685,7 +1719,46 @@ async function renderAdmin() {
   if (!ADMIN.selCycleId || !APP.cycles.some(c => c.id === ADMIN.selCycleId)) {
     ADMIN.selCycleId = APP.activeCycle ? APP.activeCycle.id : (APP.cycles[0] ? APP.cycles[0].id : null);
   }
+  await loadUnplaced();
   drawAdmin();
+}
+
+// Unplaced members for the selected season, each with suggested groups.
+async function loadUnplaced() {
+  ADMIN.unplaced = [];
+  ADMIN.suggestions = {};
+  if (!ADMIN.selCycleId) return;
+  const { data } = await sb.rpc('unplaced_members', { p_season: ADMIN.selCycleId });
+  ADMIN.unplaced = data || [];
+  const lists = await Promise.all(ADMIN.unplaced.map(m => sb.rpc('suggested_groups', { p_member: m.member_id, p_season: ADMIN.selCycleId })));
+  ADMIN.unplaced.forEach((m, i) => { ADMIN.suggestions[m.member_id] = lists[i].data || []; });
+}
+
+function unplacedCardHtml(selCycle) {
+  if (!selCycle) return '';
+  const rows = ADMIN.unplaced || [];
+  return `<div class="card"><h3>Unplaced Members &mdash; ${esc(selCycle.name)} (${rows.length})</h3>` +
+    (rows.length
+      ? rows.map(m => {
+          const sugg = ADMIN.suggestions[m.member_id] || [];
+          return `<div style="border-bottom:1px solid var(--border);padding:8px 0">
+            <strong>${esc(m.full_name || m.email)}</strong> <span style="font-size:11px;color:var(--text-muted)">${esc(m.timezone || '')}</span>
+            ${m.looking_for ? `<div style="font-size:12px;color:var(--text-secondary)">Looking for: ${esc(m.looking_for)}</div>` : ''}` +
+            (sugg.length
+              ? sugg.map(g => `<div class="member-row"><span style="font-size:12px"><strong>${esc(g.name)}</strong> &middot; ${esc(g.reason)}</span>
+                  <button class="btn btn-secondary btn-sm" onclick="adminAssignSuggested('${m.member_id}', '${g.group_id}')">Assign</button></div>`).join('')
+              : '<div style="font-size:12px;color:var(--warning)">No group with a vacancy at a time they can make.</div>') +
+            `</div>`;
+        }).join('')
+      : '<p style="font-size:13px;color:var(--text-muted)">Everyone with availability is on a roster.</p>') +
+    '</div>';
+}
+
+async function adminAssignSuggested(memberId, groupId) {
+  const { error } = await sb.rpc('assign_member', { p_member: memberId, p_group: groupId, p_season: ADMIN.selCycleId });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  renderAdmin();
 }
 
 function drawAdmin() {
@@ -1747,7 +1820,7 @@ function drawAdmin() {
     html += '<p style="font-size:13px;color:var(--text-muted)">Create a season first.</p></div>';
   } else {
     html += `<div class="form-group"><label class="form-label">Season</label>
-      <select id="admin-cycle-sel" onchange="ADMIN.selCycleId=this.value;ADMIN.alloc=null;drawAdmin()">` +
+      <select id="admin-cycle-sel" onchange="ADMIN.selCycleId=this.value;ADMIN.alloc=null;loadUnplaced().then(drawAdmin)">` +
       APP.cycles.map(c => `<option value="${c.id}"${c.id === ADMIN.selCycleId ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
       `</select></div>`;
 
@@ -1864,6 +1937,8 @@ function drawAdmin() {
       <button class="btn btn-secondary btn-sm" onclick="copyEmails(${esc(JSON.stringify(allEmails)).replace(/"/g, '&quot;')})">Copy all emails</button>
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
+
+  html += unplacedCardHtml(selCycle);
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
