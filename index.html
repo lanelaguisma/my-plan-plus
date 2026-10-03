@@ -1262,7 +1262,11 @@ function wamListHtml(group, season) {
   if (!list.length) return '';
   const commanding = group.commander_id === APP.user.id;
   const next = nextWam();
-  return '<h3 style="margin-top:12px">WAMs this season</h3>' + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
+  const propose = commanding ? `<details style="margin-top:8px"><summary style="font-size:13px;cursor:pointer">Propose a new regular WAM time</summary>
+      ${dayTimeSelects('wamtime')}
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="proposeWamTime('${group.id}')">Send to the club manager</button>
+    </details>` : '';
+  return '<h3 style="margin-top:12px">WAMs this season</h3>' + propose + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
     <span>Week ${w.week} &middot; ${w.cancelled ? '<s>' + wamTimeLabel(w.starts_at) + '</s> cancelled' : wamTimeLabel(w.starts_at) + (w.rescheduled ? ' (moved)' : '')}
       ${next && next.week === w.week && next.group_id === w.group_id ? ' <span class="badge-pill green">next</span>' : ''}</span>
     <span style="display:flex;gap:6px">
@@ -1270,6 +1274,13 @@ function wamListHtml(group, season) {
       ${commanding && !w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="moveWam('${group.id}','${season.id}',${w.week},'${w.starts_at}')">Move</button>
         <button class="btn btn-secondary btn-sm" onclick="cancelWam('${group.id}','${season.id}',${w.week})">Cancel</button>` : ''}
     </span></div>`).join('');
+}
+
+async function proposeWamTime(groupId) {
+  const slot = localToMow(Number(document.getElementById('wamtime-day').value), Number(document.getElementById('wamtime-hour').value));
+  const { error } = await sb.rpc('propose_wam_time', { p_group: groupId, p_slot: slot });
+  if (error) { alert(error.message); return; }
+  alert('Proposal sent — WAMs already held keep their time; later ones move if it is approved.');
 }
 
 async function moveWam(groupId, seasonId, week, currentIso) {
@@ -1323,6 +1334,7 @@ const NOTICE_ACTIONS = {
   review_offers: { label: 'Review', run: () => navigateTo('group') },
   confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
+  review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
   review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
 };
@@ -1919,6 +1931,8 @@ async function loadUnplaced() {
   ADMIN.unplaced = [];
   ADMIN.suggestions = {};
   ADMIN.progress = [];
+  const props = await sb.rpc('pending_wam_time_proposals');
+  ADMIN.proposals = props.error ? [] : (props.data || []);
   if (!ADMIN.selCycleId) return;
   const sel = APP.cycles.find(c => c.id === ADMIN.selCycleId);
   if (sel && sel.status === 'enrolling') {
@@ -1929,6 +1943,39 @@ async function loadUnplaced() {
   ADMIN.unplaced = data || [];
   const lists = await Promise.all(ADMIN.unplaced.map(m => sb.rpc('suggested_groups', { p_member: m.member_id, p_season: ADMIN.selCycleId })));
   ADMIN.unplaced.forEach((m, i) => { ADMIN.suggestions[m.member_id] = lists[i].data || []; });
+}
+
+function wamTimeCardHtml(cycleGroups) {
+  const props = ADMIN.proposals || [];
+  return `<div class="card"><h3>WAM Times</h3>` +
+    (props.length
+      ? props.map(p => `<div class="member-row"><span><strong>${esc(p.group_name)}</strong> &rarr; ${mowLabel(p.slot_mow)}
+          <br><span style="font-size:12px;color:var(--text-secondary)">proposed by ${esc(p.proposed_by_name || 'a commander')}</span></span>
+          <span style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="adminDecideWamTime('${p.id}', true)">Approve</button>
+          <button class="btn btn-secondary btn-sm" onclick="adminDecideWamTime('${p.id}', false)">Decline</button></span></div>`).join('')
+      : '<p style="font-size:13px;color:var(--text-muted)">No proposals waiting.</p>') +
+    (cycleGroups.length ? `<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px">
+      <label class="form-label">Change a group's regular WAM time</label>
+      <select id="admwam-group">${cycleGroups.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select>
+      ${dayTimeSelects('admwam')}
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminSetWamTime()">Change time</button>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:6px">WAMs already held keep their time; members are told the new time.</p></div>` : '') +
+    '</div>';
+}
+
+async function adminDecideWamTime(proposalId, approve) {
+  const { error } = await sb.rpc('decide_wam_time', { p_proposal: proposalId, p_approve: approve });
+  if (error) { alert(error.message); return; }
+  renderAdmin();
+}
+
+async function adminSetWamTime() {
+  const groupId = document.getElementById('admwam-group').value;
+  const slot = localToMow(Number(document.getElementById('admwam-day').value), Number(document.getElementById('admwam-hour').value));
+  if (!confirm('Move this group\'s regular WAM time to ' + mowLabel(slot) + '?')) return;
+  const { error } = await sb.rpc('set_wam_time', { p_group: groupId, p_slot: slot });
+  if (error) { alert(error.message); return; }
+  renderAdmin();
 }
 
 function continuationCardHtml(selCycle) {
@@ -2143,7 +2190,7 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
-  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle);
+  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + wamTimeCardHtml(cycleGroups);
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
