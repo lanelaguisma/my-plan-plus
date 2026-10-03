@@ -1503,52 +1503,44 @@ function renderBoards() {
   if (APP.curBoardId) loadMessages('board', APP.curBoardId, 'board-msgs');
 }
 
+// A group's public profile: what any member may see about any group.
+function groupProfileHtml(g, count) {
+  const cap = g.capacity || 4;
+  const open = Math.max(cap - count, 0);
+  return `<strong>${g.emoji ? esc(g.emoji) + ' ' : ''}${esc(g.name)}</strong>
+    ${g.purpose ? `<br><span style="font-size:12px;color:var(--text-primary)">${esc(g.purpose)}</span>` : ''}
+    <br><span style="font-size:12px;color:var(--text-secondary)">${mowLabel(g.slot_mow)}
+    &middot; ${count}/${cap} member${count === 1 ? '' : 's'}${open ? ' &middot; ' + open + ' open place' + (open === 1 ? '' : 's') : ''}
+    ${g.commander_name ? ' &middot; Group Commander: ' + esc(g.commander_name) : ''}</span>`;
+}
+
 function groupChooserHtml(cycle, groups, counts, prefix, title) {
   let h = `<div class="card" style="border:1px solid var(--accent)">
     <h3 style="color:var(--accent)">${title} &mdash; ${esc(cycle.name)}</h3>
-    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(cycle.start_date)}. Join an existing group, create your own, or simply keep your availability up to date and you'll be <strong>randomly allocated</strong> to a group that matches it.</p>`;
+    <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(cycle.start_date)}. Join a group with open places, or simply keep your availability up to date and the club manager will place you in a group that matches it.</p>`;
   if (groups.length) {
     h += groups.map(g => {
       const count = counts[g.id] || 0;
-      const cap = g.max_size || 4;
+      const cap = g.capacity || 4;
       const full = count >= cap;
       return `<div class="member-row">
-        <span><strong>${esc(g.name)}</strong><br><span style="font-size:12px;color:var(--text-secondary)">${mowLabel(g.slot_mow)} &middot; ${count}/${cap} member${count === 1 ? '' : 's'}</span></span>
+        <span>${groupProfileHtml(g, count)}</span>
         ${full ? '<span class="badge-pill">Full</span>' : `<button class="btn btn-secondary btn-sm" onclick="joinGroup('${g.id}','${cycle.id}')">Join</button>`}
       </div>`;
     }).join('');
   } else {
-    h += `<p style="font-size:13px;color:var(--text-muted)">No groups yet &mdash; be the first to create one!</p>`;
+    h += `<p style="font-size:13px;color:var(--text-muted)">No groups yet &mdash; the club manager will set them up.</p>`;
   }
-  h += `<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
-    <h3>Create Your Own Group</h3>
-    <div class="form-group"><label class="form-label">Group name</label><input type="text" id="${prefix}-name" placeholder="e.g. Early Birds"></div>
-    ${dayTimeSelects(prefix)}
-    <div style="font-size:11px;color:var(--text-muted);margin:8px 0">Weekly 45-minute session, in your local time. You'll join it automatically.</div>
-    <button class="btn btn-primary" onclick="createOwnGroup('${cycle.id}','${prefix}')">Create &amp; Join</button>
-  </div></div>`;
+  h += `</div>`;
   return h;
-}
-
-async function createOwnGroup(cycleId, prefix) {
-  const name = document.getElementById(prefix + '-name').value.trim();
-  if (!name) { alert('Give your group a name.'); return; }
-  const day = Number(document.getElementById(prefix + '-day').value);
-  const hour = Number(document.getElementById(prefix + '-hour').value);
-  const slot = localToMow(day, hour);
-  const { error } = await sb.rpc('create_season_group', { p_season: cycleId, p_name: name, p_slot: slot, p_members: [APP.user.id] });
-  if (error) { alert('Could not create group: ' + error.message); return; }
-  await loadCommunity();
-  seedCycleFromCommunity();
-  renderGroup();
 }
 
 async function joinGroup(groupId, cycleId) {
   const isNext = APP.nextCycle && APP.nextCycle.id === cycleId;
   const g = (isNext ? APP.nextGroups : APP.cycleGroups).find(x => x.id === groupId);
   const count = (isNext ? APP.nextCounts : APP.cycleCounts)[groupId] || 0;
-  if (g && count >= (g.max_size || 4)) {
-    alert('That group already has its full complement of ' + (g.max_size || 4) + '. Join another, create your own, or email the admin — they can add you to a full group manually.');
+  if (g && count >= (g.capacity || 4)) {
+    alert('That group already has its full complement of ' + (g.capacity || 4) + '. Join another, or email the club manager — they can add you to a full group.');
     return;
   }
   const { error } = await sb.from('group_members').insert({ group_id: groupId, user_id: APP.user.id, cycle_id: cycleId });
@@ -1731,20 +1723,25 @@ function drawAdmin() {
 
     // Existing groups
     if (cycleGroups.length) {
-      html += `<h3>Groups in ${esc(selCycle.name)}</h3>`;
+      const nState = st => cycleGroups.filter(g => g.state === st).length;
+      html += `<h3>Groups in ${esc(selCycle.name)}</h3>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${nState('active')} active &middot; ${nState('forming')} forming &middot; ${nState('dormant')} dormant</p>`;
       cycleGroups.forEach(g => {
         const mem = seasonMembers.filter(m => m.group_id === g.id);
         const memEmails = mem.map(m => (profById[m.user_id] || {}).email).filter(Boolean);
         html += `<div style="margin-bottom:14px;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-            <strong>${esc(g.name)}</strong>
+            <strong>${g.emoji ? esc(g.emoji) + ' ' : ''}${esc(g.name)} <span class="badge-pill ${g.state === 'active' ? 'green' : g.state === 'forming' ? 'amber' : ''}">${g.state}</span></strong>
             <span style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" onclick="adminEditGroupProfile('${g.id}')">Edit profile</button>
+              <button class="btn btn-secondary btn-sm" onclick="adminSetDormant('${g.id}', ${!g.dormant})">${g.dormant ? 'Revive' : 'Set dormant'}</button>
               ${memEmails.length ? `<a class="btn btn-secondary btn-sm" style="text-decoration:none;text-align:center" href="${mailtoMany(memEmails, 'My Plan+ — ' + g.name)}">Email group</a>` : ''}
               <button class="btn btn-secondary btn-sm" onclick="adminSetGroupLink('${g.id}')">${g.wam_link ? 'Edit' : 'Add'} link</button>
               <button class="btn btn-danger btn-sm" onclick="adminDeleteGroup('${g.id}')">Delete</button>
             </span>
           </div>
-          <div style="font-size:13px;color:var(--text-secondary);margin:4px 0">${mowLabel(g.slot_mow)} (45 min)${g.wam_link ? ' &middot; has meeting link' : ''}</div>` +
+          <div style="font-size:13px;color:var(--text-secondary);margin:4px 0">${mowLabel(g.slot_mow)} (45 min) &middot; ${g.member_count}/${g.capacity}${g.capacity_override ? ' (override)' : ''}${g.vacancies ? ' &middot; ' + g.vacancies + ' vacanc' + (g.vacancies === 1 ? 'y' : 'ies') : ''}${g.wam_link ? ' &middot; has meeting link' : ''}</div>
+          ${g.purpose ? `<div style="font-size:12px;margin-bottom:4px">${esc(g.purpose)}</div>` : ''}` +
           (mem.length
             ? mem.map(m => `<div class="member-row"><span>${esc(displayName(m.user_id))}</span><button class="icon-btn danger" title="Remove from group" onclick="adminRemoveMember('${g.id}','${m.user_id}')">&#10005;</button></div>`).join('')
             : '<div style="font-size:12px;color:var(--text-muted)">No members yet.</div>') +
@@ -1770,7 +1767,7 @@ function drawAdmin() {
         <div><label class="form-label">Max group size</label><input type="number" id="alloc-max" value="4" min="2"></div>
       </div>
       <button class="btn btn-primary" style="margin-top:12px" onclick="runAllocation()">Randomly Allocate Ungrouped People</button>
-      <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Covers everyone who has nominated availability but hasn't joined or created a group in this season. Existing groups are kept. Re-run for a different random mix, then save.</p>`;
+      <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Covers everyone who has nominated availability but isn't on a roster this season. Existing groups are kept. Re-run for a different random mix, then save.</p>`;
 
     if (ADMIN.alloc) {
       html += `<div style="margin-top:12px">`;
@@ -2029,6 +2026,31 @@ async function adminMoveMember(userId, newGroupId) {
 async function adminRemoveMember(groupId, userId) {
   if (!confirm('Remove this member from the group?')) return;
   await sb.from('group_members').delete().eq('group_id', groupId).eq('cycle_id', ADMIN.selCycleId).eq('user_id', userId);
+  renderAdmin();
+}
+
+async function adminEditGroupProfile(groupId) {
+  const g = ADMIN.groups.find(x => x.id === groupId);
+  if (!g) return;
+  const name = prompt('Group name:', g.name);
+  if (name === null || !name.trim()) return;
+  const emoji = prompt('Emoji (optional):', g.emoji || '');
+  if (emoji === null) return;
+  const purpose = prompt('Purpose — what this group focuses on or who it suits:', g.purpose || '');
+  if (purpose === null) return;
+  const cap = prompt('Capacity override (leave blank to use the club-wide capacity):', g.capacity_override || '');
+  if (cap === null) return;
+  const capacity_override = cap.trim() ? Number(cap) : null;
+  if (capacity_override !== null && !(capacity_override > 0)) { alert('Capacity must be a positive number.'); return; }
+  const { error } = await sb.from('groups').update({ name: name.trim(), emoji: emoji.trim(), purpose: purpose.trim(), capacity_override }).eq('id', groupId);
+  if (error) { alert(error.message); return; }
+  renderAdmin();
+}
+
+async function adminSetDormant(groupId, dormant) {
+  if (dormant && !confirm('Set this group dormant for this season? It keeps its history and can be revived later.')) return;
+  const { error } = await sb.rpc('set_group_dormant', { p_group: groupId, p_season: ADMIN.selCycleId, p_dormant: dormant });
+  if (error) { alert(error.message); return; }
   renderAdmin();
 }
 
