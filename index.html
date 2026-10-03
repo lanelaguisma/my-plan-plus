@@ -1413,6 +1413,46 @@ async function cancelWam(groupId, seasonId, week) {
   renderGroup();
 }
 
+/* ========== PULSE ========== */
+// Shown in a pulse week until the member answers (the inbox reminder says when).
+function pulseCardHtml() {
+  const due = (APP.notices || []).find(n => n.kind === 'pulse');
+  if (!due) return '';
+  const { season_id, week } = due.payload || {};
+  return `<div class="card" style="border:1px solid var(--accent)"><h3 style="color:var(--accent)">Week ${week} pulse</h3>
+    <p style="font-size:13px;margin-bottom:8px">${esc(due.message.split('?')[0])}? Only the club manager sees your answer; your group commander sees totals only.</p>
+    <textarea id="pulse-comment" rows="2" maxlength="1000" placeholder="Anything you'd like the club manager to know? (optional)"></textarea>
+    <label style="display:block;font-size:13px;margin:6px 0"><input type="checkbox" id="pulse-help"> I'd like help (the club manager will reach out)</label>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-sm" onclick="answerPulse('${season_id}', ${week}, 'working')">Working well</button>
+      <button class="btn btn-secondary btn-sm" onclick="answerPulse('${season_id}', ${week}, 'so_so')">So-so</button>
+      <button class="btn btn-secondary btn-sm" onclick="answerPulse('${season_id}', ${week}, 'not_working')">Not working</button>
+    </div></div>`;
+}
+
+async function answerPulse(seasonId, week, rating) {
+  const comment = document.getElementById('pulse-comment').value;
+  const help = document.getElementById('pulse-help').checked;
+  const { error } = await sb.rpc('submit_pulse', { p_season: seasonId, p_week: week, p_rating: rating, p_comment: comment, p_wants_help: help });
+  if (error) { alert(error.message); return; }
+  alert('Thanks — your pulse is in.');
+  await loadInbox();
+  renderGroup();
+}
+
+// For a group commander: the group's combined pulse for each pulse week so far.
+async function loadGroupPulse(group, season) {
+  const holder = document.getElementById('group-pulse-holder');
+  if (!holder) return;
+  const weeks = [4, 8, 13];
+  const results = await Promise.all(weeks.map(w => sb.rpc('group_pulse', { p_group: group.id, p_season: season.id, p_week: w })));
+  const rows = weeks.map((w, i) => ({ week: w, r: ((results[i].data || [])[0]) || null })).filter(x => x.r && x.r.responses > 0);
+  if (!rows.length) return;
+  holder.innerHTML = '<h3 style="margin-top:12px">Group pulse</h3>' + rows.map(({ week, r }) => `<div style="font-size:13px;margin-bottom:4px">Week ${week}: ${
+    r.working == null ? r.responses + ' answered — totals appear once 3 have answered'
+      : `${r.working} working well &middot; ${r.so_so} so-so &middot; ${r.not_working} not working${r.wants_help ? ' &middot; <span style="color:var(--warning)">' + r.wants_help + ' would like help</span>' : ''}`}</div>`).join('');
+}
+
 /* ========== CONTINUATION ========== */
 async function answerContinuation(continuing) {
   if (!continuing && !confirm('Free your place in this group for next season?')) return;
@@ -1442,6 +1482,7 @@ const NOTICE_ACTIONS = {
   confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
   view_attendance: { label: 'View group', run: () => navigateTo('group') },
+  answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
   review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
@@ -1686,7 +1727,7 @@ function dayTimeSelects(prefix) {
 function renderGroup() {
   const el = document.getElementById('group-content');
   const p = APP.profile || {};
-  let html = inboxCardHtml() + offersCardHtml();
+  let html = inboxCardHtml() + pulseCardHtml() + offersCardHtml();
 
   if (APP.myGroup) {
     const others = APP.myGroupMembers.filter(m => m.id !== APP.user.id);
@@ -1700,6 +1741,7 @@ function renderGroup() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
         Join weekly session</a>` : ''}
       ${APP.activeCycle ? wamListHtml(APP.myGroup, APP.activeCycle) : ''}
+      <div id="group-pulse-holder"></div>
       <h3 style="margin-top:12px">Members</h3>
       ${APP.myGroupMembers.map(m => `<div class="member-row">
         <span>${esc(m.full_name || 'Unnamed')}${m.id === APP.user.id ? ' (you)' : ''}</span>
@@ -1771,6 +1813,7 @@ function renderGroup() {
   const led = commandedGroup();
   el.innerHTML = html;
   if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id) loadContinuations(APP.myNextGroup, APP.nextCycle);
+  if (APP.myGroup && APP.activeCycle && APP.myGroup.commander_id === APP.user.id) loadGroupPulse(APP.myGroup, APP.activeCycle);
   if (led) loadProspectiveMembers(led.group, led.season);
 }
 
@@ -2040,6 +2083,8 @@ async function loadUnplaced() {
   ADMIN.suggestions = {};
   ADMIN.progress = [];
   const sent = await sb.rpc('sent_announcements');
+  const pulses = ADMIN.selCycleId ? await sb.rpc('season_pulses', { p_season: ADMIN.selCycleId }) : { data: [] };
+  ADMIN.pulses = pulses.error ? [] : (pulses.data || []);
   ADMIN.announcements = sent.error ? [] : (sent.data || []);
   const props = await sb.rpc('pending_wam_time_proposals');
   ADMIN.proposals = props.error ? [] : (props.data || []);
@@ -2053,6 +2098,16 @@ async function loadUnplaced() {
   ADMIN.unplaced = data || [];
   const lists = await Promise.all(ADMIN.unplaced.map(m => sb.rpc('suggested_groups', { p_member: m.member_id, p_season: ADMIN.selCycleId })));
   ADMIN.unplaced.forEach((m, i) => { ADMIN.suggestions[m.member_id] = lists[i].data || []; });
+}
+
+function pulsesCardHtml(selCycle) {
+  if (!selCycle || !(ADMIN.pulses || []).length) return '';
+  const label = { working: 'working well', so_so: 'so-so', not_working: 'not working' };
+  return `<div class="card"><h3>Pulse &mdash; ${esc(selCycle.name)}</h3>` + ADMIN.pulses.map(p => `<div style="font-size:13px;border-bottom:1px solid var(--border);padding:6px 0">
+    <strong>${esc(p.member_name)}</strong> (${esc(p.group_name || '—')}) &middot; week ${p.week} &middot;
+    <span style="color:${p.rating === 'not_working' ? 'var(--danger)' : p.rating === 'so_so' ? 'var(--warning)' : 'var(--success)'}">${label[p.rating]}</span>
+    ${p.wants_help ? ' &middot; <strong style="color:var(--warning)">would like help</strong>' : ''}
+    ${p.comment ? `<br><span style="color:var(--text-secondary)">${esc(p.comment)}</span>` : ''}</div>`).join('') + '</div>';
 }
 
 function announcementsCardHtml(selCycle, cycleGroups) {
@@ -2331,7 +2386,7 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
-  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
+  html += continuationCardHtml(selCycle) + unplacedCardHtml(selCycle) + pulsesCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
