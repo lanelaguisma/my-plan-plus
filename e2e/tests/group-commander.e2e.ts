@@ -127,3 +127,26 @@ test("a group commander checks the roster dashboard and opens a member's goals",
   await screen.getByRole('link', 'Jessica').tap();
   await expect(screen.getByText('Run a half marathon', { exact: false })).toBeVisible();
 });
+
+test("a group commander logs a member's check-in and the member sees who logged it", async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const s25 = await season('Season 25', 'active', 3);
+  await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
+
+  await signInAs({ app, browser, screen }, sia);
+  await browser.locator('#main-nav [data-tab="roster"]').tap();
+  await screen.getByRole('link', 'Jessica').tap();
+  const answers = ['3', '80', 'given at the WAM'];
+  const off = await browser.onDialog(dialog => dialog.message.startsWith('Logged') ? dialog.accept() : dialog.accept(answers.shift()));
+  await screen.getByRole('button', 'Log check-in').tap();
+  await expect(screen.getByText('80%').first()).toBeVisible();
+  await off();
+
+  await signInAs({ app, browser, screen }, jessica);
+  await expect(screen.getByText('Sia logged a 80% check-in for week 3 for you', { exact: false })).toBeVisible();
+  const [row] = await sql<{ score: number; entered_by: string }>(
+    'select score, entered_by from checkins where user_id = $1 and week = 3', [jessica.id]);
+  expect(row).toEqual({ score: 80, entered_by: sia.id });
+});
