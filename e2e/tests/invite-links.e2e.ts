@@ -13,8 +13,6 @@ test('a newcomer registers through a member’s invite link and the club knows w
 
   await browser.evaluate(() => { localStorage.clear(); });
   await app.open(`/?invite=${code}`);
-  await browser.evaluate(() => signOut());
-  await app.open(`/?invite=${code}`);
   await expect(screen.getByText('You\'ve been invited to join the club.')).toBeVisible();
   await browser.locator('#auth-name').fill('Mia Chen');
   await browser.locator('#auth-email').fill('mia@example.test');
