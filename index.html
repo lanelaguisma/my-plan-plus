@@ -1037,6 +1037,7 @@ function showAuth(mode) {
   const err = `<div class="auth-error" id="auth-error"></div>`;
   if (mode === 'signup') {
     card.innerHTML = authHeader() + `
+      ${pendingInviteCode() ? '<p style="font-size:14px;margin-bottom:8px"><strong>You\'ve been invited to join the club.</strong></p>' : ''}
       <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">Register to join the next 12-week season. After registering you'll nominate the weekly 45-minute session times you can attend, then choose or create a group — or be randomly allocated to one.</p>
       <div class="form-group"><label class="form-label">Your name</label><input type="text" id="auth-name" autocomplete="name"></div>
       <div class="form-group"><label class="form-label">Email</label><input type="text" id="auth-email" autocomplete="email" inputmode="email"></div>
@@ -1086,7 +1087,10 @@ async function doSignUp() {
   const pass = document.getElementById('auth-pass').value;
   if (!name || !email || pass.length < 8) { authMsg('Please fill in all fields (password at least 8 characters).'); return; }
   authMsg('Creating your account…', true);
-  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  const meta = { full_name: name };
+  const invite = pendingInviteCode();
+  if (invite) meta.invite_code = invite;
+  const { data, error } = await sb.auth.signUp({ email, password: pass, options: { data: meta } });
   if (error) { authMsg(error.message); return; }
   if (data.session) { await enterApp(data.session.user); } else { showAuth('confirm'); }
 }
@@ -1152,6 +1156,8 @@ async function loadCommunity() {
   APP.nextCycle = APP.cycles.find(c => c.status === 'enrolling') || null;
   APP.cycleGroups = []; APP.cycleCounts = {}; APP.myGroup = null; APP.myGroupMembers = [];
   APP.nextGroups = []; APP.nextCounts = {}; APP.myNextGroup = null;
+  const { data: settings } = await sb.from('club_settings').select('invite_message').maybeSingle();
+  APP.inviteMessage = (settings && settings.invite_message) || '';
   const { data: boards } = await sb.from('boards').select('*').order('created_at');
   APP.boards = boards || [];
   const { data: admins } = await sb.from('profiles').select('id,full_name,email').eq('is_admin', true);
@@ -1195,6 +1201,67 @@ async function loadCommunity() {
       APP.myGroupMembers = profs || [];
     }
   }
+}
+
+/* ========== INVITE LINKS ========== */
+// Someone opening the app from an invite link lands on registration; the
+// code rides along with sign-up so the club knows who invited them.
+const INVITE_KEY = 'myplanplus_invite';
+
+function rememberInviteFromUrl() {
+  const code = new URLSearchParams(location.search).get('invite');
+  if (code) { try { sessionStorage.setItem(INVITE_KEY, code); } catch (e) {} }
+}
+
+function pendingInviteCode() {
+  try { return sessionStorage.getItem(INVITE_KEY) || ''; } catch (e) { return ''; }
+}
+
+function forgetInvite() {
+  try { sessionStorage.removeItem(INVITE_KEY); } catch (e) {}
+  if (new URLSearchParams(location.search).has('invite')) {
+    const url = new URL(location.href);
+    url.searchParams.delete('invite');
+    history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+}
+
+function myInviteLink() {
+  return location.origin + location.pathname + '?invite=' + encodeURIComponent((APP.profile && APP.profile.invite_code) || '');
+}
+
+function inviteMessageText() {
+  const name = (APP.profile && APP.profile.full_name) || '';
+  const template = APP.inviteMessage || 'Join me in 12WC, a 12 Week Year accountability club: {link}';
+  const text = template.split('{name}').join(name).split('{link}').join(myInviteLink());
+  return template.includes('{link}') ? text : text + '\n' + myInviteLink();
+}
+
+function inviteCardHtml() {
+  if (!APP.profile || !APP.profile.invite_code) return '';
+  return `<div class="card" id="invite-card"><h3>Invite Someone</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Know someone who'd enjoy the club? Edit the message if you like, then copy it into any chat or email. They join as a new member and the club manager helps place them in a group.</p>
+    <textarea id="invite-text" rows="5" maxlength="1500">${esc(inviteMessageText())}</textarea>
+    <div class="btn-row" style="margin-top:8px">
+      <button class="btn btn-primary btn-sm" onclick="copyInvite()">Copy invitation</button>
+      ${navigator.share ? '<button class="btn btn-secondary btn-sm" onclick="shareInvite()">Share…</button>' : ''}
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Your link: ${esc(myInviteLink())}</div></div>`;
+}
+
+function copyInvite() {
+  const text = document.getElementById('invite-text').value;
+  const done = () => alert('Invitation copied — paste it anywhere.');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
+  } else {
+    fallbackCopy(text, done);
+  }
+}
+
+async function shareInvite() {
+  const text = document.getElementById('invite-text').value;
+  try { await navigator.share({ title: 'Join 12WC', text }); } catch (e) {}
 }
 
 /* ========== PLACEMENT OFFERS ========== */
@@ -1528,6 +1595,7 @@ function seedCycleFromCommunity() {
 
 async function enterApp(user) {
   APP.user = user;
+  forgetInvite();
   await loadProfile();
   await hydratePlanData();
   await loadCommunity();
@@ -1551,9 +1619,10 @@ async function boot() {
   sb.auth.onAuthStateChange((event) => { if (event === 'PASSWORD_RECOVERY') showAuth('recovery'); });
   window.addEventListener('online', flushSync);
   window.addEventListener('beforeunload', () => { if (APP.dirtyKeys.size) flushSync(); });
+  rememberInviteFromUrl();
   try {
     const { data } = await sb.auth.getSession();
-    if (data && data.session) { await enterApp(data.session.user); } else { showAuth('signin'); }
+    if (data && data.session) { await enterApp(data.session.user); } else { showAuth(pendingInviteCode() ? 'signup' : 'signin'); }
   } catch (e) {
     showAuth('signin');
   }
@@ -1722,6 +1791,7 @@ function renderGroup() {
   const el = document.getElementById('group-content');
   const p = APP.profile || {};
   let html = inboxCardHtml() + pulseCardHtml() + offersCardHtml();
+  const inviteCard = inviteCardHtml();
 
   if (APP.myGroup) {
     const others = APP.myGroupMembers.filter(m => m.id !== APP.user.id);
@@ -1797,6 +1867,8 @@ function renderGroup() {
       <textarea id="looking-for" maxlength="300" rows="2" placeholder="e.g. Other founders, a supportive pace, accountability for fitness goals">${esc(p.looking_for || '')}</textarea></div>
     <button class="btn btn-primary" onclick="saveAvailability()">Save Preferences</button>
   </div>`;
+
+  html += inviteCard;
 
   if (!APP.isAdmin && APP.admins.length) {
     html += `<div class="card"><h3>Questions or Problems?</h3>
@@ -2283,6 +2355,23 @@ async function adminSetWamTime() {
   renderAdmin();
 }
 
+// The club's default invitation; members can still edit their own copy.
+function inviteMessageCardHtml() {
+  return `<div class="card"><h3>Invite Message</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">The message members copy when they invite someone. <strong>{name}</strong> becomes the member's name and <strong>{link}</strong> their personal invite link.</p>
+    <textarea id="invite-template" rows="5" maxlength="1000">${esc(APP.inviteMessage || '')}</textarea>
+    <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="adminSaveInviteMessage()">Save message</button></div>`;
+}
+
+async function adminSaveInviteMessage() {
+  const text = document.getElementById('invite-template').value.trim();
+  if (!text.includes('{link}')) { alert('Keep {link} in the message so people can register.'); return; }
+  const { error } = await sb.from('club_settings').update({ invite_message: text }).eq('id', true);
+  if (error) { alert(error.message); return; }
+  APP.inviteMessage = text;
+  alert('Invite message saved.');
+}
+
 function continuationCardHtml() {
   const season = ADMIN.progressSeason;
   if (!season || !(ADMIN.progress || []).length) return '';
@@ -2498,6 +2587,7 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
+  html += inviteMessageCardHtml();
   html += continuationCardHtml() + unplacedCardHtml(selCycle) + movesCardHtml(selCycle, cycleGroups) + pulsesCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
 
   // --- Message boards ---
