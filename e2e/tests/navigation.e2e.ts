@@ -8,7 +8,7 @@ test('a member hides a tab, finds it under More, and the choice follows them', a
 
   await signInAs({ app, browser, screen }, mia);
   await expect(browser.locator('#main-nav [data-tab="boards"]')).toBeVisible();
-  await expect(browser.locator('#main-nav [data-tab="admin"]')).toHaveCount(0);
+  await expect(browser.locator('#main-nav [data-tab="overview"]')).toHaveCount(0);
 
   await browser.locator('#main-nav [data-tab="more"]').tap();
   await screen.getByRole('button', 'Customise tabs…').tap();
@@ -28,20 +28,23 @@ test('a member hides a tab, finds it under More, and the choice follows them', a
   expect(prefs.tabs).not.toContain('boards');
 });
 
-test("a club manager's Club manager bar has the Manage tab, and the mode is remembered", async ({ app, browser, screen }) => {
+test("a club manager's Club manager bar has the Overview tab, and the mode is remembered", async ({ app, browser, screen }) => {
   await reset();
   const manager = await register('Iain Dunn', { clubManager: true });
 
   await signInAs({ app, browser, screen }, manager);
-  await expect(browser.locator('#main-nav [data-tab="admin"]')).toHaveCount(0);
+  await expect(browser.locator('#main-nav [data-tab="overview"]')).toHaveCount(0);
+  await browser.locator('#main-nav [data-tab="group"]').tap();
+  const groupScreen: string = await browser.evaluate(() => document.getElementById('group-content')!.innerText);
+  expect(groupScreen).not.toContain('Club Manager Panel');
   await switchMode({ browser }, 'manager');
   await expect(browser.locator('#main-nav [data-tab="checkin"]')).toHaveCount(0);
-  await browser.locator('#main-nav [data-tab="admin"]').tap();
-  await expect(screen.getByRole('heading', 'Club Manager')).toBeVisible();
+  await browser.locator('#main-nav [data-tab="overview"]').tap();
+  await expect(screen.getByRole('heading', 'Club Overview')).toBeVisible();
 
   await signInAs({ app, browser, screen }, manager);
   await expect(screen.getByRole('heading', 'Reminders')).toBeVisible();
-  await expect(browser.locator('#main-nav [data-tab="admin"]')).toBeVisible();
+  await expect(browser.locator('#main-nav [data-tab="overview"]')).toBeVisible();
 });
 
 test('a member with one role sees no switcher, and a commander sees a dot for Commander mode', async ({ app, browser, screen }) => {
