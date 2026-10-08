@@ -3586,6 +3586,7 @@ async function syncCheckinShare(weekNum) {
       reflections: wd.reflections || {},
       updated_at: new Date().toISOString()
     });
+    loadInbox(); // the check-in may settle a reminder
   } catch (e) {}
 }
 
