@@ -1,6 +1,6 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { group, register, reset, season, signInAs, slot } from '../fixtures';
+import { group, openTab, register, reset, season, signInAs, slot, switchMode } from '../fixtures';
 
 test('a group commander holds a place, and the newcomer lands on the roster when they register', async ({ app, browser, screen }) => {
   await reset();
@@ -10,11 +10,13 @@ test('a group commander holds a place, and the newcomer lands on the roster when
   const groupId = await group(manager, s25, 'Wed Mavericks', slot(2, 21, 30), [sia, jessica], { commander: true });
 
   await signInAs({ app, browser, screen }, sia);
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'roster');
   await screen.getByText('Hold a place for someone not yet registered').tap();
-  await browser.locator(`#pending-holder-pm-name-${groupId}`).fill('Mia Chen');
-  await browser.locator(`#pending-holder-pm-email-${groupId}`).fill('mia@example.test');
+  await browser.locator(`#roster-pending-pm-name-${groupId}`).fill('Mia Chen');
+  await browser.locator(`#roster-pending-pm-email-${groupId}`).fill('mia@example.test');
   await screen.getByRole('button', 'Hold a place').tap();
-  await expect(screen.getByText('pending registration')).toBeVisible();
+  await expect(screen.getByText('pending registration').first()).toBeVisible();
 
   await browser.evaluate(() => { localStorage.clear(); });
   await app.open('/');
