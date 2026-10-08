@@ -119,3 +119,29 @@ test('a club manager creates the next season from the suggested start date', asy
   const [s25] = await sql<{ start: string }>("select to_char(start_date, 'YYYY-MM-DD') as start from cycles where name = 'Season 25'");
   expect(s25.start).toBe('2027-01-04');
 });
+
+test('a club manager sees the club roster, finds an invited newcomer and places them', async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const s25 = await season('Season 25', 'active');
+  const groupId = await group(manager, s25, 'Wed Mavericks', slot(2, 21, 30), [sia, jessica], { commander: true });
+  const [{ invite_code }] = await sql<{ invite_code: string }>('select invite_code from profiles where id = $1', [sia.id]);
+  await sql("insert into auth.users (email, raw_user_meta_data) values ('mia@example.test', $1)", [JSON.stringify({ full_name: 'Mia', invite_code })]);
+  await sql("update profiles set slots = '[3000]' where email = 'mia@example.test'");
+  await rpc(sia, 'add_pending_member', { p_group: groupId, p_season: s25, p_name: 'Noor', p_email: 'noor@example.test' });
+
+  await signInAs({ app, browser, screen }, manager);
+  await browser.locator('#main-nav [data-tab="club"]').tap();
+  await expect(screen.getByRole('heading', 'Club Roster')).toBeVisible();
+  await expect(screen.getByText('Pending registration').last()).toBeVisible();
+  await screen.getByRole('button', 'Invited, not yet placed (1)').tap();
+  await expect(screen.getByText('invited by Sia')).toBeVisible();
+
+  await browser.locator('#club-rows select').selectOption({ value: groupId });
+  await expect(screen.getByRole('button', 'In a group (3)')).toBeVisible();
+  const [mia] = await sql<{ group_id: string }>(
+    "select r.group_id from group_members r join profiles p on p.id = r.user_id where p.email = 'mia@example.test' and r.status <> 'departed'"
+  );
+  expect(mia.group_id).toBe(groupId);
+});
