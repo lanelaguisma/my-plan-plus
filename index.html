@@ -523,6 +523,66 @@ textarea { resize: vertical; min-height: 60px; }
   </div>
 </div>
 
+<!-- ========== SCREEN: WAMS (Commander mode) ========== -->
+<div id="screen-wams" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">WAMs</h1>
+        <div class="subtitle" style="margin:0">Attendance, moving and cancelling</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="wams-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: REQUESTS (Commander mode) ========== -->
+<div id="screen-requests" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Requests</h1>
+        <div class="subtitle" style="margin:0">Join requests and invitations</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="requests-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: ANNOUNCE (Commander mode) ========== -->
+<div id="screen-announce" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Announce</h1>
+        <div class="subtitle" style="margin:0">Tell your whole group</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="announce-content"></div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: GROUP SETTINGS (Commander mode) ========== -->
+<div id="screen-groupsettings" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Group settings</h1>
+        <div class="subtitle" style="margin:0">Your group and its minimum size</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="groupsettings-content"></div>
+  </div>
+</div>
+
 <!-- ========== SCREEN: DASHBOARD ========== -->
 <div id="screen-dashboard" class="screen active">
   <div class="app-container fade-in">
@@ -1435,28 +1495,30 @@ function nextWamCardHtml() {
 function wamListHtml(group, season) {
   const list = (APP.wams || []).filter(w => w.group_id === group.id && w.cycle_id === season.id);
   if (!list.length) return '';
-  const commanding = group.commander_id === APP.user.id;
   const next = nextWam();
-  const propose = commanding ? `<details style="margin-top:8px"><summary style="font-size:13px;cursor:pointer">Propose a new regular WAM time</summary>
-      ${dayTimeSelects('wamtime')}
-      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="proposeWamTime('${group.id}')">Send to the club manager</button>
-    </details>` : '';
-  const announce = commanding ? `<details style="margin-top:8px"><summary style="font-size:13px;cursor:pointer">Announce to my group</summary>
-      <textarea id="grp-ann-body" rows="2" maxlength="2000" placeholder="e.g. Reminder: bring your week 6 numbers"></textarea>
-      <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="commanderAnnounce('${group.id}', '${season.id}')">Send to ${esc(group.name)}</button>
-    </details>` : '';
   const calendar = `<button class="btn btn-secondary btn-sm" style="margin:4px 0" onclick="downloadWamCalendar('${group.id}', '${season.id}')">Add to my calendar (.ics)</button>`;
-  return announce + '<h3 style="margin-top:12px">WAMs this season</h3>' + calendar + propose + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
+  return '<h3 style="margin-top:12px">WAMs this season</h3>' + calendar + list.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
     <span>Week ${w.week} &middot; ${w.cancelled ? '<s>' + wamTimeLabel(w.starts_at) + '</s> cancelled' : wamTimeLabel(w.starts_at) + (w.rescheduled ? ' (moved)' : '')}
       ${next && next.week === w.week && next.group_id === w.group_id ? ' <span class="badge-pill green">next</span>' : ''}</span>
     <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
       ${!w.cancelled && new Date(w.starts_at) > new Date() ? rsvpButton(w) : ''}
-      ${commanding && !w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="toggleAttendance('${group.id}','${season.id}',${w.week})">Attendance</button>` : ''}
       ${!w.cancelled && w.link ? `<a class="btn btn-secondary btn-sm" style="text-decoration:none" target="_blank" href="${esc(w.link)}">Join</a>` : ''}
-      ${commanding && !w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="moveWam('${group.id}','${season.id}',${w.week},'${w.starts_at}')">Move</button>
+    </span></div>`).join('') + attendanceSummaryHtml(group, season);
+}
+
+// For a group commander (Commander mode): every WAM with attendance,
+// moving and cancelling.
+function commanderWamListHtml(group, season, wams) {
+  const upcoming = wams.find(w => !w.cancelled && new Date(w.starts_at).getTime() + 45 * 60000 > Date.now());
+  return wams.map(w => `<div class="member-row" style="${w.cancelled ? 'opacity:.55' : ''}">
+    <span>Week ${w.week} &middot; ${w.cancelled ? '<s>' + wamTimeLabel(w.starts_at) + '</s> cancelled' : wamTimeLabel(w.starts_at) + (w.rescheduled ? ' (moved)' : '')}
+      ${upcoming && upcoming.week === w.week ? ' <span class="badge-pill green">next</span>' : ''}</span>
+    <span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+      ${!w.cancelled ? `<button class="btn btn-secondary btn-sm" onclick="toggleAttendance('${group.id}','${season.id}',${w.week})">Attendance</button>
+        <button class="btn btn-secondary btn-sm" onclick="moveWam('${group.id}','${season.id}',${w.week},'${w.starts_at}')">Move</button>
         <button class="btn btn-secondary btn-sm" onclick="cancelWam('${group.id}','${season.id}',${w.week})">Cancel</button>` : ''}
     </span></div>
-    <div id="att-${group.id}-${w.week}"></div>`).join('') + attendanceSummaryHtml(group, season);
+    <div id="att-${group.id}-${w.week}"></div>`).join('');
 }
 
 function rsvpButton(w) {
@@ -1549,8 +1611,8 @@ async function commanderAnnounce(groupId, seasonId) {
   if (!body) { alert('Write something to announce.'); return; }
   const { error } = await sb.rpc('send_announcement', { p_season: seasonId, p_audience: 'groups', p_groups: [groupId], p_body: body });
   if (error) { alert(error.message); return; }
-  alert('Sent to your group.');
-  renderGroup();
+  document.getElementById('grp-ann-body').value = '';
+  document.getElementById('grp-ann-status').textContent = 'Sent to your group.';
 }
 
 async function proposeWamTime(groupId) {
@@ -1572,7 +1634,7 @@ async function moveWam(groupId, seasonId, week, currentIso) {
   const { error } = await sb.rpc('reschedule_wam', { p_group: groupId, p_season: seasonId, p_week: week, p_starts_at: startsAt.toISOString(), p_link: link.trim() });
   if (error) { alert(error.message); return; }
   await loadCommunity();
-  renderGroup();
+  renderScreen(currentScreen);
 }
 
 async function cancelWam(groupId, seasonId, week) {
@@ -1580,7 +1642,7 @@ async function cancelWam(groupId, seasonId, week) {
   const { error } = await sb.rpc('cancel_wam', { p_group: groupId, p_season: seasonId, p_week: week });
   if (error) { alert(error.message); return; }
   await loadCommunity();
-  renderGroup();
+  renderScreen(currentScreen);
 }
 
 /* ========== PULSE ========== */
@@ -1610,16 +1672,6 @@ async function answerPulse(seasonId, week, rating) {
   renderGroup();
 }
 
-// For a group commander: what needs attention in their group.
-async function loadGroupHealth(group, season) {
-  const holder = document.getElementById('group-health-holder');
-  if (!holder) return;
-  const { data, error } = await sb.rpc('group_health_flags', { p_group: group.id, p_season: season.id });
-  if (error) return;
-  holder.innerHTML = '<h3 style="margin-top:12px">Group health</h3>' +
-    ((data || []).length ? flagListHtml(data) : '<div style="font-size:13px;color:var(--success)">All good &mdash; nothing needs attention.</div>');
-}
-
 // For a group commander: the group's combined pulse for each pulse week so far.
 async function loadGroupPulse(group, season) {
   const holder = document.getElementById('group-pulse-holder');
@@ -1642,16 +1694,6 @@ async function answerContinuation(continuing) {
   renderGroup();
 }
 
-// For a group commander: who has and hasn't confirmed for next season.
-async function loadContinuations(group, season) {
-  const holder = document.getElementById('continuations-holder');
-  if (!holder) return;
-  const { data, error } = await sb.rpc('group_continuations', { p_group: group.id, p_season: season.id });
-  if (error || !data) return;
-  const label = { on_roster: 'confirmed', awaiting_continuation: 'not yet confirmed', departed: 'not continuing' };
-  holder.innerHTML = '<h3 style="margin-top:8px">Continuation</h3>' + data.map(r => `<div class="member-row">
-    <span>${esc(r.member_name)}</span><span class="badge-pill ${r.status === 'on_roster' ? 'green' : r.status === 'awaiting_continuation' ? 'amber' : ''}">${label[r.status]}</span></div>`).join('');
-}
 
 /* ========== INBOX ========== */
 // What a member can do straight from a notice, by the notice's action code.
@@ -1665,11 +1707,11 @@ const NOTICE_ACTIONS = {
   view_attendance: { label: 'View roster', run: () => navigateTo('roster') },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_transfers: { label: 'Review', run: () => navigateTo('admin') },
-  view_health: { label: 'View', run: () => navigateTo(APP.isAdmin ? 'admin' : 'roster') },
+  view_health: { label: 'View', run: n => navigateTo(n && n.role === 'manager' ? 'admin' : 'roster') },
   review_departures: { label: 'Review', run: () => navigateTo('admin') },
   review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
-  review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !isCommander() ? 'admin' : 'roster') }
+  review_join_requests: { label: 'Review', run: n => navigateTo(n && n.role === 'manager' ? 'admin' : 'requests') }
 };
 
 async function loadInbox() {
@@ -1942,14 +1984,10 @@ function renderGroup() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
         Join weekly session</a>` : ''}
       ${APP.activeCycle ? wamListHtml(APP.myGroup, APP.activeCycle) : ''}
-      ${APP.myGroup.commander_id === APP.user.id ? `<button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="navigateTo('roster')">Open my roster dashboard</button>` : ''}
-      <div id="group-health-holder"></div>
-      <div id="group-pulse-holder"></div>
-      <div id="pending-holder-${APP.myGroup.id}"></div>
       <h3 style="margin-top:12px">Members</h3>
       ${APP.myGroupMembers.map(m => `<div class="member-row">
         <span>${esc(m.full_name || 'Unnamed')}${m.id === APP.user.id ? ' (you)' : ''}</span>
-        <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--text-muted);font-size:12px">${esc(m.timezone || '')}</span>${APP.myGroup.commander_id === APP.user.id && m.id !== APP.user.id ? `<button class="btn btn-secondary btn-sm" onclick="recordDeparture('${m.id}', '${esc(m.full_name || 'this member').replace(/'/g, '')}')">Record departure</button>` : ''}${m.id !== APP.user.id && m.email ? `<a class="mail-icon" href="${mailtoOne(m.email, 'My Plan+ — ' + (APP.myGroup ? APP.myGroup.name : ''))}" title="Email ${esc(m.full_name || '')}">&#9993;</a>` : ''}</span>
+        <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--text-muted);font-size:12px">${esc(m.timezone || '')}</span>${m.id !== APP.user.id && m.email ? `<a class="mail-icon" href="${mailtoOne(m.email, 'My Plan+ — ' + (APP.myGroup ? APP.myGroup.name : ''))}" title="Email ${esc(m.full_name || '')}">&#9993;</a>` : ''}</span>
       </div>`).join('')}
       <div class="btn-row" style="margin-top:10px">
         <button class="btn btn-secondary btn-sm" onclick="navigateTo('boards')">Message Board</button>
@@ -1984,8 +2022,6 @@ function renderGroup() {
           <div style="font-size:12px;color:var(--text-secondary);margin:4px 0 8px">If you don't confirm before the season starts, your place goes to someone else.</div>
           <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="answerContinuation(true)">Yes, I'm continuing</button>
           <button class="btn btn-secondary btn-sm" onclick="answerContinuation(false)">No, free my place</button></div></div>` : ''}
-        <div id="continuations-holder"></div>
-        <div id="pending-holder-${APP.myNextGroup.id}"></div>
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the club manager makes the season active.</div>
         <button class="btn btn-danger btn-sm" onclick="leaveNextGroup()">Leave This Group</button>
         ${applyElsewhereHtml(APP.myNextGroup, APP.nextCycle, APP.nextGroups)}
@@ -2024,16 +2060,7 @@ function renderGroup() {
     html += `<button class="btn btn-secondary" onclick="navigateTo('admin')">Open Club Manager Panel</button>`;
   }
 
-  const led = commandedGroup();
   el.innerHTML = html;
-  if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id) loadContinuations(APP.myNextGroup, APP.nextCycle);
-  if (APP.myGroup && APP.activeCycle && APP.myGroup.commander_id === APP.user.id) {
-    loadGroupPulse(APP.myGroup, APP.activeCycle);
-    loadGroupHealth(APP.myGroup, APP.activeCycle);
-  }
-  if (led) loadProspectiveMembers(led.group, led.season);
-  if (APP.myGroup && APP.activeCycle && APP.myGroup.commander_id === APP.user.id) loadPendingMembers(APP.myGroup, APP.activeCycle);
-  if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id) loadPendingMembers(APP.myNextGroup, APP.nextCycle);
 }
 
 // For a group commander: places held for people who haven't registered yet.
@@ -2082,50 +2109,94 @@ function applyElsewhereHtml(mine, season, groups) {
   </details>`;
 }
 
-// The group (and season) the signed-in member commands and can still fill.
-function commandedGroup() {
-  if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id && APP.myNextGroup.vacancies > 0) return { group: APP.myNextGroup, season: APP.nextCycle };
-  if (APP.myGroup && APP.myGroup.commander_id === APP.user.id && APP.myGroup.vacancies > 0) return { group: APP.myGroup, season: APP.activeCycle };
-  return null;
-}
-
-async function loadProspectiveMembers(group, season, containerId = 'group-content') {
-  const holder = document.createElement('div');
-  holder.className = 'card';
-  holder.id = containerId + '-pool-card';
-  document.getElementById(containerId).appendChild(holder);
-  holder.innerHTML = '<h3>Prospective Members</h3><p style="font-size:13px;color:var(--text-muted)">Loading…</p>';
-  const { data, error } = await sb.rpc('prospective_members', { p_group: group.id, p_season: season.id });
-  if (error) { holder.innerHTML = '<h3>Prospective Members</h3><p style="font-size:13px;color:var(--danger)">' + esc(error.message) + '</p>'; return; }
-  APP.pool = data || [];
-  holder.innerHTML = `<h3>Prospective Members &mdash; ${esc(group.name)}</h3>
-    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} for ${esc(season.name)}. People who can make your WAM time come first.</p>` +
-    (APP.pool.length
-      ? APP.pool.map(m => `<div class="member-row"><span><strong>${esc(m.full_name || 'Unnamed')}</strong>
-          <br><span style="font-size:12px;color:${m.available ? 'var(--success)' : 'var(--text-muted)'}">${esc(m.reason)}</span>
-          ${m.looking_for ? `<br><span style="font-size:12px;color:var(--text-secondary)">Looking for: ${esc(m.looking_for)}</span>` : ''}
-          <br><span style="font-size:11px;color:var(--text-muted)">${esc(m.timezone || '')}</span></span>
-          <button class="btn btn-secondary btn-sm" onclick="inviteMember('${group.id}', '${season.id}', '${m.member_id}')">Invite</button></div>`).join('')
-      : '<p style="font-size:13px;color:var(--text-muted)">Nobody is waiting to be placed right now.</p>');
-  const offers = await sb.rpc('group_offers', { p_group: group.id, p_season: season.id });
-  const requests = (offers.data || []).filter(o => o.kind === 'join_request' && o.status === 'pending');
-  if (requests.length) {
-    holder.innerHTML += `<h3 style="margin-top:12px">Join requests</h3>` + requests.map(o => `<div class="member-row">
+// Commander mode: join requests, then people to invite while there are
+// open places, then invitations already sent.
+async function renderRequests() {
+  const el = document.getElementById('requests-content');
+  const ctx = leadContext('renderRequests');
+  if (!ctx) { el.innerHTML = noLeadHtml(); return; }
+  const { group, season, picker } = ctx;
+  el.innerHTML = picker + '<div class="empty-state"><p>Loading…</p></div>';
+  const [offers, pool] = await Promise.all([
+    sb.rpc('group_offers', { p_group: group.id, p_season: season.id }),
+    group.vacancies > 0 ? sb.rpc('prospective_members', { p_group: group.id, p_season: season.id }) : Promise.resolve({ data: [] })
+  ]);
+  const all = offers.data || [];
+  const requests = all.filter(o => o.kind === 'join_request' && o.status === 'pending');
+  const invitations = all.filter(o => o.kind === 'invitation');
+  APP.pool = pool.data || [];
+  el.innerHTML = picker + `<div class="card"><h3>Join requests &mdash; ${esc(group.name)}</h3>` +
+    (requests.length ? requests.map(o => `<div class="member-row">
       <span>${esc(o.member_name)}${o.current_group ? `<br><span style="font-size:12px;color:var(--text-secondary)">currently in ${esc(o.current_group)}</span>` : ''}</span>
       <span style="display:flex;gap:6px">
         <button class="btn btn-primary btn-sm" onclick="answerJoinRequest('${o.id}', true)">Approve</button>
         <button class="btn btn-secondary btn-sm" onclick="answerJoinRequest('${o.id}', false)">Decline</button>
-      </span></div>`).join('');
-  }
-  const invitations = (offers.data || []).filter(o => o.kind === 'invitation');
-  if (invitations.length) {
-    holder.innerHTML += `<h3 style="margin-top:12px">Invitations sent</h3>` + invitations.map(o => `<div class="member-row">
+      </span></div>`).join('') : '<p style="font-size:13px;color:var(--text-muted)">No one is waiting for an answer.</p>') + '</div>' +
+    (group.vacancies > 0 ? `<div class="card"><h3>Prospective Members</h3>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} for ${esc(season.name)}. People who can make your WAM time come first.</p>` +
+      (APP.pool.length ? APP.pool.map(m => `<div class="member-row"><span><strong>${esc(m.full_name || 'Unnamed')}</strong>
+          <br><span style="font-size:12px;color:${m.available ? 'var(--success)' : 'var(--text-muted)'}">${esc(m.reason)}</span>
+          ${m.looking_for ? `<br><span style="font-size:12px;color:var(--text-secondary)">Looking for: ${esc(m.looking_for)}</span>` : ''}
+          <br><span style="font-size:11px;color:var(--text-muted)">${esc(m.timezone || '')}</span></span>
+          <button class="btn btn-secondary btn-sm" onclick="inviteMember('${group.id}', '${season.id}', '${m.member_id}')">Invite</button></div>`).join('')
+        : '<p style="font-size:13px;color:var(--text-muted)">Nobody is waiting to be placed right now.</p>') + '</div>' : '') +
+    (invitations.length ? `<div class="card"><h3>Invitations sent</h3>` + invitations.map(o => `<div class="member-row">
       <span>${esc(o.member_name)} <span class="badge-pill ${o.status === 'accepted' ? 'green' : o.status === 'pending' ? 'amber' : ''}">${o.status}</span></span>
       <span style="display:flex;gap:6px">
         ${o.status === 'pending' ? `<button class="btn btn-secondary btn-sm" onclick="withdrawOffer('${o.id}')">Withdraw</button>` : ''}
         ${o.status === 'expired' || o.status === 'declined' ? `<button class="btn btn-secondary btn-sm" onclick="inviteMember('${group.id}', '${season.id}', '${o.member_id}')">Resend</button>` : ''}
-      </span></div>`).join('');
-  }
+      </span></div>`).join('') + '</div>' : '');
+}
+
+// Commander mode: the season's WAMs, attendance, and proposing a new time.
+async function renderLeadWams() {
+  const el = document.getElementById('wams-content');
+  const ctx = leadContext('renderLeadWams');
+  if (!ctx) { el.innerHTML = noLeadHtml(); return; }
+  const { group, season, picker } = ctx;
+  el.innerHTML = picker + '<div class="empty-state"><p>Loading…</p></div>';
+  const { data } = await sb.rpc('season_wams', { p_group: group.id, p_season: season.id });
+  ROSTER.wams = (data || []).map(w => Object.assign({ group_id: group.id, cycle_id: season.id }, w));
+  el.innerHTML = picker + `<div class="card"><h3>WAMs &mdash; ${esc(group.name)} &middot; ${esc(season.name)}</h3>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">${mowLabel(group.slot_mow)}. Before a WAM, Attendance shows who can't make it; afterwards, confirm who attended.</div>
+      ${ROSTER.wams.length ? commanderWamListHtml(group, season, ROSTER.wams) : '<p style="font-size:13px;color:var(--text-muted)">No WAMs scheduled yet.</p>'}
+    </div>
+    <div class="card"><h3>Propose a new regular WAM time</h3>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">The club manager approves it. WAMs already held keep their time.</p>
+      ${dayTimeSelects('wamtime')}
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="proposeWamTime('${group.id}')">Send to the club manager</button>
+    </div>`;
+}
+
+// Commander mode: a one-way announcement to the group.
+function renderLeadAnnounce() {
+  const el = document.getElementById('announce-content');
+  const ctx = leadContext('renderLeadAnnounce');
+  if (!ctx) { el.innerHTML = noLeadHtml(); return; }
+  const { group, season, picker } = ctx;
+  el.innerHTML = picker + `<div class="card"><h3>Announce to ${esc(group.name)}</h3>
+    <p style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Everyone on the ${esc(season.name)} roster gets it in their Reminders tab.</p>
+    <textarea id="grp-ann-body" rows="3" maxlength="2000" placeholder="e.g. Reminder: bring your week 6 numbers"></textarea>
+    <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="commanderAnnounce('${group.id}', '${season.id}')">Send to ${esc(group.name)}</button>
+    <div id="grp-ann-status" style="font-size:12px;color:var(--success);margin-top:6px"></div>
+  </div>`;
+}
+
+// Commander mode: the group's profile and its minimum size.
+function renderGroupSettings() {
+  const el = document.getElementById('groupsettings-content');
+  const ctx = leadContext('renderGroupSettings');
+  if (!ctx) { el.innerHTML = noLeadHtml(); return; }
+  const { group, picker } = ctx;
+  el.innerHTML = picker + `<div class="card"><h3>${group.emoji ? esc(group.emoji) + ' ' : ''}${esc(group.name)}</h3>
+      ${group.purpose ? `<p style="font-size:13px;margin-bottom:8px">${esc(group.purpose)}</p>` : ''}
+      <div style="font-size:13px;color:var(--text-secondary)">${mowLabel(group.slot_mow)} &middot; capacity ${group.capacity}</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:8px">Ask your club manager to change the name, purpose, capacity or meeting link.</p>
+    </div>
+    <div class="card"><h3>Minimum size</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Your group counts as forming, and is flagged, while it has fewer than <strong>${group.min_size}</strong> members${group.min_size_override ? '' : ' (the club-wide minimum)'}.</p>
+      <button class="btn btn-secondary btn-sm" onclick="rosterSetMinSize('${group.id}', ${group.min_size_override || 'null'})">Change minimum size</button>
+    </div>`;
 }
 
 async function answerJoinRequest(offerId, approve) {
@@ -3073,7 +3144,7 @@ async function promptGroupMinSize(groupId, current) {
 async function rosterSetMinSize(groupId, current) {
   if (!await promptGroupMinSize(groupId, current)) return;
   await loadCommunity();
-  renderRoster();
+  renderScreen(currentScreen);
 }
 
 async function adminSetDormant(groupId, dormant) {
@@ -3129,30 +3200,44 @@ function adminExportCSV() {
 /* ========== GROUP ROSTER DASHBOARD (group commanders, club managers) ========== */
 const ROSTER = { key: '', names: {}, wams: [], open: {} };
 
-// The groups the signed-in person can lead: the ones they command, and
-// every running group for a club manager.
+// The groups the signed-in person leads in this mode: the ones they
+// command (Commander mode), or every running group (Club manager mode).
 function leadableGroups() {
   const list = [];
   const add = (g, season) => { if (g && season && !list.some(x => x.group.id === g.id && x.season.id === season.id)) list.push({ group: g, season }); };
-  [[APP.myGroup, APP.activeCycle], [APP.myNextGroup, APP.nextCycle]].forEach(([g, season]) => {
-    if (g && g.commander_id === APP.user.id) add(g, season);
-  });
-  if (APP.isAdmin) {
+  if (currentMode() === 'manager') {
     (APP.cycleGroups || []).forEach(g => add(g, APP.activeCycle));
     (APP.nextGroups || []).forEach(g => add(g, APP.nextCycle));
+  } else {
+    [[APP.myGroup, APP.activeCycle], [APP.myNextGroup, APP.nextCycle]].forEach(([g, season]) => {
+      if (g && g.commander_id === APP.user.id) add(g, season);
+    });
   }
   return list;
 }
 
+// The group and season a lead screen is about, with a picker when there
+// is more than one; null when there is none.
+function leadContext(rerender) {
+  const options = leadableGroups();
+  if (!options.length) return null;
+  const key = o => o.group.id + ':' + o.season.id;
+  if (!options.some(o => key(o) === ROSTER.key)) ROSTER.key = key(options[0]);
+  const { group, season } = options.find(o => key(o) === ROSTER.key);
+  const picker = options.length > 1 ? `<select style="margin-bottom:12px" onchange="ROSTER.key=this.value;${rerender}()">${options.map(o =>
+    `<option value="${key(o)}"${key(o) === ROSTER.key ? ' selected' : ''}>${esc((o.group.emoji ? o.group.emoji + ' ' : '') + o.group.name)} — ${esc(o.season.name)}</option>`).join('')}</select>` : '';
+  return { group, season, picker };
+}
+
+function noLeadHtml() {
+  return '<div class="empty-state"><p>This is for group commanders. You\'ll see your group here once you command one.</p></div>';
+}
+
 async function renderRoster() {
   const el = document.getElementById('roster-content');
-  const options = leadableGroups();
-  if (!options.length) {
-    el.innerHTML = '<div class="empty-state"><p>The roster dashboard is for group commanders. You\'ll see your group here once you command one.</p></div>';
-    return;
-  }
-  if (!options.some(o => o.group.id + ':' + o.season.id === ROSTER.key)) ROSTER.key = options[0].group.id + ':' + options[0].season.id;
-  const { group, season } = options.find(o => o.group.id + ':' + o.season.id === ROSTER.key);
+  const ctx = leadContext('renderRoster');
+  if (!ctx) { el.innerHTML = noLeadHtml(); return; }
+  const { group, season, picker } = ctx;
   el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
   const [dash, wams] = await Promise.all([
     sb.rpc('group_roster_dashboard', { p_group: group.id, p_season: season.id }),
@@ -3168,8 +3253,6 @@ async function renderRoster() {
   const lastHeld = ROSTER.wams.filter(w => !w.cancelled && new Date(w.starts_at) <= new Date()).pop();
   const nextUp = ROSTER.wams.find(w => !w.cancelled && new Date(w.starts_at).getTime() + 45 * 60000 > Date.now());
 
-  const picker = options.length > 1 ? `<select style="margin-bottom:12px" onchange="ROSTER.key=this.value;renderRoster()">${options.map(o =>
-    `<option value="${o.group.id}:${o.season.id}"${o.group.id + ':' + o.season.id === ROSTER.key ? ' selected' : ''}>${esc((o.group.emoji ? o.group.emoji + ' ' : '') + o.group.name)} — ${esc(o.season.name)}</option>`).join('')}</select>` : '';
   const scoreCell = r => r.latest_score == null ? '<span style="color:var(--text-muted)">—</span>'
     : `<strong class="${scoreColor(r.latest_score)}">${r.latest_score}%</strong><br><span style="font-size:11px;color:var(--text-muted)">wk ${r.latest_week}</span>`;
   const rsvpCell = r => r.pending_id ? '' : r.next_week == null ? '—'
@@ -3191,7 +3274,7 @@ async function renderRoster() {
 
   el.innerHTML = picker + `<div class="card">
       <h3>${group.emoji ? esc(group.emoji) + ' ' : ''}${esc(group.name)} &middot; ${esc(season.name)}</h3>
-      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mowLabel(group.slot_mow)} &middot; ${group.member_count}/${group.capacity} &middot; ${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} &middot; min ${group.min_size}${commanding || APP.isAdmin ? ` <a href="#" class="auth-link" onclick="rosterSetMinSize('${group.id}', ${group.min_size_override || 'null'});return false">change</a>` : ''} &middot; <span class="badge-pill ${group.state === 'active' ? 'green' : 'amber'}">${group.state}</span>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mowLabel(group.slot_mow)} &middot; ${group.member_count}/${group.capacity} &middot; ${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} &middot; min ${group.min_size} &middot; <span class="badge-pill ${group.state === 'active' ? 'green' : 'amber'}">${group.state}</span>
         ${nextUp ? `<br>Next WAM: week ${nextUp.week}, ${wamTimeLabel(nextUp.starts_at)} &middot; ${rows.filter(r => r.member_id && r.next_can_attend).length} of ${rows.filter(r => r.member_id).length} expected` : ''}</div>
       ${table}
       <p style="font-size:11px;color:var(--text-muted);margin-top:6px">Tap a name to see their 12-week goals and weekly scores. Streak = weeks in a row with a check-in (w = weeks). WAMs = attended of the last ${Math.min(3, ROSTER.wams.filter(w => !w.cancelled && new Date(w.starts_at) <= new Date()).length) || 3} held.</p>
@@ -3199,7 +3282,7 @@ async function renderRoster() {
         <button class="btn btn-secondary btn-sm" onclick="toggleAttendance('${group.id}','${season.id}',${lastHeld.week})">Attendance</button></div>
         <div id="att-${group.id}-${lastHeld.week}"></div>` : ''}
     </div>
-    <div class="card"><div id="roster-health"></div><div id="roster-pending-${group.id}"></div><div id="roster-offers"></div></div>`;
+    <div class="card"><div id="roster-health"></div><div id="group-pulse-holder"></div><div id="roster-pending-${group.id}"></div></div>`;
   Object.keys(ROSTER.open).forEach(id => { if (ROSTER.open[id]) loadMemberPlan(id, season); });
   loadRosterManagement(group, season);
 }
@@ -3216,28 +3299,13 @@ function rosterMemberActions(r, group, season, commanding) {
 
 async function loadRosterManagement(group, season) {
   const health = document.getElementById('roster-health');
-  const [flags, offers] = await Promise.all([
-    sb.rpc('group_health_flags', { p_group: group.id, p_season: season.id }),
-    sb.rpc('group_offers', { p_group: group.id, p_season: season.id })
-  ]);
+  const flags = await sb.rpc('group_health_flags', { p_group: group.id, p_season: season.id });
   if (health && !flags.error) {
     health.innerHTML = '<h3>Group health</h3>' + ((flags.data || []).length ? flagListHtml(flags.data)
       : '<div style="font-size:13px;color:var(--success)">All good &mdash; nothing needs attention.</div>');
   }
+  loadGroupPulse(group, season);
   loadPendingMembers(group, season, 'roster-pending-');
-  const holder = document.getElementById('roster-offers');
-  if (!holder || offers.error) return;
-  const requests = (offers.data || []).filter(o => o.kind === 'join_request' && o.status === 'pending');
-  const invitations = (offers.data || []).filter(o => o.kind === 'invitation' && o.status === 'pending');
-  holder.innerHTML = (requests.length ? '<h3 style="margin-top:12px">Join requests</h3>' + requests.map(o => `<div class="member-row">
-      <span>${esc(o.member_name)}${o.current_group ? `<br><span style="font-size:12px;color:var(--text-secondary)">currently in ${esc(o.current_group)}</span>` : ''}</span>
-      <span style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="answerJoinRequest('${o.id}', true)">Approve</button>
-      <button class="btn btn-secondary btn-sm" onclick="answerJoinRequest('${o.id}', false)">Decline</button></span></div>`).join('') : '') +
-    (invitations.length ? '<h3 style="margin-top:12px">Invitations waiting</h3>' + invitations.map(o => `<div class="member-row"><span>${esc(o.member_name)} <span class="badge-pill amber">pending</span></span>
-      ${group.commander_id === APP.user.id ? `<button class="btn btn-secondary btn-sm" onclick="withdrawOffer('${o.id}')">Withdraw</button>` : ''}</div>`).join('') : '');
-  if (group.commander_id === APP.user.id && group.vacancies > 0) {
-    holder.insertAdjacentHTML('beforeend', `<button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="navigateTo('group')">Find people to invite</button>`);
-  }
 }
 
 function toggleMemberPlan(memberId) {
@@ -3840,6 +3908,10 @@ let charts = {};
 let expandedGoals = new Set();
 
 const TAB_ICONS = {
+  wams: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></svg>',
+  requests: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M1 21v-2a4 4 0 014-4h8a4 4 0 014 4v2M19 8v6M16 11h6"/></svg>',
+  announce: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a1 1 0 001 1h3l5 4V6L7 10H4a1 1 0 00-1 1zM16 8a5 5 0 010 8"/></svg>',
+  groupsettings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8L7 17M17 7l2.8-2.8"/></svg>',
   reminders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>',
   roster: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg>',
   club: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>',
@@ -3874,6 +3946,10 @@ const TABS = {
   boards: { label: 'Boards', screen: 'boards', modes: ['member'] },
   settings: { label: 'Settings', screen: 'settings', modes: ['member'] },
   roster: { label: 'Roster', screen: 'roster', modes: ['commander', 'manager'] },
+  wams: { label: 'WAMs', screen: 'wams', modes: ['commander'] },
+  requests: { label: 'Requests', screen: 'requests', modes: ['commander'] },
+  announce: { label: 'Announce', screen: 'announce', modes: ['commander'] },
+  groupsettings: { label: 'Group settings', screen: 'groupsettings', modes: ['commander'] },
   admin: { label: 'Manage', screen: 'admin', modes: ['manager'] },
   club: { label: 'Members', screen: 'club', modes: ['manager'] }
 };
@@ -3881,7 +3957,7 @@ const TABS = {
 // The tabs on each mode's bar by default; the rest of its tabs sit under More.
 const DEFAULT_TABS = {
   member: ['reminders', 'dashboard', 'checkin', 'goals', 'group', 'boards'],
-  commander: ['reminders', 'roster'],
+  commander: ['reminders', 'roster', 'wams', 'requests', 'announce'],
   manager: ['reminders', 'admin', 'club', 'roster']
 };
 
@@ -4107,6 +4183,10 @@ function renderScreen(screen) {
   else if (screen === 'roster') renderRoster();
   else if (screen === 'settings') renderSettings();
   else if (screen === 'reminders') renderReminders();
+  else if (screen === 'wams') renderLeadWams();
+  else if (screen === 'requests') renderRequests();
+  else if (screen === 'announce') renderLeadAnnounce();
+  else if (screen === 'groupsettings') renderGroupSettings();
 }
 
 /* ========== DASHBOARD ========== */

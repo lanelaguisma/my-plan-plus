@@ -13,6 +13,8 @@ test('a group commander invites a prospective member, who accepts', async ({ app
   await sql("update profiles set slots = $1, looking_for = 'A steady pace' where id = $2", [JSON.stringify([WED]), mia.id]);
 
   await signInAs({ app, browser, screen }, sia);
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'requests');
   await expect(screen.getByRole('heading', /Prospective Members/)).toBeVisible();
   await expect(screen.getByText('Looking for: A steady pace')).toBeVisible();
   let off = await browser.onDialog('accept');
@@ -36,6 +38,8 @@ test('a group commander confirms attendance for a past WAM', async ({ app, brows
   const groupId = await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica, shan], { commander: true });
 
   await signInAs({ app, browser, screen }, sia);
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'wams');
   await screen.getByRole('button', 'Attendance').first().tap();
   await expect(screen.getByText(/Who attended\?/)).toBeVisible();
   await browser.locator(`input[data-att="${shan.id}"]`).tap(); // untick Shan
@@ -62,7 +66,9 @@ test('a member asks to join a group and its commander approves', async ({ app, b
   await off();
 
   await signInAs({ app, browser, screen }, sia);
-  await expect(screen.getByRole('heading', 'Join requests')).toBeVisible();
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'requests');
+  await expect(screen.getByRole('heading', /Join requests/)).toBeVisible();
   await screen.getByRole('button', 'Approve').tap();
 
   await signInAs({ app, browser, screen }, mia);
@@ -80,6 +86,8 @@ test("a group commander cancels a WAM and the rest of the roster is told", async
   await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
 
   await signInAs({ app, browser, screen }, sia);
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'wams');
   const off = await browser.onDialog('accept');
   await screen.getByRole('button', 'Cancel').last().tap(); // week 12
   await expect(screen.getByText('cancelled', { exact: false }).first()).toBeVisible();
@@ -106,6 +114,8 @@ test('a member already in a group applies to another and moves when approved', a
   await off();
 
   await signInAs({ app, browser, screen }, kiran);
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'requests');
   await expect(screen.getByText('currently in Wed Mavericks')).toBeVisible();
   await screen.getByRole('button', 'Approve').tap();
 
@@ -166,13 +176,40 @@ test("a group commander raises their group's minimum size", async ({ app, browse
 
   await signInAs({ app, browser, screen }, sia);
   await switchMode({ browser }, 'commander');
-  await openTab({ browser }, 'roster');
-  await expect(screen.getByText(/min 2/)).toBeVisible();
+  await openTab({ browser }, 'more');
+  await screen.getByRole('button', 'Group settings').tap();
+  await expect(screen.getByText(/fewer than 2 members/)).toBeVisible();
   const off = await browser.onDialog(async dialog => dialog.accept('3'));
-  await screen.getByText('change', { exact: true }).tap();
-  await expect(screen.getByText(/min 3/)).toBeVisible();
+  await screen.getByRole('button', 'Change minimum size').tap();
+  await expect(screen.getByText(/fewer than 3 members/)).toBeVisible();
   await off();
 
   const [g] = await sql<{ min_size_override: number }>('select min_size_override from groups where id = $1', [groupId]);
   expect(g.min_size_override).toBe(3);
+});
+
+test("a commander's tools stay out of Member mode", async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const s25 = await season('Season 25', 'active');
+  await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
+
+  await signInAs({ app, browser, screen }, sia);
+  await openTab({ browser }, 'group');
+  await expect(screen.getByRole('heading', 'Your Group: Wed Mavericks')).toBeVisible();
+  const groupScreen: string = await browser.evaluate(() => document.getElementById('group-content')!.innerText);
+  for (const tool of ['Attendance', 'Record departure', 'Announce to my group', 'Prospective Members', 'Group health']) {
+    expect(groupScreen).not.toContain(tool);
+  }
+
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'announce');
+  await browser.locator('#grp-ann-body').fill('Bring your week 1 numbers');
+  await screen.getByRole('button', 'Send to Wed Mavericks').tap();
+  await expect(screen.getByText('Sent to your group.')).toBeVisible();
+
+  await signInAs({ app, browser, screen }, jessica);
+  await openTab({ browser }, 'reminders');
+  await expect(screen.getByText('Bring your week 1 numbers', { exact: false })).toBeVisible();
 });
