@@ -474,6 +474,8 @@ textarea { resize: vertical; min-height: 60px; }
 .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .mode-dot { position: absolute; top: 3px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
 .mode-dot[hidden] { display: none; }
+.card.reminder { border-left: 3px solid var(--accent); }
+.card.reminder.overdue { border-left-color: var(--danger); }
 .more-sheet[hidden] { display: none; }
 .more-sheet-panel {
   position: absolute; left: 0; right: 0; bottom: var(--nav-height); max-width: 520px; margin: 0 auto;
@@ -1771,8 +1773,10 @@ const NOTICE_ACTIONS = {
 };
 
 async function loadInbox() {
-  const { data, error } = await sb.rpc('my_notices');
+  const [{ data, error }, rem] = await Promise.all([sb.rpc('my_notices'), sb.rpc('my_reminders')]);
   APP.notices = error ? [] : (data || []).sort((a, b) => (a.read - b.read) || (new Date(b.created_at) - new Date(a.created_at)));
+  // Overdue first, then soonest due.
+  APP.reminders = rem.error ? [] : (rem.data || []).sort((a, b) => (b.overdue - a.overdue) || (new Date(a.due_at) - new Date(b.due_at)));
   updateInboxBadge();
   if (currentScreen === 'reminders') renderReminders();
 }
@@ -1809,8 +1813,27 @@ function renderReminders() {
   const mode = currentMode();
   document.getElementById('reminders-subtitle').textContent =
     mode === 'member' ? 'What you need to do, and what happened' : `What needs you as ${mode === 'manager' ? 'club manager' : 'group commander'}, and what happened`;
+  const reminders = (APP.reminders || []).filter(r => r.role === mode);
   const inbox = inboxCardHtml(mode);
-  el.innerHTML = inbox || '<div class="empty-state"><p>Nothing needs you right now.</p></div>';
+  el.innerHTML = (reminders.length ? reminders.map(reminderCardHtml).join('')
+    : '<div class="empty-state"><p>Nothing needs you right now.</p></div>') + inbox;
+}
+
+// One open reminder: what is owed, by when, and the way to do it.
+function reminderCardHtml(r) {
+  const act = r.action && NOTICE_ACTIONS[r.action];
+  const due = r.due_at ? new Date(r.due_at).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+  return `<div class="card reminder${r.overdue ? ' overdue' : ''}" data-reminder="${esc(r.kind)}">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span style="font-size:14px">${esc(r.message)}${due ? `<br><span style="font-size:11px;color:${r.overdue ? 'var(--danger)' : 'var(--text-muted)'}">${r.overdue ? 'Overdue &middot; was due ' : 'Due '}${esc(due)}</span>` : ''}</span>
+      ${act ? `<button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="openReminder('${esc(r.key)}')">${act.label}</button>` : ''}
+    </div></div>`;
+}
+
+function openReminder(key) {
+  const r = (APP.reminders || []).find(x => x.key === key);
+  const act = r && r.action && NOTICE_ACTIONS[r.action];
+  if (act) act.run(r);
 }
 
 // When a member is allocated, pre-fill their plan season from the community season
@@ -4122,9 +4145,10 @@ function markActiveTab() {
     b.dataset.tab === 'more' ? !barScreen : b.dataset.screen === currentScreen && onBar.includes(b.dataset.tab)));
 }
 
-// What needs attention in a mode: its unread notices.
+// What needs attention in a mode: its open reminders and unread notices.
 function modeAttentionCount(mode) {
-  return (APP.notices || []).filter(n => !n.read && (n.role || 'member') === mode).length;
+  return (APP.reminders || []).filter(r => r.role === mode).length +
+    (APP.notices || []).filter(n => !n.read && (n.role || 'member') === mode).length;
 }
 
 // The Reminders tab carries this mode's count; the switcher shows a dot
@@ -4255,7 +4279,7 @@ function renderScreen(screen) {
   else if (screen === 'club') renderClubRoster();
   else if (screen === 'roster') renderRoster();
   else if (screen === 'settings') renderSettings();
-  else if (screen === 'reminders') renderReminders();
+  else if (screen === 'reminders') { renderReminders(); loadInbox(); } // fresh reminders each visit
   else if (screen === 'wams') renderLeadWams();
   else if (screen === 'requests') renderRequests();
   else if (screen === 'announce') renderLeadAnnounce();
