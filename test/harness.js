@@ -15,9 +15,21 @@ function migrationFiles() {
   return readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
 }
 
-// Building the schema is the slow part, so each test worker builds the fully
-// migrated database once and every test starts from a copy of it.
-let migratedSnapshot = null;
+// Building the schema is the slow part, so the global setup builds the fully
+// migrated database once per run (CLUB_DB_SNAPSHOT) and every test starts
+// from a copy of it; without that file, each worker builds its own.
+let migratedSnapshot = process.env.CLUB_DB_SNAPSHOT
+  ? new Blob([readFileSync(process.env.CLUB_DB_SNAPSHOT)])
+  : null;
+
+export async function buildMigratedSnapshot() {
+  const db = await PGlite.create({ extensions: { pgcrypto } });
+  await db.exec(SUPABASE_STUB);
+  for (const file of migrationFiles()) await db.exec(readFileSync(join(MIGRATIONS_DIR, file), 'utf8'));
+  const snapshot = await db.dumpDataDir('none');
+  await db.close();
+  return snapshot;
+}
 
 // `upTo` stops after the named migration (e.g. '0001') so a test can seed
 // data in an older shape, then call `club.migrate()` to apply the rest.
