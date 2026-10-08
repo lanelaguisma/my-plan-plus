@@ -7,7 +7,10 @@ const tabsOf = async (club, person) =>
 describe('navigation preferences', () => {
   test('a member saves their own tabs and can reset them to the defaults', async () => {
     const { club, members: [sia] } = await clubWithWedMavericks();
-    const prefs = { tabs: ['checkin', 'dashboard'], known: ['dashboard', 'checkin', 'goals'] };
+    const prefs = { mode: 'commander', bars: {
+      member: { tabs: ['checkin', 'dashboard'], known: ['dashboard', 'checkin', 'goals'] },
+      commander: { tabs: ['roster'], known: ['roster'] },
+    } };
 
     await club.as(sia).query('select set_nav_prefs($1)', [prefs]);
     const saved = await tabsOf(club, sia);
@@ -35,7 +38,14 @@ describe('navigation preferences', () => {
   test('tabs must be a list', async () => {
     const { club, members: [sia] } = await clubWithWedMavericks();
 
-    await expect(club.as(sia).query('select set_nav_prefs($1)', [{ tabs: 'dashboard' }]))
+    await expect(club.as(sia).query('select set_nav_prefs($1)', [{ bars: { member: { tabs: 'dashboard' } } }]))
       .rejects.toThrow(/tabs must be a list/i);
+  });
+
+  test('modes must be member, commander or manager', async () => {
+    const { club, members: [sia] } = await clubWithWedMavericks();
+
+    await expect(club.as(sia).query('select set_nav_prefs($1)', [{ mode: 'owner' }])).rejects.toThrow(/unknown mode/i);
+    await expect(club.as(sia).query('select set_nav_prefs($1)', [{ bars: { owner: { tabs: [] } } }])).rejects.toThrow(/unknown mode/i);
   });
 });

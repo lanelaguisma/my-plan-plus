@@ -1,6 +1,6 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { group, register, reset, season, signInAs, slot, sql } from '../fixtures';
+import { group, openTab, register, reset, season, signInAs, slot, sql, switchMode } from '../fixtures';
 
 const WED = slot(2, 21, 30);
 
@@ -66,7 +66,9 @@ test('a member asks to join a group and its commander approves', async ({ app, b
   await screen.getByRole('button', 'Approve').tap();
 
   await signInAs({ app, browser, screen }, mia);
+  await openTab({ browser }, 'reminders');
   await expect(screen.getByText('Your request to join Wed Mavericks was approved.', { exact: false })).toBeVisible();
+  await openTab({ browser }, 'group');
   await expect(screen.getByRole('heading', 'Your Group: Wed Mavericks')).toBeVisible();
 });
 
@@ -84,6 +86,7 @@ test("a group commander cancels a WAM and the rest of the roster is told", async
   await off();
 
   await signInAs({ app, browser, screen }, jessica);
+  await openTab({ browser }, 'reminders');
   await expect(screen.getByText("Wed Mavericks's week 12 WAM is cancelled.", { exact: false })).toBeVisible();
 });
 
@@ -121,7 +124,8 @@ test("a group commander checks the roster dashboard and opens a member's goals",
   await sql('insert into checkins (user_id, cycle_id, week, score) values ($1, $2, 1, 72), ($1, $2, 2, 88)', [jessica.id, s25]);
 
   await signInAs({ app, browser, screen }, sia);
-  await browser.locator('#main-nav [data-tab="roster"]').tap();
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'roster');
   await expect(screen.getByRole('heading', 'Group Roster')).toBeVisible();
   await expect(screen.getByText('88%')).toBeVisible();
   await screen.getByRole('link', 'Jessica').tap();
@@ -136,7 +140,8 @@ test("a group commander logs a member's check-in and the member sees who logged 
   await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
 
   await signInAs({ app, browser, screen }, sia);
-  await browser.locator('#main-nav [data-tab="roster"]').tap();
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'roster');
   await screen.getByRole('link', 'Jessica').tap();
   const answers = ['3', '80', 'given at the WAM'];
   const off = await browser.onDialog(dialog => dialog.message.startsWith('Logged') ? dialog.accept() : dialog.accept(answers.shift()));
@@ -145,6 +150,7 @@ test("a group commander logs a member's check-in and the member sees who logged 
   await off();
 
   await signInAs({ app, browser, screen }, jessica);
+  await openTab({ browser }, 'reminders');
   await expect(screen.getByText('Sia logged a 80% check-in for week 3 for you', { exact: false })).toBeVisible();
   const [row] = await sql<{ score: number; entered_by: string }>(
     'select score, entered_by from checkins where user_id = $1 and week = 3', [jessica.id]);
@@ -159,7 +165,8 @@ test("a group commander raises their group's minimum size", async ({ app, browse
   const groupId = await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
 
   await signInAs({ app, browser, screen }, sia);
-  await browser.locator('#main-nav [data-tab="roster"]').tap();
+  await switchMode({ browser }, 'commander');
+  await openTab({ browser }, 'roster');
   await expect(screen.getByText(/min 2/)).toBeVisible();
   const off = await browser.onDialog(async dialog => dialog.accept('3'));
   await screen.getByText('change', { exact: true }).tap();

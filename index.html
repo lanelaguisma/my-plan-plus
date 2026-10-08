@@ -468,6 +468,12 @@ textarea { resize: vertical; min-height: 60px; }
 .roster-wide { max-width: calc(100vw - 80px); overflow-x: auto; }
 @media (max-width: 440px) { .roster-table .col-avg { display: none; } }
 .more-sheet { position: fixed; inset: 0; z-index: 99; background: rgba(0,0,0,0.35); }
+.mode-switcher { display: flex; justify-content: center; gap: 4px; max-width: var(--max-width); margin: 12px auto 0; padding: 0 64px 0 16px; }
+.mode-switcher[hidden] { display: none; }
+.mode-btn { position: relative; flex: 0 1 auto; min-width: 0; padding: 6px 12px; border-radius: 16px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.mode-dot { position: absolute; top: 3px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); }
+.mode-dot[hidden] { display: none; }
 .more-sheet[hidden] { display: none; }
 .more-sheet-panel {
   position: absolute; left: 0; right: 0; bottom: var(--nav-height); max-width: 520px; margin: 0 auto;
@@ -497,8 +503,24 @@ textarea { resize: vertical; min-height: 60px; }
 
 <!-- ========== NAVIGATION ========== -->
 <nav class="nav" id="main-nav" style="display:none"></nav>
+<div class="mode-switcher" id="mode-switcher" hidden></div>
 <div class="more-sheet" id="more-sheet" hidden onclick="if(event.target===this)toggleMoreSheet(false)">
   <div class="more-sheet-panel" id="more-sheet-panel"></div>
+</div>
+
+<!-- ========== SCREEN: REMINDERS ========== -->
+<div id="screen-reminders" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Reminders</h1>
+        <div class="subtitle" style="margin:0" id="reminders-subtitle">What you need to do, and what happened</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="reminders-content"></div>
+  </div>
 </div>
 
 <!-- ========== SCREEN: DASHBOARD ========== -->
@@ -1654,10 +1676,12 @@ async function loadInbox() {
   const { data, error } = await sb.rpc('my_notices');
   APP.notices = error ? [] : (data || []).sort((a, b) => (a.read - b.read) || (new Date(b.created_at) - new Date(a.created_at)));
   updateInboxBadge();
+  if (currentScreen === 'reminders') renderReminders();
 }
 
-function inboxCardHtml() {
-  const notices = (APP.notices || []).slice(0, 10);
+// The current mode's notices, newest unread first.
+function inboxCardHtml(mode = currentMode()) {
+  const notices = (APP.notices || []).filter(n => (n.role || 'member') === mode).slice(0, 10);
   if (!notices.length) return '';
   return `<div class="card"><h3>Inbox</h3>` + notices.map(n => {
     const act = n.action && NOTICE_ACTIONS[n.action];
@@ -1676,7 +1700,19 @@ async function openNotice(key, action) {
   await loadInbox();
   const act = action && NOTICE_ACTIONS[action];
   const notice = (APP.notices || []).find(n => n.key === key);
-  if (act) act.run(notice); else if (currentScreen === 'group') renderGroup();
+  if (act) act.run(notice); else renderScreen(currentScreen);
+}
+
+/* ========== REMINDERS ========== */
+// What this mode owes, then its inbox.
+function renderReminders() {
+  const el = document.getElementById('reminders-content');
+  if (!el) return;
+  const mode = currentMode();
+  document.getElementById('reminders-subtitle').textContent =
+    mode === 'member' ? 'What you need to do, and what happened' : `What needs you as ${mode === 'manager' ? 'club manager' : 'group commander'}, and what happened`;
+  const inbox = inboxCardHtml(mode);
+  el.innerHTML = inbox || '<div class="empty-state"><p>Nothing needs you right now.</p></div>';
 }
 
 // When a member is allocated, pre-fill their plan season from the community season
@@ -1704,7 +1740,8 @@ async function enterApp(user) {
   document.getElementById('auth-wrap').style.display = 'none';
   document.getElementById('main-nav').style.display = 'flex';
   renderNav();
-  if (!APP.profile || !(APP.profile.slots || []).length) navigateTo('group');
+  if (currentMode() !== 'member') navigateTo('reminders');
+  else if (!APP.profile || !(APP.profile.slots || []).length) navigateTo('group');
   else if (canUsePlan() && getCycle().startDate) navigateTo('dashboard');
   else navigateTo('group');
 }
@@ -1890,7 +1927,7 @@ function dayTimeSelects(prefix) {
 function renderGroup() {
   const el = document.getElementById('group-content');
   const p = APP.profile || {};
-  let html = inboxCardHtml() + pulseCardHtml() + offersCardHtml();
+  let html = pulseCardHtml() + offersCardHtml();
   const inviteCard = inviteCardHtml();
 
   if (APP.myGroup) {
@@ -3803,6 +3840,7 @@ let charts = {};
 let expandedGoals = new Set();
 
 const TAB_ICONS = {
+  reminders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>',
   roster: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg>',
   club: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>',
   dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
@@ -3818,27 +3856,33 @@ const TAB_ICONS = {
   more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>'
 };
 
-// Every tab someone might have, the screen it opens, and who may have it.
+// The modes a person can work in (ADR 0003): each has its own bar, and
+// a person with more than one role switches between them.
+const MODES = { member: 'Member', commander: 'Commander', manager: 'Club manager' };
+
+// Every tab, the screen it opens, and the mode whose bar it belongs to.
+// Reminders is on every bar, always first.
 const TABS = {
-  dashboard: { label: 'Dashboard', screen: 'dashboard', role: 'member' },
-  goals: { label: 'Goals', screen: 'goals', role: 'member' },
-  checkin: { label: 'Check-in', screen: 'checkin', role: 'member' },
-  reports: { label: 'Reports', screen: 'reports', role: 'member' },
-  learn: { label: 'Learn', screen: 'learn', role: 'member' },
-  group: { label: 'Group', screen: 'group', role: 'member' },
-  team: { label: 'Team', screen: 'team', role: 'member' },
-  boards: { label: 'Boards', screen: 'boards', role: 'member' },
-  settings: { label: 'Settings', screen: 'settings', role: 'member' },
-  roster: { label: 'Roster', screen: 'roster', role: 'commander', alsoFor: 'manager' },
-  admin: { label: 'Manage', screen: 'admin', role: 'manager' },
-  club: { label: 'Members', screen: 'club', role: 'manager' }
+  reminders: { label: 'Reminders', screen: 'reminders', modes: ['member', 'commander', 'manager'] },
+  dashboard: { label: 'Dashboard', screen: 'dashboard', modes: ['member'] },
+  goals: { label: 'Goals', screen: 'goals', modes: ['member'] },
+  checkin: { label: 'Check-in', screen: 'checkin', modes: ['member'] },
+  reports: { label: 'Reports', screen: 'reports', modes: ['member'] },
+  learn: { label: 'Learn', screen: 'learn', modes: ['member'] },
+  group: { label: 'Group', screen: 'group', modes: ['member'] },
+  team: { label: 'Team', screen: 'team', modes: ['member'] },
+  boards: { label: 'Boards', screen: 'boards', modes: ['member'] },
+  settings: { label: 'Settings', screen: 'settings', modes: ['member'] },
+  roster: { label: 'Roster', screen: 'roster', modes: ['commander', 'manager'] },
+  admin: { label: 'Manage', screen: 'admin', modes: ['manager'] },
+  club: { label: 'Members', screen: 'club', modes: ['manager'] }
 };
 
-// The tabs shown on the bar by default for each role; the rest sit under More.
+// The tabs on each mode's bar by default; the rest of its tabs sit under More.
 const DEFAULT_TABS = {
-  member: ['dashboard', 'checkin', 'goals', 'group', 'team', 'boards'],
-  commander: ['dashboard', 'roster', 'checkin', 'group', 'boards', 'team'],
-  manager: ['dashboard', 'admin', 'club', 'group', 'checkin']
+  member: ['reminders', 'dashboard', 'checkin', 'goals', 'group', 'boards'],
+  commander: ['reminders', 'roster'],
+  manager: ['reminders', 'admin', 'club', 'roster']
 };
 
 // Commands a group in the running season or the one open for enrolment.
@@ -3846,36 +3890,34 @@ function isCommander() {
   return !!APP.user && [APP.myGroup, APP.myNextGroup].some(g => g && g.commander_id === APP.user.id);
 }
 
-function myRoles() {
+function myModes() {
   return ['member'].concat(isCommander() ? ['commander'] : [], APP.isAdmin ? ['manager'] : []);
 }
 
-// Every tab the signed-in person may have, in catalogue order.
-function permittedTabs() {
-  const roles = myRoles();
-  return Object.keys(TABS).filter(id => roles.includes(TABS[id].role) || roles.includes(TABS[id].alsoFor));
+// The mode the app is in: the one last used, while the person still has it.
+function currentMode() {
+  const saved = APP.mode || (APP.profile && APP.profile.nav_prefs && APP.profile.nav_prefs.mode);
+  return myModes().includes(saved) ? saved : 'member';
 }
 
-function roleDefaultTabs() {
-  const roles = myRoles();
-  let tabs = DEFAULT_TABS[roles.includes('manager') ? 'manager' : roles.includes('commander') ? 'commander' : 'member'].slice();
-  // A club manager who also commands a group keeps the commander's tabs too.
-  if (roles.includes('manager') && roles.includes('commander')) {
-    DEFAULT_TABS.commander.forEach(id => { if (!tabs.includes(id)) tabs.push(id); });
+// Every tab of a mode, in catalogue order.
+function modeTabs(mode = currentMode()) {
+  return Object.keys(TABS).filter(id => TABS[id].modes.includes(mode));
+}
+
+// A mode's bar as the person chose it, minus tabs it no longer has, plus
+// any added since, with Reminders always first.
+function chosenTabs(mode = currentMode()) {
+  const permitted = modeTabs(mode);
+  const bar = ((APP.profile && APP.profile.nav_prefs) || {}).bars || {};
+  const prefs = bar[mode];
+  let tabs = DEFAULT_TABS[mode].slice();
+  if (prefs && Array.isArray(prefs.tabs)) {
+    const known = Array.isArray(prefs.known) ? prefs.known : permitted;
+    tabs = prefs.tabs.filter(id => permitted.includes(id));
+    DEFAULT_TABS[mode].forEach(id => { if (!known.includes(id) && !tabs.includes(id)) tabs.push(id); });
   }
-  return tabs.filter(id => TABS[id]);
-}
-
-// The person's chosen tabs, minus any they may no longer have, plus any
-// that a newly gained role brings.
-function chosenTabs() {
-  const permitted = permittedTabs();
-  const prefs = APP.profile && APP.profile.nav_prefs;
-  if (!prefs || !Array.isArray(prefs.tabs)) return roleDefaultTabs();
-  const known = Array.isArray(prefs.known) ? prefs.known : permitted;
-  const tabs = prefs.tabs.filter(id => permitted.includes(id));
-  roleDefaultTabs().forEach(id => { if (!known.includes(id) && !tabs.includes(id)) tabs.push(id); });
-  return tabs;
+  return ['reminders'].concat(tabs.filter(id => id !== 'reminders'));
 }
 
 // How many tabs fit on the bar beside More.
@@ -3897,8 +3939,31 @@ function renderNav() {
   APP.navOnBar = onBar;
   nav.innerHTML = onBar.map(id => tabButtonHtml(id, TABS[id].label, `navigateTo('${TABS[id].screen}')`)).join('') +
     tabButtonHtml('more', 'More', 'toggleMoreSheet()');
+  renderModeSwitcher();
   markActiveTab();
   updateInboxBadge();
+}
+
+// Shown only to people with more than one role.
+function renderModeSwitcher() {
+  const el = document.getElementById('mode-switcher');
+  if (!el) return;
+  const modes = myModes();
+  el.hidden = modes.length < 2;
+  if (el.hidden) { el.innerHTML = ''; return; }
+  const mode = currentMode();
+  el.innerHTML = modes.map(m => `<button class="mode-btn${m === mode ? ' active' : ''}" data-mode="${m}" onclick="switchMode('${m}')">${MODES[m]}<span class="mode-dot" hidden></span></button>`).join('');
+}
+
+async function switchMode(mode, screen) {
+  if (!myModes().includes(mode)) return;
+  APP.mode = mode;
+  const prefs = Object.assign({}, (APP.profile && APP.profile.nav_prefs) || {}, { mode });
+  if (APP.profile) APP.profile.nav_prefs = prefs;
+  NAV_DRAFT = null;
+  renderNav();
+  navigateTo(screen || 'reminders');
+  sb.rpc('set_nav_prefs', { p_prefs: prefs }).then(() => {});
 }
 
 function markActiveTab() {
@@ -3908,22 +3973,34 @@ function markActiveTab() {
     b.dataset.tab === 'more' ? !barScreen : b.dataset.screen === currentScreen && onBar.includes(b.dataset.tab)));
 }
 
-// Unread notices show on the Group tab, or on More when Group isn't on the bar.
+// What needs attention in a mode: its unread notices.
+function modeAttentionCount(mode) {
+  return (APP.notices || []).filter(n => !n.read && (n.role || 'member') === mode).length;
+}
+
+// The Reminders tab carries this mode's count; the switcher shows a dot
+// on any other mode that needs attention.
 function updateInboxBadge() {
-  const unread = (APP.notices || []).filter(n => !n.read).length;
+  const mode = currentMode();
+  const count = modeAttentionCount(mode);
   document.querySelectorAll('#main-nav .nav-badge').forEach(b => b.remove());
-  if (!unread) return;
-  const host = document.querySelector('#main-nav .nav-btn[data-tab="group"]') || document.querySelector('#main-nav .nav-btn[data-tab="more"]');
-  if (host) host.insertAdjacentHTML('beforeend', `<span class="nav-badge" id="inbox-badge">${unread > 9 ? '9+' : unread}</span>`);
+  const host = document.querySelector('#main-nav .nav-btn[data-tab="reminders"]') || document.querySelector('#main-nav .nav-btn[data-tab="more"]');
+  if (count && host) host.insertAdjacentHTML('beforeend', `<span class="nav-badge" id="inbox-badge">${count > 9 ? '9+' : count}</span>`);
+  document.querySelectorAll('#mode-switcher .mode-btn').forEach(b => {
+    const dot = b.querySelector('.mode-dot');
+    if (dot) dot.hidden = b.dataset.mode === mode || !modeAttentionCount(b.dataset.mode);
+  });
 }
 
 function toggleMoreSheet(open) {
   const sheet = document.getElementById('more-sheet');
   const show = open === undefined ? sheet.hidden : open;
   if (show) {
-    const rest = permittedTabs().filter(id => !(APP.navOnBar || []).includes(id));
+    const rest = modeTabs().filter(id => !(APP.navOnBar || []).includes(id));
+    const settings = rest.includes('settings') ? [] : [`<button class="more-item" onclick="toggleMoreSheet(false);navigateTo('settings')">${TAB_ICONS.settings}<span>Settings</span></button>`];
     document.getElementById('more-sheet-panel').innerHTML = rest.map(id =>
       `<button class="more-item" onclick="toggleMoreSheet(false);navigateTo('${TABS[id].screen}')">${TAB_ICONS[id] || ''}<span>${TABS[id].label}</span></button>`).join('') +
+      settings.join('') +
       `<button class="more-item" onclick="toggleMoreSheet(false);navigateTo('settings');setTimeout(() => { const c = document.getElementById('nav-tabs-card'); if (c) c.scrollIntoView(); }, 50)">${TAB_ICONS.settings}<span>Customise tabs…</span></button>`;
   }
   sheet.hidden = !show;
@@ -3931,7 +4008,14 @@ function toggleMoreSheet(open) {
 
 window.addEventListener('resize', () => { if (APP.user) renderNav(); });
 
+// Opening a screen that belongs only to another of the person's modes
+// (say, from a notice) switches to that mode first.
 function navigateTo(screen) {
+  const tab = Object.keys(TABS).find(id => TABS[id].screen === screen);
+  if (tab && !TABS[tab].modes.includes(currentMode())) {
+    const other = TABS[tab].modes.find(m => myModes().includes(m));
+    if (other) { switchMode(other, screen); return; }
+  }
   currentScreen = screen;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + screen).classList.add('active');
@@ -3941,21 +4025,28 @@ function navigateTo(screen) {
 
 /* ---------- Customising tabs (Settings) ---------- */
 let NAV_DRAFT = null;
+let NAV_DRAFT_MODE = null;
 
 function navTabsCardHtml() {
   if (!APP.user) return '';
-  if (!NAV_DRAFT) NAV_DRAFT = chosenTabs();
-  const permitted = permittedTabs();
-  const hidden = permitted.filter(id => !NAV_DRAFT.includes(id));
-  const row = (id, shown, i) => `<div class="member-row" data-nav-row="${id}">
+  const modes = myModes();
+  if (!NAV_DRAFT_MODE || !modes.includes(NAV_DRAFT_MODE)) NAV_DRAFT_MODE = currentMode();
+  const mode = NAV_DRAFT_MODE;
+  if (!NAV_DRAFT) NAV_DRAFT = chosenTabs(mode);
+  const hidden = modeTabs(mode).filter(id => !NAV_DRAFT.includes(id));
+  const row = (id, shown, i) => id === 'reminders'
+    ? `<div class="member-row" data-nav-row="${id}"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked disabled> ${TABS[id].label} <span style="font-size:11px;color:var(--text-muted)">always first</span></label></div>`
+    : `<div class="member-row" data-nav-row="${id}">
     <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${shown ? 'checked' : ''} onchange="toggleNavTab('${id}', this.checked)"> ${TABS[id].label}</label>
     ${shown ? `<span style="display:flex;gap:4px">
-      <button class="icon-btn" title="Move up" ${i === 0 ? 'disabled' : ''} onclick="moveNavTab('${id}', -1)">&#9650;</button>
+      <button class="icon-btn" title="Move up" ${i <= 1 ? 'disabled' : ''} onclick="moveNavTab('${id}', -1)">&#9650;</button>
       <button class="icon-btn" title="Move down" ${i === NAV_DRAFT.length - 1 ? 'disabled' : ''} onclick="moveNavTab('${id}', 1)">&#9660;</button></span>` : ''}
   </div>`;
+  const picker = modes.length > 1 ? `<div class="btn-row" style="margin-bottom:8px">${modes.map(m =>
+    `<button class="btn btn-sm ${m === mode ? 'btn-primary' : 'btn-secondary'}" onclick="NAV_DRAFT_MODE='${m}';NAV_DRAFT=null;redrawNavTabsCard()">${MODES[m]} bar</button>`).join('')}</div>` : '';
   return `<div class="card" id="nav-tabs-card"><h3>Navigation Tabs</h3>
-    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Choose the tabs on your bar and their order. Unticked tabs (and any that don't fit your screen) are under <strong>More</strong>.</p>
-    ${NAV_DRAFT.map((id, i) => row(id, true, i)).join('')}${hidden.map(id => row(id, false)).join('')}
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Choose the tabs on your ${modes.length > 1 ? esc(MODES[mode]) + ' ' : ''}bar and their order. Unticked tabs (and any that don't fit your screen) are under <strong>More</strong>.</p>
+    ${picker}${NAV_DRAFT.map((id, i) => row(id, true, i)).join('')}${hidden.map(id => row(id, false)).join('')}
     <div class="btn-row" style="margin-top:10px">
       <button class="btn btn-primary btn-sm" onclick="saveNavTabs()">Save tabs</button>
       <button class="btn btn-secondary btn-sm" onclick="resetNavTabs()">Reset to defaults</button>
@@ -3974,27 +4065,30 @@ function toggleNavTab(id, shown) {
 
 function moveNavTab(id, by) {
   const i = NAV_DRAFT.indexOf(id), j = i + by;
-  if (i < 0 || j < 0 || j >= NAV_DRAFT.length) return;
+  if (i < 1 || j < 1 || j >= NAV_DRAFT.length) return;
   [NAV_DRAFT[i], NAV_DRAFT[j]] = [NAV_DRAFT[j], NAV_DRAFT[i]];
   redrawNavTabsCard();
 }
 
-async function saveNavTabs() {
-  if (!NAV_DRAFT.length) { alert('Keep at least one tab on your bar.'); return; }
-  const prefs = { tabs: NAV_DRAFT.slice(), known: permittedTabs() };
+async function writeNavBar(mode, bar) {
+  const prefs = Object.assign({}, (APP.profile && APP.profile.nav_prefs) || {});
+  prefs.bars = Object.assign({}, prefs.bars || {});
+  if (bar) prefs.bars[mode] = bar; else delete prefs.bars[mode];
   const { error } = await sb.rpc('set_nav_prefs', { p_prefs: prefs });
-  if (error) { alert(error.message); return; }
+  if (error) { alert(error.message); return false; }
   APP.profile.nav_prefs = prefs;
   renderNav();
-  alert('Tabs saved.');
+  return true;
+}
+
+async function saveNavTabs() {
+  if (NAV_DRAFT.length < 2) { alert('Keep at least one tab besides Reminders on your bar.'); return; }
+  if (await writeNavBar(NAV_DRAFT_MODE, { tabs: NAV_DRAFT.slice(), known: modeTabs(NAV_DRAFT_MODE) })) alert('Tabs saved.');
 }
 
 async function resetNavTabs() {
-  const { error } = await sb.rpc('set_nav_prefs', { p_prefs: null });
-  if (error) { alert(error.message); return; }
-  APP.profile.nav_prefs = null;
+  if (!await writeNavBar(NAV_DRAFT_MODE, null)) return;
   NAV_DRAFT = null;
-  renderNav();
   redrawNavTabsCard();
 }
 
@@ -4012,6 +4106,7 @@ function renderScreen(screen) {
   else if (screen === 'club') renderClubRoster();
   else if (screen === 'roster') renderRoster();
   else if (screen === 'settings') renderSettings();
+  else if (screen === 'reminders') renderReminders();
 }
 
 /* ========== DASHBOARD ========== */

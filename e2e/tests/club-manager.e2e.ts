@@ -1,6 +1,6 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { group, register, reset, rpc, season, signInAs, slot, sql } from '../fixtures';
+import { group, openTab, register, reset, rpc, season, signInAs, slot, sql, switchMode } from '../fixtures';
 
 const WED = slot(2, 21, 30);
 
@@ -20,6 +20,7 @@ test('a club manager places an unplaced member from a suggestion, and the member
   await expect(screen.getByText('Everyone with availability is on a roster.')).toBeVisible();
 
   await signInAs({ app, browser, screen }, mia);
+  await openTab({ browser }, 'reminders');
   await expect(screen.getByText("You've been assigned to Wed Mavericks for Season 25.", { exact: false })).toBeVisible();
 });
 
@@ -77,6 +78,7 @@ test('a club manager announces to a group and its members receive it', async ({ 
   await expect(screen.getByText(/Everyone · reached 1/)).toBeVisible();
 
   await signInAs({ app, browser, screen }, jessica);
+  await openTab({ browser }, 'reminders');
   await expect(screen.getByText('Announcement from Iain Dunn: WAMs pause over the holidays.', { exact: false })).toBeVisible();
 });
 
@@ -132,7 +134,8 @@ test('a club manager sees the club roster, finds an invited newcomer and places 
   await rpc(sia, 'add_pending_member', { p_group: groupId, p_season: s25, p_name: 'Noor', p_email: 'noor@example.test' });
 
   await signInAs({ app, browser, screen }, manager);
-  await browser.locator('#main-nav [data-tab="club"]').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'club');
   await expect(screen.getByRole('heading', 'Club Roster')).toBeVisible();
   await expect(screen.getByText('Pending registration').last()).toBeVisible();
   await screen.getByRole('button', 'Invited, not yet placed (1)').tap();

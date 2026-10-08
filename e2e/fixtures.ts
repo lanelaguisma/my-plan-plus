@@ -92,3 +92,13 @@ export async function group(
   if (commander) await rpc(manager, 'appoint_group_commander', { p_group: id, p_season: seasonId, p_member: roster[0].id });
   return id;
 }
+
+// Switches the app to one of the signed-in person's modes (ADR 0003).
+export async function switchMode({ browser }: { browser: any }, mode: 'member' | 'commander' | 'manager'): Promise<void> {
+  await browser.locator(`#mode-switcher [data-mode="${mode}"]`).tap();
+}
+
+// Opens a tab on the current bar.
+export async function openTab({ browser }: { browser: any }, tab: string): Promise<void> {
+  await browser.locator(`#main-nav [data-tab="${tab}"]`).tap();
+}
