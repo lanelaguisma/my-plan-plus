@@ -50,10 +50,10 @@ describe('join requests', () => {
     await expect(requestToJoin(club, outsider, groupId, s25.id)).rejects.toThrow(/no open places/i);
   });
 
-  test('a member already on a roster cannot ask to join another group', async () => {
+  test('a member cannot ask to join the group they are already in', async () => {
     const { club, s25, groupId, members: [, jessica] } = await commandedGroup();
 
-    await expect(requestToJoin(club, jessica, groupId, s25.id)).rejects.toThrow(/already on a roster/i);
+    await expect(requestToJoin(club, jessica, groupId, s25.id)).rejects.toThrow(/already in this group/i);
   });
 
   test("only the group's commander or a club manager can approve a join request", async () => {
