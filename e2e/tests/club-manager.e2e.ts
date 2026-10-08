@@ -145,3 +145,22 @@ test('a club manager sees the club roster, finds an invited newcomer and places 
   );
   expect(mia.group_id).toBe(groupId);
 });
+
+test('a club manager sees and overrides when enrolment is due', async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  await season('Season 24', 'active', 3);
+  const s25 = await season('Season 25', 'setup', -10);
+
+  await signInAs({ app, browser, screen }, manager);
+  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await expect(screen.getByText(/Enrolment opens .* closes/)).toBeVisible();
+
+  await screen.getByRole('button', 'Edit').first().tap();
+  await browser.locator('#edit-cycle-closes').fill('2030-01-01');
+  await screen.getByRole('button', 'Save Changes').tap();
+  await expect(screen.getByText(/closes Tue, 1 Jan 2030/)).toBeVisible();
+
+  const [row] = await sql<{ enrolment_closes_on: string }>('select enrolment_closes_on::text from cycles where id = $1', [s25]);
+  expect(row.enrolment_closes_on).toBe('2030-01-01');
+});
