@@ -2336,6 +2336,10 @@ async function renderAdmin() {
   if (!ADMIN.selCycleId || !APP.cycles.some(c => c.id === ADMIN.selCycleId)) {
     ADMIN.selCycleId = APP.activeCycle ? APP.activeCycle.id : (APP.cycles[0] ? APP.cycles[0].id : null);
   }
+  const open = APP.cycles.filter(c => c.status !== 'archived');
+  const dates = await Promise.all(open.map(c => sb.rpc('season_enrolment_dates', { p_season: c.id })));
+  ADMIN.enrolDates = {};
+  open.forEach((c, i) => { ADMIN.enrolDates[c.id] = (dates[i].data || [])[0] || {}; });
   await loadUnplaced();
   drawAdmin();
 }
@@ -2608,6 +2612,8 @@ function drawAdmin() {
       html += `<div style="border:1px solid var(--accent);border-radius:var(--radius-sm);padding:10px;margin:8px 0">
         <div class="form-group"><label class="form-label">Season name</label><input type="text" id="edit-cycle-name" value="${esc(c.name)}"></div>
         <div class="form-group"><label class="form-label">Start date</label><input type="date" id="edit-cycle-start" value="${c.start_date}"${c.status === 'active' || c.status === 'archived' ? ' disabled title="Locked once the season has started"' : ''}></div>
+        ${c.status !== 'archived' ? `<div class="form-group"><label class="form-label">Enrolment opens (blank = start of week 11 of the season before)</label><input type="date" id="edit-cycle-opens" value="${c.enrolment_opens_on || ''}"></div>
+        <div class="form-group"><label class="form-label">Enrolment closes (blank = the day before the season starts)</label><input type="date" id="edit-cycle-closes" value="${c.enrolment_closes_on || ''}"></div>` : ''}
         <div class="btn-row">
           <button class="btn btn-primary btn-sm" onclick="adminSaveCycleEdit('${c.id}')">Save Changes</button>
           <button class="btn btn-secondary btn-sm" onclick="ADMIN.editCycleId=null;drawAdmin()">Cancel</button>
@@ -2625,7 +2631,7 @@ function drawAdmin() {
       else btns += `<button class="btn btn-secondary btn-sm" onclick="adminOpenEnrollment('${c.id}')">Open sign-up</button> `;
       btns += `<button class="btn btn-secondary btn-sm" onclick="adminActivateCycle('${c.id}')">Make active</button>`;
     }
-    html += `<div class="member-row"><span><strong>${esc(c.name)}</strong> &middot; starts ${formatDate(c.start_date)} <span class="badge-pill ${badge}">${esc(label)}</span></span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${btns}</span></div>`;
+    html += `<div class="member-row"><span><strong>${esc(c.name)}</strong> &middot; starts ${formatDate(c.start_date)} <span class="badge-pill ${badge}">${esc(label)}</span>${enrolmentDatesLabel(c)}</span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">${btns}</span></div>`;
   });
   html += `<div class="btn-row">
       <input type="text" id="new-cycle-name" placeholder="Season name e.g. Q1 2027">
@@ -2813,6 +2819,14 @@ async function adminActivateCycle(id) {
   renderAdmin();
 }
 
+// "Enrolment due ..." for a season not yet started, from the planned dates.
+function enrolmentDatesLabel(c) {
+  const d = (ADMIN.enrolDates || {})[c.id];
+  if (!d || c.status === 'active' || c.status === 'archived') return '';
+  const parts = [d.opens_on ? 'opens ' + formatDate(d.opens_on) : '', d.closes_on ? 'closes ' + formatDate(d.closes_on) : ''].filter(Boolean);
+  return parts.length ? `<br><span style="font-size:11px;color:var(--text-muted)">Enrolment ${parts.join(' &middot; ')}</span>` : '';
+}
+
 async function adminSaveCycleEdit(id) {
   const name = document.getElementById('edit-cycle-name').value.trim();
   const start = document.getElementById('edit-cycle-start').value;
@@ -2821,6 +2835,12 @@ async function adminSaveCycleEdit(id) {
   if (c && c.start_date !== start && !(await confirmSeasonDates(start, id))) return;
   const { error } = await sb.from('cycles').update({ name, start_date: start }).eq('id', id);
   if (error) { alert('Could not save: ' + error.message); return; }
+  const opens = document.getElementById('edit-cycle-opens');
+  if (opens) {
+    const closes = document.getElementById('edit-cycle-closes').value || null;
+    const res = await sb.rpc('set_season_enrolment_dates', { p_season: id, p_opens_on: opens.value || null, p_closes_on: closes });
+    if (res.error) { alert('Could not save enrolment dates: ' + res.error.message); return; }
+  }
   ADMIN.editCycleId = null;
   await loadCommunity();
   renderAdmin();
