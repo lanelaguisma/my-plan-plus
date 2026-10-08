@@ -464,6 +464,9 @@ textarea { resize: vertical; min-height: 60px; }
 .nav-btn { flex: 1 1 0; min-width: 0; padding: 8px 0; font-size: 10px; overflow: hidden; white-space: nowrap; }
 .nav-btn svg { width: 22px; height: 22px; }
 .nav-label { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.roster-table th, .roster-table td { padding: 6px 4px; }
+.roster-wide { max-width: calc(100vw - 80px); overflow-x: auto; }
+@media (max-width: 440px) { .roster-table .col-avg { display: none; } }
 .more-sheet { position: fixed; inset: 0; z-index: 99; background: rgba(0,0,0,0.35); }
 .more-sheet[hidden] { display: none; }
 .more-sheet-panel {
@@ -1197,11 +1200,13 @@ async function loadCommunity() {
   const wams = await sb.rpc('my_wams');
   APP.wams = wams.error ? [] : (wams.data || []).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const [rsvps, att] = await Promise.all([
-    sb.from('rsvps').select('group_id,cycle_id,week,note'),
+    sb.from('rsvps').select('group_id,cycle_id,week,note,entered_by'),
     sb.rpc('my_attendance')
   ]);
   APP.rsvps = rsvps.error ? [] : (rsvps.data || []);
   APP.attendance = att.error ? [] : (att.data || []);
+  const ob = await sb.from('checkins').select('cycle_id,week,score,entered_by,reflections').eq('user_id', APP.user.id).not('entered_by', 'is', null);
+  APP.enteredForMe = ob.error ? [] : (ob.data || []);
   const tr = await sb.from('transfer_requests').select('id,cycle_id,status').eq('status', 'open');
   APP.openTransfer = tr.error ? null : ((tr.data || []).find(t => APP.activeCycle && t.cycle_id === APP.activeCycle.id) || null);
   const offers = await sb.rpc('my_offers');
@@ -1294,6 +1299,69 @@ async function shareInvite() {
   try { await navigator.share({ title: 'Join 12WC', text }); } catch (e) {}
 }
 
+/* ========== ON-BEHALF ENTRY ========== */
+function enteredByName(id) {
+  const p = (APP.myGroupMembers || []).concat(APP.admins || []).find(x => x.id === id);
+  return p ? (p.full_name || p.email) : 'your group commander';
+}
+
+// Shown on the Check-in screen for a week someone logged for the member.
+function enteredCheckinBannerHtml(week) {
+  const e = APP.activeCycle && (APP.enteredForMe || []).find(x => x.cycle_id === APP.activeCycle.id && x.week === week);
+  if (!e) return '';
+  const note = e.reflections && e.reflections.entered_note;
+  return `<div class="card" style="border:1px solid var(--warning)"><div style="font-size:13px">
+    <strong>${esc(enteredByName(e.entered_by))}</strong> logged <strong>${e.score}%</strong> for week ${week} for you${note ? ' (&ldquo;' + esc(note) + '&rdquo;)' : ''}.
+    It counts on the team scoreboard until you save your own check-in for this week, which replaces it.</div></div>`;
+}
+
+async function enterCheckinFor(memberId, name, seasonId) {
+  const weekNow = Math.max(1, Math.min(communityCurrentWeek() || 1, 13));
+  const week = prompt('Log a check-in for ' + name + '. Which week (1–13)?', String(weekNow));
+  if (week === null) return;
+  const score = prompt('Their score for week ' + week + ' (0–100%):', '');
+  if (score === null) return;
+  const note = prompt('A note for ' + name + ' (optional, e.g. "given at the WAM"):', '');
+  if (note === null) return;
+  const { error } = await sb.rpc('enter_checkin_for', { p_member: memberId, p_season: seasonId, p_week: Number(week), p_score: Number(score), p_note: note });
+  if (error) { alert(error.message); return; }
+  alert('Logged — ' + name + ' has been told and can replace it with their own check-in.');
+  renderScreen(currentScreen);
+}
+
+async function setRsvpFor(memberId, name, groupId, seasonId, week, attending) {
+  let note = null;
+  if (!attending) {
+    note = prompt('Mark ' + name + " as can't make the week " + week + ' WAM. Note (optional):', '');
+    if (note === null) return;
+  }
+  const { error } = await sb.rpc('set_rsvp_for', { p_member: memberId, p_group: groupId, p_season: seasonId, p_week: week, p_attending: attending, p_note: note });
+  if (error) { alert(error.message); return; }
+  renderScreen(currentScreen);
+}
+
+// A commander or club manager edits a member's availability with the same grid.
+async function editPreferencesFor(memberId, name) {
+  const holder = document.getElementById('prefs-for-' + memberId);
+  if (!holder) return;
+  if (holder.innerHTML) { holder.innerHTML = ''; return; }
+  const { data, error } = await sb.from('profiles').select('slots,preferred_slot,looking_for').eq('id', memberId).maybeSingle();
+  if (error || !data) { alert(error ? error.message : 'Could not load their preferences.'); return; }
+  holder.innerHTML = `<div style="margin-top:8px"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">${esc(name)}'s weekly times, shown in <strong>your</strong> time zone. Tap once = available, twice = preferred.</div>
+    <div class="slot-grid">${renderSlotGrid(data.slots || [], data.preferred_slot)}</div>
+    <textarea id="prefs-for-looking-${memberId}" maxlength="300" rows="2" style="margin-top:6px" placeholder="What they're looking for in a group">${esc(data.looking_for || '')}</textarea>
+    <button class="btn btn-primary btn-sm" style="margin-top:6px" onclick="savePreferencesFor('${memberId}')">Save for ${esc(name)}</button></div>`;
+}
+
+async function savePreferencesFor(memberId) {
+  const slots = [...slotSel].sort((a, b) => a - b);
+  const looking = document.getElementById('prefs-for-looking-' + memberId).value;
+  const { error } = await sb.rpc('update_preferences_for', { p_member: memberId, p_slots: slots, p_preferred: slotPref, p_looking_for: looking });
+  if (error) { alert(error.message); return; }
+  alert('Saved — they have been told.');
+  renderScreen(currentScreen);
+}
+
 /* ========== PLACEMENT OFFERS ========== */
 // Invitations waiting for the member's answer, with what they need to decide.
 function offersCardHtml() {
@@ -1370,9 +1438,9 @@ function wamListHtml(group, season) {
 }
 
 function rsvpButton(w) {
-  const away = (APP.rsvps || []).some(r => r.group_id === w.group_id && r.cycle_id === w.cycle_id && r.week === w.week);
+  const away = (APP.rsvps || []).find(r => r.group_id === w.group_id && r.cycle_id === w.cycle_id && r.week === w.week);
   return away
-    ? `<button class="btn btn-secondary btn-sm" title="You said you can't make it" onclick="setRsvp('${w.group_id}','${w.cycle_id}',${w.week},true)">I'll be there</button>`
+    ? `${away.entered_by ? `<span style="font-size:11px;color:var(--text-muted)">${esc(enteredByName(away.entered_by))} marked you away</span>` : ''}<button class="btn btn-secondary btn-sm" title="You said you can't make it" onclick="setRsvp('${w.group_id}','${w.cycle_id}',${w.week},true)">I'll be there</button>`
     : `<button class="btn btn-secondary btn-sm" onclick="setRsvp('${w.group_id}','${w.cycle_id}',${w.week},false)">Can't make it</button>`;
 }
 
@@ -1571,6 +1639,7 @@ const NOTICE_ACTIONS = {
   review_offers: { label: 'Review', run: () => navigateTo('group') },
   confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
+  view_checkin: { label: 'View', run: n => { if (n && n.payload && n.payload.week) selectedWeek = n.payload.week; navigateTo('checkin'); } },
   view_attendance: { label: 'View roster', run: () => navigateTo('roster') },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_transfers: { label: 'Review', run: () => navigateTo('admin') },
@@ -1896,6 +1965,7 @@ function renderGroup() {
   </div>`;
 
   html += `<div class="card"><h3>Your Preferences</h3>
+    ${p.preferences_entered_by ? `<div style="font-size:12px;color:var(--warning);margin-bottom:8px">Last updated for you by ${esc(enteredByName(p.preferences_entered_by))}. Saving them yourself replaces this.</div>` : ''}
     <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Tick every weekly <strong>45-minute session</strong> start time you could regularly attend (shown in your local time). Group commanders and the club manager use this to match you to a group whose WAM time you can make.</p>
     <div class="slot-grid">${renderSlotGrid()}</div>
     <div style="font-size:12px;color:var(--text-muted);margin:8px 0"><span id="slot-count">${((p.slots || []).length)}</span> time(s) selected &middot; tap once = available, tap again = your <strong>preferred</strong> time (&#9733;, one only), tap a third time = clear</div>
@@ -2174,9 +2244,10 @@ async function leaveGroup() {
   renderGroup();
 }
 
-function renderSlotGrid() {
-  slotSel = new Set((APP.profile && APP.profile.slots) || []);
-  slotPref = (APP.profile && APP.profile.preferred_slot != null) ? APP.profile.preferred_slot : null;
+function renderSlotGrid(slots, preferred) {
+  if (slots === undefined) { slots = (APP.profile && APP.profile.slots) || []; preferred = APP.profile ? APP.profile.preferred_slot : null; }
+  slotSel = new Set(slots);
+  slotPref = preferred != null ? preferred : null;
   if (slotPref != null) slotSel.add(slotPref);
   let h = '<table><thead><tr><th></th>' + DAY_NAMES.map(d => '<th>' + d + '</th>').join('') + '</tr></thead><tbody>';
   GRID_HOURS.forEach(hr => {
@@ -2199,7 +2270,7 @@ function toggleSlot(btn) {
     slotSel.add(mow);
     btn.classList.add('selected');
   } else if (slotPref !== mow) {
-    const prev = document.querySelector('.slot-cell.preferred');
+    const prev = btn.closest('table').querySelector('.slot-cell.preferred');
     if (prev) { prev.classList.remove('preferred'); prev.innerHTML = ''; }
     slotPref = mow;
     btn.classList.add('preferred');
@@ -3024,22 +3095,22 @@ async function renderRoster() {
   const picker = options.length > 1 ? `<select style="margin-bottom:12px" onchange="ROSTER.key=this.value;renderRoster()">${options.map(o =>
     `<option value="${o.group.id}:${o.season.id}"${o.group.id + ':' + o.season.id === ROSTER.key ? ' selected' : ''}>${esc((o.group.emoji ? o.group.emoji + ' ' : '') + o.group.name)} — ${esc(o.season.name)}</option>`).join('')}</select>` : '';
   const scoreCell = r => r.latest_score == null ? '<span style="color:var(--text-muted)">—</span>'
-    : `<strong class="${scoreColor(r.latest_score)}">${r.latest_score}%</strong> <span style="font-size:11px;color:var(--text-muted)">wk ${r.latest_week}</span>`;
+    : `<strong class="${scoreColor(r.latest_score)}">${r.latest_score}%</strong><br><span style="font-size:11px;color:var(--text-muted)">wk ${r.latest_week}</span>`;
   const rsvpCell = r => r.pending_id ? '' : r.next_week == null ? '—'
     : r.next_can_attend ? '<span style="color:var(--success)">&#10003;</span>'
     : `<span style="color:var(--warning)" title="${esc(r.next_note || '')}">can't${r.next_note ? ' &#9432;' : ''}</span>`;
-  const table = `<div class="admin-table"><table><thead><tr><th>Member</th><th>Latest</th><th>Avg</th><th>Streak</th><th>WAMs</th><th>Next</th></tr></thead><tbody>` +
+  const table = `<div class="admin-table roster-table"><table><thead><tr><th>Member</th><th>Latest</th><th class="col-avg">Avg</th><th>Streak</th><th>WAMs</th><th>Next</th></tr></thead><tbody>` +
     rows.map(r => r.pending_id
       ? `<tr><td>${esc(r.full_name)} <span class="badge-pill amber">pending registration</span></td><td colspan="5" style="color:var(--text-muted)">Joins the roster when they register</td></tr>`
       : `<tr>
         <td><a href="#" class="auth-link" onclick="toggleMemberPlan('${r.member_id}');return false">${esc(r.full_name)}</a>${r.is_commander ? ' <span class="badge-pill green">commander</span>' : ''}${r.status === 'awaiting_continuation' ? ' <span class="badge-pill amber">not yet confirmed</span>' : ''}</td>
         <td>${scoreCell(r)}</td>
-        <td>${r.average_score == null ? '—' : r.average_score + '%'}</td>
-        <td>${r.streak ? r.streak + ' wk' + (r.streak === 1 ? '' : 's') : '<span style="color:var(--text-muted)">0</span>'}</td>
+        <td class="col-avg">${r.average_score == null ? '—' : r.average_score + '%'}</td>
+        <td>${r.streak ? r.streak + 'w' : '<span style="color:var(--text-muted)">0</span>'}</td>
         <td>${r.held ? `<span style="color:${r.attended < r.held ? 'var(--warning)' : 'inherit'}">${r.attended}/${r.held}</span>` : '—'}</td>
         <td>${rsvpCell(r)}</td></tr>
         <tr id="plan-row-${r.member_id}" ${ROSTER.open[r.member_id] ? '' : 'hidden'}><td colspan="6"><div id="plan-${r.member_id}" style="font-size:13px"></div>
-          ${commanding || APP.isAdmin ? `<div class="btn-row" style="margin-top:6px" id="member-actions-${r.member_id}">${rosterMemberActions(r, group, season, commanding)}</div>` : ''}</td></tr>`).join('') +
+          ${commanding || APP.isAdmin ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px" id="member-actions-${r.member_id}">${rosterMemberActions(r, group, season, commanding)}</div><div id="prefs-for-${r.member_id}" class="roster-wide"></div>` : ''}</td></tr>`).join('') +
     '</tbody></table></div>';
 
   el.innerHTML = picker + `<div class="card">
@@ -3047,7 +3118,7 @@ async function renderRoster() {
       <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mowLabel(group.slot_mow)} &middot; ${group.member_count}/${group.capacity} &middot; ${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} &middot; <span class="badge-pill ${group.state === 'active' ? 'green' : 'amber'}">${group.state}</span>
         ${nextUp ? `<br>Next WAM: week ${nextUp.week}, ${wamTimeLabel(nextUp.starts_at)} &middot; ${rows.filter(r => r.member_id && r.next_can_attend).length} of ${rows.filter(r => r.member_id).length} expected` : ''}</div>
       ${table}
-      <p style="font-size:11px;color:var(--text-muted);margin-top:6px">Tap a name to see their 12-week goals and weekly scores. Streak = weeks in a row with a check-in. WAMs = attended of the last ${Math.min(3, ROSTER.wams.filter(w => !w.cancelled && new Date(w.starts_at) <= new Date()).length) || 3} held.</p>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:6px">Tap a name to see their 12-week goals and weekly scores. Streak = weeks in a row with a check-in (w = weeks). WAMs = attended of the last ${Math.min(3, ROSTER.wams.filter(w => !w.cancelled && new Date(w.starts_at) <= new Date()).length) || 3} held.</p>
       ${lastHeld ? `<div class="member-row" style="margin-top:6px"><span>Attendance &middot; week ${lastHeld.week} (${wamTimeLabel(lastHeld.starts_at)})</span>
         <button class="btn btn-secondary btn-sm" onclick="toggleAttendance('${group.id}','${season.id}',${lastHeld.week})">Attendance</button></div>
         <div id="att-${group.id}-${lastHeld.week}"></div>` : ''}
@@ -3058,10 +3129,13 @@ async function renderRoster() {
 }
 
 function rosterMemberActions(r, group, season, commanding) {
+  if (r.member_id === APP.user.id) return '';
   const name = esc(r.full_name).replace(/'/g, '');
-  return commanding && r.member_id !== APP.user.id
-    ? `<button class="btn btn-secondary btn-sm" onclick="recordDeparture('${r.member_id}', '${name}', '${group.id}', '${season.id}')">Record departure</button>`
-    : '';
+  const next = r.next_week != null && r.status === 'on_roster'
+    ? `<button class="btn btn-secondary btn-sm" onclick="setRsvpFor('${r.member_id}', '${name}', '${group.id}', '${season.id}', ${r.next_week}, ${!r.next_can_attend})">${r.next_can_attend ? "Can't make next WAM" : 'Attending next WAM'}</button>` : '';
+  return `<button class="btn btn-secondary btn-sm" onclick="enterCheckinFor('${r.member_id}', '${name}', '${season.id}')">Log check-in</button>${next}
+    <button class="btn btn-secondary btn-sm" onclick="editPreferencesFor('${r.member_id}', '${name}')">Edit preferences</button>` +
+    (commanding ? `<button class="btn btn-secondary btn-sm" onclick="recordDeparture('${r.member_id}', '${name}', '${group.id}', '${season.id}')">Record departure</button>` : '');
 }
 
 async function loadRosterManagement(group, season) {
@@ -4274,6 +4348,7 @@ function renderCheckin() {
   const dates = getWeekDates(cycle.startDate, selectedWeek);
   const sub = document.getElementById('checkin-subtitle');
   sub.innerHTML = `Week ${selectedWeek} &mdash; ${formatDate(dates.start)} to ${formatDate(dates.end)}`;
+  html += enteredCheckinBannerHtml(selectedWeek);
 
   const weeklyData = getWeeklyData();
   const weekSaved = weeklyData.hasOwnProperty(String(selectedWeek));
