@@ -150,3 +150,22 @@ test("a group commander logs a member's check-in and the member sees who logged 
     'select score, entered_by from checkins where user_id = $1 and week = 3', [jessica.id]);
   expect(row).toEqual({ score: 80, entered_by: sia.id });
 });
+
+test("a group commander raises their group's minimum size", async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const s25 = await season('Season 25', 'active');
+  const groupId = await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
+
+  await signInAs({ app, browser, screen }, sia);
+  await browser.locator('#main-nav [data-tab="roster"]').tap();
+  await expect(screen.getByText(/min 2/)).toBeVisible();
+  const off = await browser.onDialog(async dialog => dialog.accept('3'));
+  await screen.getByText('change', { exact: true }).tap();
+  await expect(screen.getByText(/min 3/)).toBeVisible();
+  await off();
+
+  const [g] = await sql<{ min_size_override: number }>('select min_size_override from groups where id = $1', [groupId]);
+  expect(g.min_size_override).toBe(3);
+});

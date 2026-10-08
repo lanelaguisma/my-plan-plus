@@ -51,16 +51,16 @@ test('opening enrolment asks each member to confirm they are continuing', async 
 test('the club overview shows an at-risk group and why', async ({ app, browser, screen }) => {
   await reset();
   const manager = await register('Iain Dunn', { clubManager: true });
-  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const sia = await register('Sia');
   const s25 = await season('Season 25', 'active', 3);
-  await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica]);
+  await group(manager, s25, 'Wed Mavericks', WED, [sia]);
 
   await signInAs({ app, browser, screen }, manager);
   await screen.getByRole('button', 'Open Club Manager Panel').tap();
 
   await expect(screen.getByRole('heading', /Club Overview/)).toBeVisible();
   await expect(screen.getByText('No group commander.', { exact: false })).toBeVisible();
-  await expect(screen.getByText('2 members — below the minimum of 3.', { exact: false })).toBeVisible();
+  await expect(screen.getByText('1 member — below the minimum of 2.', { exact: false }).last()).toBeVisible();
 });
 
 test('a club manager announces to a group and its members receive it', async ({ app, browser, screen }) => {
