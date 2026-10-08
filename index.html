@@ -750,6 +750,21 @@ textarea { resize: vertical; min-height: 60px; }
   </div>
 </div>
 
+<!-- ========== SCREEN: CLUB ROSTER ========== -->
+<div id="screen-club" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Club Roster</h1>
+        <div class="subtitle" style="margin:0">Everyone in the club and where they stand</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="club-content"></div>
+  </div>
+</div>
+
 <!-- ========== SCREEN: TEAM ========== -->
 <div id="screen-team" class="screen">
   <div class="app-container fade-in">
@@ -2945,6 +2960,113 @@ function adminExportCSV() {
   downloadFile('myplanplus-registrants-' + todayStr() + '.csv', 'text/csv', rows.join('\n'));
 }
 
+/* ========== CLUB ROSTER (club managers) ========== */
+const CLUB = { seasonId: null, rows: [], groups: [], status: '', groupId: '', q: '' };
+const ROSTER_STATUS = {
+  placed: ['In a group', 'green'], awaiting_continuation: ['Awaiting continuation', 'amber'],
+  pending_registration: ['Pending registration', 'amber'], unplaced: ['Unplaced', 'amber'],
+  departed: ['Departed', ''], not_enrolled: ['Not enrolled', '']
+};
+
+async function renderClubRoster() {
+  const el = document.getElementById('club-content');
+  if (!APP.isAdmin) { el.innerHTML = '<div class="empty-state"><p>Club managers only.</p></div>'; return; }
+  if (!APP.cycles.length) { el.innerHTML = '<div class="empty-state"><p>Create a season first (Manage tab).</p></div>'; return; }
+  if (!CLUB.seasonId || !APP.cycles.some(c => c.id === CLUB.seasonId)) {
+    CLUB.seasonId = (APP.activeCycle || APP.nextCycle || APP.cycles[0]).id;
+  }
+  el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
+  const [roster, groups] = await Promise.all([
+    sb.rpc('club_roster', { p_season: CLUB.seasonId }),
+    sb.from('season_groups').select('id,name,vacancies,state').eq('cycle_id', CLUB.seasonId).order('name')
+  ]);
+  if (roster.error) { el.innerHTML = `<div class="empty-state"><p>${esc(roster.error.message)}</p></div>`; return; }
+  CLUB.rows = roster.data || [];
+  CLUB.groups = groups.data || [];
+  drawClubRoster();
+}
+
+function clubRosterFiltered() {
+  const q = CLUB.q.trim().toLowerCase();
+  return CLUB.rows.filter(r =>
+    (!CLUB.status || (CLUB.status === 'invited_unplaced' ? r.invited_by && r.status === 'unplaced' : r.status === CLUB.status)) &&
+    (!CLUB.groupId || r.group_id === CLUB.groupId) &&
+    (!q || (r.full_name || '').toLowerCase().includes(q) || (r.email || '').toLowerCase().includes(q)));
+}
+
+function drawClubRoster() {
+  const el = document.getElementById('club-content');
+  const count = st => CLUB.rows.filter(r => r.status === st).length;
+  const newcomers = CLUB.rows.filter(r => r.invited_by && r.status === 'unplaced').length;
+  const chip = (value, label, n) => `<button class="btn btn-sm ${CLUB.status === value ? 'btn-primary' : 'btn-secondary'}" style="width:auto" onclick="CLUB.status='${value}';drawClubRoster()">${label} (${n})</button>`;
+  const rows = clubRosterFiltered();
+  el.innerHTML = `<div class="card">
+    <div class="btn-row">
+      <select onchange="CLUB.seasonId=this.value;CLUB.groupId='';renderClubRoster()">${APP.cycles.map(c => `<option value="${c.id}"${c.id === CLUB.seasonId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select>
+      <select onchange="CLUB.groupId=this.value;drawClubRoster()"><option value="">All groups</option>${CLUB.groups.map(g => `<option value="${g.id}"${g.id === CLUB.groupId ? ' selected' : ''}>${esc(g.name)}</option>`).join('')}</select>
+    </div>
+    <input type="text" id="club-search" style="margin-top:8px" placeholder="Search name or email" value="${esc(CLUB.q)}" oninput="CLUB.q=this.value;drawClubRosterRows()">
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+      ${chip('', 'Everyone', CLUB.rows.length)}
+      ${Object.keys(ROSTER_STATUS).map(st => chip(st, ROSTER_STATUS[st][0], count(st))).join('')}
+      ${chip('invited_unplaced', 'Invited, not yet placed', newcomers)}
+    </div>
+  </div>
+  <div class="card"><div class="admin-table" id="club-rows"></div>
+    <div class="btn-row" style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="exportClubRoster()">Export CSV</button></div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change someone's group to assign or move them (it takes effect immediately and can exceed capacity), or choose "no group" to take them off their roster.</p></div>`;
+  drawClubRosterRows(rows);
+}
+
+function drawClubRosterRows(rows) {
+  rows = rows || clubRosterFiltered();
+  const holder = document.getElementById('club-rows');
+  if (!holder) return;
+  if (!rows.length) { holder.innerHTML = '<p style="font-size:13px;color:var(--text-muted)">Nobody matches.</p>'; return; }
+  holder.innerHTML = `<table><thead><tr><th>Name</th><th>Status</th><th>Group</th></tr></thead><tbody>` + rows.map(r => {
+    const [label, tone] = ROSTER_STATUS[r.status] || [r.status, ''];
+    const badges = (r.is_club_manager ? ' <span class="badge-pill">club manager</span>' : '') +
+      (r.is_commander ? ' <span class="badge-pill green">commander</span>' : '') +
+      (r.invited_by_name && r.person_id ? ` <span style="font-size:11px;color:var(--text-muted)">invited by ${esc(r.invited_by_name)}</span>` : '') +
+      (r.pending_id && r.invited_by_name ? ` <span style="font-size:11px;color:var(--text-muted)">added by ${esc(r.invited_by_name)}</span>` : '');
+    const placedHere = r.status === 'placed' || r.status === 'awaiting_continuation';
+    const groupCell = r.pending_id
+      ? `${esc(r.group_name || '')} <button class="btn btn-secondary btn-sm" style="width:auto" onclick="clubCancelPending('${r.pending_id}')">Cancel</button>`
+      : `<select onchange="clubAssign('${r.person_id}', this.value, ${placedHere})"><option value=""${placedHere ? '' : ' selected'}>&mdash; no group &mdash;</option>` +
+        CLUB.groups.map(g => `<option value="${g.id}"${placedHere && g.id === r.group_id ? ' selected' : ''}>${esc(g.name)}${g.vacancies ? ' (' + g.vacancies + ' open)' : ''}</option>`).join('') + '</select>' +
+        (r.status === 'departed' ? `<div style="font-size:11px;color:var(--text-muted)">left ${esc(r.group_name || '')}${r.departure_reason ? ': ' + esc(r.departure_reason) : ''}</div>` : '');
+    return `<tr><td><strong>${esc(r.full_name || '—')}</strong>${badges}<br><span style="font-size:11px;color:var(--text-muted)">${esc(r.email || '')}</span></td>
+      <td><span class="badge-pill ${tone}">${label}</span></td><td>${groupCell}</td></tr>`;
+  }).join('') + '</tbody></table>';
+}
+
+async function clubAssign(personId, groupId, placed) {
+  const { error } = groupId
+    ? await sb.rpc('assign_member', { p_member: personId, p_group: groupId, p_season: CLUB.seasonId })
+    : placed ? await sb.rpc('remove_from_roster', { p_member: personId, p_season: CLUB.seasonId }) : { error: null };
+  if (error) alert(error.message);
+  await loadCommunity();
+  renderClubRoster();
+}
+
+async function clubCancelPending(id) {
+  if (!confirm('Cancel this held place? It becomes an open place again.')) return;
+  const { error } = await sb.rpc('cancel_pending_member', { p_pending: id });
+  if (error) alert(error.message);
+  renderClubRoster();
+}
+
+function exportClubRoster() {
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const season = APP.cycles.find(c => c.id === CLUB.seasonId);
+  const lines = [['Name', 'Email', 'Status', 'Group', 'Group commander', 'Club manager', 'Invited/added by', 'Registered'].map(q).join(',')]
+    .concat(clubRosterFiltered().map(r => [
+      r.full_name, r.email, (ROSTER_STATUS[r.status] || [r.status])[0], r.group_name, r.is_commander ? 'yes' : '',
+      r.is_club_manager ? 'yes' : '', r.invited_by_name, r.registered_at ? String(r.registered_at).slice(0, 10) : ''
+    ].map(q).join(',')));
+  downloadFile('club-roster-' + ((season && season.name) || 'season').replace(/\W+/g, '-') + '-' + todayStr() + '.csv', 'text/csv', lines.join('\n'));
+}
+
 /* ========== SETTINGS EXTRAS ========== */
 function renderAccountCard() {
   const p = APP.profile || {};
@@ -3409,6 +3531,7 @@ let charts = {};
 let expandedGoals = new Set();
 
 const TAB_ICONS = {
+  club: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>',
   dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
   goals: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
   checkin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
@@ -3433,14 +3556,15 @@ const TABS = {
   team: { label: 'Team', screen: 'team', role: 'member' },
   boards: { label: 'Boards', screen: 'boards', role: 'member' },
   settings: { label: 'Settings', screen: 'settings', role: 'member' },
-  admin: { label: 'Manage', screen: 'admin', role: 'manager' }
+  admin: { label: 'Manage', screen: 'admin', role: 'manager' },
+  club: { label: 'Members', screen: 'club', role: 'manager' }
 };
 
 // The tabs shown on the bar by default for each role; the rest sit under More.
 const DEFAULT_TABS = {
   member: ['dashboard', 'checkin', 'goals', 'group', 'team', 'boards'],
   commander: ['dashboard', 'checkin', 'group', 'team', 'boards'],
-  manager: ['dashboard', 'admin', 'group', 'checkin', 'boards']
+  manager: ['dashboard', 'admin', 'club', 'group', 'checkin']
 };
 
 // Commands a group in the running season or the one open for enrolment.
@@ -3611,6 +3735,7 @@ function renderScreen(screen) {
   else if (screen === 'team') renderTeam();
   else if (screen === 'boards') renderBoards();
   else if (screen === 'admin') renderAdmin();
+  else if (screen === 'club') renderClubRoster();
   else if (screen === 'settings') renderSettings();
 }
 
