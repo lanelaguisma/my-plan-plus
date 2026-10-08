@@ -11,8 +11,8 @@ test('a group commander holds a place, and the newcomer lands on the roster when
 
   await signInAs({ app, browser, screen }, sia);
   await screen.getByText('Hold a place for someone not yet registered').tap();
-  await browser.locator(`#pm-name-${groupId}`).fill('Mia Chen');
-  await browser.locator(`#pm-email-${groupId}`).fill('mia@example.test');
+  await browser.locator(`#pending-holder-pm-name-${groupId}`).fill('Mia Chen');
+  await browser.locator(`#pending-holder-pm-email-${groupId}`).fill('mia@example.test');
   await screen.getByRole('button', 'Hold a place').tap();
   await expect(screen.getByText('pending registration')).toBeVisible();
 
