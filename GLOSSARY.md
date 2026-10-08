@@ -82,6 +82,14 @@ _Avoid_: Leader, facilitator, captain, host
 
 ## Placement
 
+**Invite Link**:
+A member's personal, shareable link, with a pre-written message, inviting someone to register and join the club; it brings them in as an unplaced member.
+_Avoid_: Referral, invitation (that is a group commander's offer to a member)
+
+**Pending Member**:
+A person added to a group's roster by name and email before they have registered; they hold a place and become a member when they sign up with that email.
+_Avoid_: Placeholder, ghost member, pre-registration
+
 **Enrolment**:
 The period before a season starts, often overlapping the previous season, when members confirm continuation and unplaced members are placed into groups.
 _Avoid_: Sign-up, registration
@@ -147,6 +155,10 @@ _Avoid_: Skipped week, break week
 **Pulse**:
 A member's private, lightweight rating of how well their group is working for them, collected in weeks 4, 8 and 13.
 _Avoid_: Survey, feedback form, satisfaction score
+
+**On-behalf Entry**:
+A check-in, RSVP or preferences change that a group commander or club manager records for a member, marked with who entered it; the member can always overwrite it.
+_Avoid_: Proxy, override
 
 ## Communication
 
