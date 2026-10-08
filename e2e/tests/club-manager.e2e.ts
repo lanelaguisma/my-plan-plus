@@ -13,7 +13,8 @@ test('a club manager places an unplaced member from a suggestion, and the member
   await sql("update profiles set slots = $1, preferred_slot = $2, looking_for = 'Founders' where id = $3", [JSON.stringify([WED]), WED, mia.id]);
 
   await signInAs({ app, browser, screen }, manager);
-  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'groups');
   await expect(screen.getByRole('heading', /Unplaced Members/)).toBeVisible();
   await expect(screen.getByText(/★ preferred · 3 of 4 places open/)).toBeVisible();
   await screen.getByRole('button', 'Assign').tap();
@@ -33,7 +34,8 @@ test('opening enrolment asks each member to confirm they are continuing', async 
   await sql("insert into cycles (name, start_date, status) values ('Season 25', (date_trunc('week', now()) + interval '7 weeks')::date, 'setup')");
 
   await signInAs({ app, browser, screen }, manager);
-  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'seasons');
   const off = await browser.onDialog('accept');
   await screen.getByRole('button', 'Open sign-up').tap();
   await expect(screen.getByRole('heading', /Continuation/)).toBeVisible();
@@ -57,7 +59,8 @@ test('the club overview shows an at-risk group and why', async ({ app, browser, 
   await group(manager, s25, 'Wed Mavericks', WED, [sia]);
 
   await signInAs({ app, browser, screen }, manager);
-  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'overview');
 
   await expect(screen.getByRole('heading', /Club Overview/)).toBeVisible();
   await expect(screen.getByText('No group commander.', { exact: false })).toBeVisible();
@@ -72,7 +75,9 @@ test('a club manager announces to a group and its members receive it', async ({ 
   await group(manager, s25, 'Wed Mavericks', WED, [jessica]);
 
   await signInAs({ app, browser, screen }, manager);
-  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'more');
+  await screen.getByRole('button', 'Announce').tap();
   await browser.locator('#ann-body').fill('WAMs pause over the holidays.');
   await screen.getByRole('button', 'Send announcement').tap();
   await expect(screen.getByText(/Everyone · reached 1/)).toBeVisible();
@@ -98,7 +103,8 @@ test('a member asks to transfer and a club manager moves them', async ({ app, br
   await off();
 
   await signInAs({ app, browser, screen }, manager);
-  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'groups');
   await expect(screen.getByText('Fridays suit me better now', { exact: false, visible: true })).toBeVisible();
   await screen.getByRole('button', 'Move').tap();
 
@@ -112,7 +118,8 @@ test('a club manager creates the next season from the suggested start date', asy
   await sql("insert into cycles (name, start_date, status) values ('Season 24', '2026-10-05', 'active')");
 
   await signInAs({ app, browser, screen }, manager);
-  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'seasons');
   await expect(browser.locator('#new-cycle-start')).toHaveValue('2027-01-04');
   await browser.locator('#new-cycle-name').fill('Season 25');
   await screen.getByRole('button', '+ Create Season').tap();
@@ -156,7 +163,8 @@ test('a club manager sees and overrides when enrolment is due', async ({ app, br
   const s25 = await season('Season 25', 'setup', -10);
 
   await signInAs({ app, browser, screen }, manager);
-  await screen.getByRole('button', 'Open Club Manager Panel').tap();
+  await switchMode({ browser }, 'manager');
+  await openTab({ browser }, 'seasons');
   await expect(screen.getByText(/Enrolment opens .* closes/)).toBeVisible();
 
   await screen.getByRole('button', 'Edit').first().tap();

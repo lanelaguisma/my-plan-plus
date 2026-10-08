@@ -821,17 +821,73 @@ textarea { resize: vertical; min-height: 60px; }
 </div>
 
 <!-- ========== SCREEN: ADMIN ========== -->
-<div id="screen-admin" class="screen">
+<div id="screen-overview" class="screen">
   <div class="app-container fade-in">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
       <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
       <div>
-        <h1 style="margin:0">Club Manager</h1>
-        <div class="subtitle" style="margin:0">Seasons, registrations &amp; group allocation</div>
+        <h1 style="margin:0">Club Overview</h1>
+        <div class="subtitle" style="margin:0">What needs attention this season</div>
       </div>
     </div>
     <div style="height:16px"></div>
-    <div id="admin-content"></div>
+    <div id="overview-content"></div>
+  </div>
+</div>
+
+<div id="screen-groups" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Groups</h1>
+        <div class="subtitle" style="margin:0">Allocation, assignment, transfers and overrides</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="groups-content"></div>
+  </div>
+</div>
+
+<div id="screen-seasons" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Seasons</h1>
+        <div class="subtitle" style="margin:0">12-week seasons and enrolment</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="seasons-content"></div>
+  </div>
+</div>
+
+<div id="screen-clubannounce" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Club Announcements</h1>
+        <div class="subtitle" style="margin:0">Tell members, groups or commanders</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="clubannounce-content"></div>
+  </div>
+</div>
+
+<div id="screen-clubsettings" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Club Settings</h1>
+        <div class="subtitle" style="margin:0">Invite message, message boards and export</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="clubsettings-content"></div>
   </div>
 </div>
 
@@ -1699,19 +1755,19 @@ async function answerContinuation(continuing) {
 // What a member can do straight from a notice, by the notice's action code.
 const NOTICE_ACTIONS = {
   view_group: { label: 'View my group', run: () => navigateTo('group') },
-  view_registrants: { label: 'Open Club Manager Panel', run: () => navigateTo('admin') },
+  view_registrants: { label: 'Review', run: () => navigateTo('groups') },
   review_offers: { label: 'Review', run: () => navigateTo('group') },
   confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
   view_checkin: { label: 'View', run: n => { if (n && n.payload && n.payload.week) selectedWeek = n.payload.week; navigateTo('checkin'); } },
   view_attendance: { label: 'View roster', run: () => navigateTo('roster') },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
-  review_transfers: { label: 'Review', run: () => navigateTo('admin') },
-  view_health: { label: 'View', run: n => navigateTo(n && n.role === 'manager' ? 'admin' : 'roster') },
-  review_departures: { label: 'Review', run: () => navigateTo('admin') },
-  review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
+  review_transfers: { label: 'Review', run: () => navigateTo('groups') },
+  view_health: { label: 'View', run: n => navigateTo(n && n.role === 'manager' ? 'overview' : 'roster') },
+  review_departures: { label: 'Review', run: () => navigateTo('groups') },
+  review_wam_time: { label: 'Review', run: () => navigateTo('groups') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
-  review_join_requests: { label: 'Review', run: n => navigateTo(n && n.role === 'manager' ? 'admin' : 'requests') }
+  review_join_requests: { label: 'Review', run: n => navigateTo(n && n.role === 'manager' ? 'groups' : 'requests') }
 };
 
 async function loadInbox() {
@@ -1939,7 +1995,7 @@ async function adminCreateBoard() {
   const { error } = await sb.from('boards').insert({ name: name.trim(), created_by: APP.user.id });
   if (error) { alert(error.message); return; }
   await loadCommunity();
-  if (currentScreen === 'admin') renderAdmin(); else if (currentScreen === 'group') renderGroup(); else renderBoards();
+  if (ADMIN_SECTIONS.includes(currentScreen)) renderAdmin(); else if (currentScreen === 'group') renderGroup(); else renderBoards();
 }
 
 async function adminDeleteBoard() {
@@ -1950,7 +2006,7 @@ async function adminDeleteBoard() {
   if (error) { alert(error.message); return; }
   APP.curBoardId = null;
   await loadCommunity();
-  if (currentScreen === 'admin') renderAdmin(); else if (currentScreen === 'group') renderGroup(); else renderBoards();
+  if (ADMIN_SECTIONS.includes(currentScreen)) renderAdmin(); else if (currentScreen === 'group') renderGroup(); else renderBoards();
 }
 
 /* ========== GROUP SCREEN ========== */
@@ -2056,9 +2112,6 @@ function renderGroup() {
     </div>`;
   }
 
-  if (APP.isAdmin) {
-    html += `<button class="btn btn-secondary" onclick="navigateTo('admin')">Open Club Manager Panel</button>`;
-  }
 
   el.innerHTML = html;
 }
@@ -2087,7 +2140,7 @@ async function addPendingMember(groupId, seasonId, prefix = 'pending-holder-') {
   const { error } = await sb.rpc('add_pending_member', { p_group: groupId, p_season: seasonId, p_name: name, p_email: email });
   if (error) { alert(error.message); return; }
   await loadCommunity();
-  if (currentScreen === 'admin') renderAdmin(); else renderScreen(currentScreen);
+  if (ADMIN_SECTIONS.includes(currentScreen)) renderAdmin(); else renderScreen(currentScreen);
 }
 
 async function cancelPendingMember(id) {
@@ -2095,7 +2148,7 @@ async function cancelPendingMember(id) {
   const { error } = await sb.rpc('cancel_pending_member', { p_pending: id });
   if (error) { alert(error.message); return; }
   await loadCommunity();
-  if (currentScreen === 'admin') renderAdmin(); else renderScreen(currentScreen);
+  if (ADMIN_SECTIONS.includes(currentScreen)) renderAdmin(); else renderScreen(currentScreen);
 }
 
 // For a placed member: other groups with room this season they can apply to.
@@ -2421,7 +2474,7 @@ async function saveProfileName() {
 const ADMIN = { profiles: [], groups: [], members: [], selCycleId: null, alloc: null, editCycleId: null, suggestedStart: '' };
 
 async function renderAdmin() {
-  const el = document.getElementById('admin-content');
+  const el = document.getElementById((ADMIN_SECTIONS.includes(currentScreen) ? currentScreen : 'overview') + '-content');
   if (!APP.isAdmin) { el.innerHTML = '<div class="empty-state"><p>Club managers only.</p></div>'; return; }
   el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
   const [pr, gr, gm, cy, bd, ss, pm] = await Promise.all([
@@ -2692,8 +2745,10 @@ async function adminAssignSuggested(memberId, groupId) {
   renderAdmin();
 }
 
+// The Club manager tabs that share the club manager's data.
+const ADMIN_SECTIONS = ['overview', 'groups', 'seasons', 'clubannounce', 'clubsettings'];
+
 function drawAdmin() {
-  const el = document.getElementById('admin-content');
   const profById = {};
   ADMIN.profiles.forEach(p => { profById[p.id] = p; });
   const displayName = id => { const p = profById[id] || {}; return p.full_name || p.email || id; };
@@ -2706,9 +2761,16 @@ function drawAdmin() {
   seasonMembers.forEach(m => { if (groupById[m.group_id]) memberGroup[m.user_id] = groupById[m.group_id]; });
   const allEmails = ADMIN.profiles.map(p => p.email).filter(Boolean);
 
+  // Each Club manager tab shows one section (ADR 0003).
+  const section = ADMIN_SECTIONS.includes(currentScreen) ? currentScreen : 'overview';
+  const parts = {};
+  const seasonPicker = selCycle ? `<div class="form-group"><label class="form-label">Season</label>
+      <select id="admin-cycle-sel" onchange="ADMIN.selCycleId=this.value;ADMIN.alloc=null;loadUnplaced().then(drawAdmin)">` +
+      APP.cycles.map(c => `<option value="${c.id}"${c.id === ADMIN.selCycleId ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
+      `</select></div>` : '';
   let html = '';
 
-  html += overviewCardHtml(APP.cycles.find(c => c.id === ADMIN.selCycleId) || null);
+  parts.overview = seasonPicker + overviewCardHtml(selCycle) + pulsesCardHtml(selCycle);
 
   // --- Seasons ---
   html += '<div class="card"><h3>12-Week Seasons</h3>';
@@ -2749,15 +2811,14 @@ function drawAdmin() {
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px"><strong>Open sign-up</strong> lets people join and create groups for the NEXT season while the current one is still running (you can also pre-allocate it below via the Season selector). <strong>Make active</strong> starts a season — the previously active one is archived — and its group members get the planning tools.</p>
   </div>`;
 
+  parts.seasons = html + continuationCardHtml();
+  html = seasonPicker;
+
   // --- Groups & Allocation ---
   html += `<div class="card"><h3>Groups &amp; Allocation</h3>`;
   if (!selCycle) {
     html += '<p style="font-size:13px;color:var(--text-muted)">Create a season first.</p></div>';
   } else {
-    html += `<div class="form-group"><label class="form-label">Season</label>
-      <select id="admin-cycle-sel" onchange="ADMIN.selCycleId=this.value;ADMIN.alloc=null;loadUnplaced().then(drawAdmin)">` +
-      APP.cycles.map(c => `<option value="${c.id}"${c.id === ADMIN.selCycleId ? ' selected' : ''}>${esc(c.name)}</option>`).join('') +
-      `</select></div>`;
 
     // Existing groups
     if (cycleGroups.length) {
@@ -2876,8 +2937,10 @@ function drawAdmin() {
     </div>
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Change the <strong>Group</strong> dropdown to move someone to another group (or to no group) &mdash; it takes effect immediately, and club manager moves can exceed the typical group size. Email buttons open a pre-addressed draft in your own mail app (recipients in BCC); for a long list use "Copy all emails". Hover over the availability count to see a person's nominated times (\u2605 = preferred).</p></div>`;
 
-  html += inviteMessageCardHtml();
-  html += continuationCardHtml() + unplacedCardHtml(selCycle) + movesCardHtml(selCycle, cycleGroups) + pulsesCardHtml(selCycle) + announcementsCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
+  html += unplacedCardHtml(selCycle) + movesCardHtml(selCycle, cycleGroups) + wamTimeCardHtml(cycleGroups);
+  parts.groups = html;
+  parts.clubannounce = seasonPicker + announcementsCardHtml(selCycle, cycleGroups);
+  html = inviteMessageCardHtml();
 
   // --- Message boards ---
   html += `<div class="card"><h3>Community Message Boards</h3>` +
@@ -2894,8 +2957,9 @@ function drawAdmin() {
     <p style="font-size:11px;color:var(--text-muted);margin-top:8px">Members' plan entries are private to each member &mdash; everyone can export their own backup from Settings.</p>
   </div>`;
 
-  html += `<button class="btn btn-secondary" onclick="navigateTo('group')">&larr; Back to Group</button>`;
-  el.innerHTML = html;
+  parts.clubsettings = html;
+  const target = document.getElementById(section + '-content');
+  if (target) target.innerHTML = parts[section];
 }
 
 // Asks the club manager to confirm a start date that overlaps, or leaves a
@@ -3908,6 +3972,11 @@ let charts = {};
 let expandedGoals = new Set();
 
 const TAB_ICONS = {
+  overview: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>',
+  groups: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20a6 6 0 0112 0M10 20a6 6 0 0112 0"/></svg>',
+  seasons: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  clubannounce: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a1 1 0 001 1h3l5 4V6L7 10H4a1 1 0 00-1 1zM16 8a5 5 0 010 8"/></svg>',
+  clubsettings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8L7 17M17 7l2.8-2.8"/></svg>',
   wams: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4"/></svg>',
   requests: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M1 21v-2a4 4 0 014-4h8a4 4 0 014 4v2M19 8v6M16 11h6"/></svg>',
   announce: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a1 1 0 001 1h3l5 4V6L7 10H4a1 1 0 00-1 1zM16 8a5 5 0 010 8"/></svg>',
@@ -3950,7 +4019,11 @@ const TABS = {
   requests: { label: 'Requests', screen: 'requests', modes: ['commander'] },
   announce: { label: 'Announce', screen: 'announce', modes: ['commander'] },
   groupsettings: { label: 'Group settings', screen: 'groupsettings', modes: ['commander'] },
-  admin: { label: 'Manage', screen: 'admin', modes: ['manager'] },
+  overview: { label: 'Overview', screen: 'overview', modes: ['manager'] },
+  groups: { label: 'Groups', screen: 'groups', modes: ['manager'] },
+  seasons: { label: 'Seasons', screen: 'seasons', modes: ['manager'] },
+  clubannounce: { label: 'Announce', screen: 'clubannounce', modes: ['manager'] },
+  clubsettings: { label: 'Club settings', screen: 'clubsettings', modes: ['manager'] },
   club: { label: 'Members', screen: 'club', modes: ['manager'] }
 };
 
@@ -3958,7 +4031,7 @@ const TABS = {
 const DEFAULT_TABS = {
   member: ['reminders', 'dashboard', 'checkin', 'goals', 'group', 'boards'],
   commander: ['reminders', 'roster', 'wams', 'requests', 'announce'],
-  manager: ['reminders', 'admin', 'club', 'roster']
+  manager: ['reminders', 'overview', 'club', 'groups', 'seasons']
 };
 
 // Commands a group in the running season or the one open for enrolment.
@@ -4178,7 +4251,7 @@ function renderScreen(screen) {
   else if (screen === 'group') renderGroup();
   else if (screen === 'team') renderTeam();
   else if (screen === 'boards') renderBoards();
-  else if (screen === 'admin') renderAdmin();
+  else if (ADMIN_SECTIONS.includes(screen)) renderAdmin();
   else if (screen === 'club') renderClubRoster();
   else if (screen === 'roster') renderRoster();
   else if (screen === 'settings') renderSettings();
