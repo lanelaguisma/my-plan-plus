@@ -36,7 +36,7 @@ async function profileOf({ club, outsider, groupId, s25 }) {
 
 describe('group state', () => {
   test('a group below the minimum size is forming', async () => {
-    const fixture = await wedMavericks({ rosterSize: 2, withCommander: true });
+    const fixture = await wedMavericks({ rosterSize: 1, withCommander: true });
 
     expect((await profileOf(fixture)).state).toBe('forming');
   });
@@ -48,7 +48,7 @@ describe('group state', () => {
   });
 
   test('a group at the minimum size with a group commander is active', async () => {
-    const fixture = await wedMavericks({ rosterSize: 3, withCommander: true });
+    const fixture = await wedMavericks({ rosterSize: 2, withCommander: true });
 
     expect((await profileOf(fixture)).state).toBe('active');
   });
