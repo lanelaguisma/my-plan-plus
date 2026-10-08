@@ -1807,6 +1807,7 @@ function renderGroup() {
       ${APP.activeCycle ? wamListHtml(APP.myGroup, APP.activeCycle) : ''}
       <div id="group-health-holder"></div>
       <div id="group-pulse-holder"></div>
+      <div id="pending-holder-${APP.myGroup.id}"></div>
       <h3 style="margin-top:12px">Members</h3>
       ${APP.myGroupMembers.map(m => `<div class="member-row">
         <span>${esc(m.full_name || 'Unnamed')}${m.id === APP.user.id ? ' (you)' : ''}</span>
@@ -1845,6 +1846,7 @@ function renderGroup() {
           <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="answerContinuation(true)">Yes, I'm continuing</button>
           <button class="btn btn-secondary btn-sm" onclick="answerContinuation(false)">No, free my place</button></div></div>` : ''}
         <div id="continuations-holder"></div>
+        <div id="pending-holder-${APP.myNextGroup.id}"></div>
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the club manager makes the season active.</div>
         <button class="btn btn-danger btn-sm" onclick="leaveNextGroup()">Leave This Group</button>
       </div>`;
@@ -1889,6 +1891,43 @@ function renderGroup() {
     loadGroupHealth(APP.myGroup, APP.activeCycle);
   }
   if (led) loadProspectiveMembers(led.group, led.season);
+  if (APP.myGroup && APP.activeCycle && APP.myGroup.commander_id === APP.user.id) loadPendingMembers(APP.myGroup, APP.activeCycle);
+  if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id) loadPendingMembers(APP.myNextGroup, APP.nextCycle);
+}
+
+// For a group commander: places held for people who haven't registered yet.
+async function loadPendingMembers(group, season) {
+  const holder = document.getElementById('pending-holder-' + group.id);
+  if (!holder) return;
+  const { data, error } = await sb.rpc('group_pending_members', { p_group: group.id, p_season: season.id });
+  if (error) return;
+  holder.innerHTML = '<h3 style="margin-top:12px">Pending registration</h3>' +
+    (data || []).map(pm => `<div class="member-row"><span>${esc(pm.full_name)} <span class="badge-pill amber">pending registration</span>
+        <br><span style="font-size:11px;color:var(--text-muted)">${esc(pm.email)}</span></span>
+        <button class="btn btn-secondary btn-sm" onclick="cancelPendingMember('${pm.id}')">Cancel</button></div>`).join('') +
+    (group.vacancies > 0
+      ? `<details style="margin-top:6px"><summary style="font-size:13px;cursor:pointer">Hold a place for someone not yet registered</summary>
+          <p style="font-size:12px;color:var(--text-secondary);margin:6px 0">They join your roster as soon as they register with this email. Send them your invite link from <strong>Invite Someone</strong>.</p>
+          <div class="btn-row"><input type="text" id="pm-name-${group.id}" placeholder="Name"><input type="text" id="pm-email-${group.id}" placeholder="Email" inputmode="email"></div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="addPendingMember('${group.id}', '${season.id}')">Hold a place</button></details>`
+      : (data || []).length ? '' : '<div style="font-size:12px;color:var(--text-muted)">No open places to hold.</div>');
+}
+
+async function addPendingMember(groupId, seasonId) {
+  const name = document.getElementById('pm-name-' + groupId).value.trim();
+  const email = document.getElementById('pm-email-' + groupId).value.trim();
+  const { error } = await sb.rpc('add_pending_member', { p_group: groupId, p_season: seasonId, p_name: name, p_email: email });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  if (currentScreen === 'admin') renderAdmin(); else renderScreen(currentScreen);
+}
+
+async function cancelPendingMember(id) {
+  if (!confirm('Cancel this held place? It becomes an open place again.')) return;
+  const { error } = await sb.rpc('cancel_pending_member', { p_pending: id });
+  if (error) { alert(error.message); return; }
+  await loadCommunity();
+  if (currentScreen === 'admin') renderAdmin(); else renderScreen(currentScreen);
 }
 
 // The group (and season) the signed-in member commands and can still fill.
@@ -2156,14 +2195,16 @@ async function renderAdmin() {
   const el = document.getElementById('admin-content');
   if (!APP.isAdmin) { el.innerHTML = '<div class="empty-state"><p>Club managers only.</p></div>'; return; }
   el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
-  const [pr, gr, gm, cy, bd, ss] = await Promise.all([
+  const [pr, gr, gm, cy, bd, ss, pm] = await Promise.all([
     sb.from('profiles').select('id,full_name,email,timezone,slots,preferred_slot,is_admin,created_at').order('created_at'),
     sb.from('season_groups').select('*').order('created_at'),
     sb.from('group_members').select('group_id,user_id,cycle_id').neq('status', 'departed'),
     sb.from('cycles').select('*').order('start_date', { ascending: false }),
     sb.from('boards').select('*').order('created_at'),
-    sb.rpc('suggested_season_start')
+    sb.rpc('suggested_season_start'),
+    sb.from('pending_members').select('id,group_id,cycle_id,full_name,email').eq('status', 'pending').order('created_at')
   ]);
+  ADMIN.pending = pm.error ? [] : (pm.data || []);
   ADMIN.suggestedStart = ss.data || '';
   ADMIN.profiles = pr.data || [];
   ADMIN.groups = gr.data || [];
@@ -2401,6 +2442,16 @@ function unplacedCardHtml(selCycle) {
     '</div>';
 }
 
+async function adminHoldPlace(groupId) {
+  const name = prompt('Their name:');
+  if (!name) return;
+  const email = prompt('Their email — they join this roster when they register with it:');
+  if (!email) return;
+  const { error } = await sb.rpc('add_pending_member', { p_group: groupId, p_season: ADMIN.selCycleId, p_name: name, p_email: email });
+  if (error) { alert(error.message); return; }
+  renderAdmin();
+}
+
 async function adminAssignSuggested(memberId, groupId) {
   const { error } = await sb.rpc('assign_member', { p_member: memberId, p_group: groupId, p_season: ADMIN.selCycleId });
   if (error) { alert(error.message); return; }
@@ -2502,6 +2553,9 @@ function drawAdmin() {
           (mem.length
             ? mem.map(m => `<div class="member-row"><span>${esc(displayName(m.user_id))}${g.commander_id === m.user_id ? ' <span class="badge-pill green">commander</span>' : ''}</span><button class="icon-btn danger" title="Remove from group" onclick="adminRemoveMember('${g.id}','${m.user_id}')">&#10005;</button></div>`).join('')
             : '<div style="font-size:12px;color:var(--text-muted)">No members yet.</div>') +
+          (ADMIN.pending || []).filter(pm => pm.group_id === g.id && pm.cycle_id === selCycle.id).map(pm =>
+            `<div class="member-row"><span>${esc(pm.full_name)} <span class="badge-pill amber">pending registration</span> <span style="font-size:11px;color:var(--text-muted)">${esc(pm.email)}</span></span><button class="icon-btn danger" title="Cancel held place" onclick="cancelPendingMember('${pm.id}')">&#10005;</button></div>`).join('') +
+          `<button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="adminHoldPlace('${g.id}')">+ Hold a place for someone not registered</button>` +
           `</div>`;
       });
     } else {
