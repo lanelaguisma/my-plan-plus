@@ -82,3 +82,18 @@ test('a group commander is reminded to confirm attendance and does it from the r
   await openTab({ browser }, 'reminders');
   await expect(browser.locator('[data-reminder="attendance_unconfirmed"]')).toHaveCount(0);
 });
+
+test('a club manager is reminded about unplaced members and goes to place them', async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const mia = await register('Mia');
+  await season('Season 25', 'active');
+  await sql("update profiles set slots = $1 where id = $2", [JSON.stringify([slot(2, 21, 30)]), mia.id]);
+
+  await signInAs({ app, browser, screen }, manager);
+  await expect(browser.locator('#mode-switcher [data-mode="manager"] .mode-dot')).toBeVisible();
+  await switchMode({ browser }, 'manager');
+  await expect(screen.getByText('1 unplaced member for Season 25 — place them in a group.', { exact: false })).toBeVisible();
+  await screen.getByRole('button', 'Place').tap();
+  await expect(screen.getByRole('heading', /Unplaced Members/)).toBeVisible();
+});
