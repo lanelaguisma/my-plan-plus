@@ -137,19 +137,32 @@ describe('confirming continuation', () => {
 });
 
 describe('continuation reminders and progress', () => {
-  test('a member awaiting continuation has a reminder until they answer', async () => {
+  test('a member awaiting continuation has a reminder, counting down, until they answer', async () => {
     const fixture = await clubBetweenSeasons();
     const { club, cameron, s25 } = fixture;
     await openEnrolment(fixture);
+    const [{ days }] = await club.owner("select ('2027-01-03'::date - current_date) as days");
 
-    const before = await club.as(cameron).query("select message, action from my_notices() where kind = 'continuation'");
+    const before = await club.as(cameron).query("select message, action, role, overdue from my_reminders() where kind = 'continuation'");
     await club.as(cameron).query('select confirm_continuation($1, true)', [s25.id]);
-    const after = await club.as(cameron).query("select message from my_notices() where kind = 'continuation'");
+    const after = await club.as(cameron).query("select message from my_reminders() where kind = 'continuation'");
 
     expect([before, after]).toEqual([
-      [{ message: 'Are you continuing with Fri-B for Season 25? Please confirm.', action: 'confirm_continuation' }],
+      [{ message: `Are you continuing with Fri-B for Season 25? ${days} days left to confirm.`, action: 'confirm_continuation', role: 'member', overdue: false }],
       [],
     ]);
+  });
+
+  test('it is overdue in the last 3 days, and no longer a notice', async () => {
+    const fixture = await clubBetweenSeasons();
+    const { club, manager, cameron, s25 } = fixture;
+    await openEnrolment(fixture);
+    await club.as(manager).query('select set_season_enrolment_dates($1, null, current_date + 1)', [s25.id]);
+
+    expect([
+      await club.as(cameron).query("select message, overdue from my_reminders() where kind = 'continuation'"),
+      await club.as(cameron).query("select key from my_notices() where kind = 'continuation'"),
+    ]).toEqual([[{ message: 'Are you continuing with Fri-B for Season 25? 1 day left to confirm.', overdue: true }], []]);
   });
 
   test('club managers see continuation progress for every group', async () => {
