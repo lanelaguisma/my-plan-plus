@@ -1,6 +1,6 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { group, register, reset, season, signInAs, slot, sql } from '../fixtures';
+import { group, openTab, register, reset, season, signInAs, slot, sql } from '../fixtures';
 
 test('a new member registers and sets their preferences', async ({ app, browser, screen }) => {
   await reset();
@@ -55,12 +55,17 @@ test('a member answers the week 4 pulse', async ({ app, browser, screen }) => {
   await group(manager, s25, 'Wed Mavericks', slot(2, 21, 30), [jessica]);
 
   await signInAs({ app, browser, screen }, jessica);
+  await openTab({ browser }, 'reminders');
+  await expect(screen.getByText('Week 4 pulse — it takes one tap.', { exact: false })).toBeVisible();
+  await browser.locator('[data-reminder="pulse"] button').tap();
 
   await expect(screen.getByRole('heading', 'Week 4 pulse')).toBeVisible();
   const off = await browser.onDialog('accept');
   await screen.getByRole('button', 'So-so').tap();
   await expect(screen.getByRole('heading', 'Week 4 pulse')).toHaveCount(0);
   await off();
+  await openTab({ browser }, 'reminders');
+  await expect(browser.locator('[data-reminder="pulse"]')).toHaveCount(0);
   const [pulse] = await sql<{ rating: string }>('select rating from pulses where member_id = $1', [jessica.id]);
   expect(pulse.rating).toBe('so_so');
 });
