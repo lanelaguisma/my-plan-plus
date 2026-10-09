@@ -1778,6 +1778,7 @@ const NOTICE_ACTIONS = {
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_transfers: { label: 'Review', run: n => { seasonFrom(n); navigateTo('groups'); } },
   review_unplaced: { label: 'Place', run: n => { seasonFrom(n); navigateTo('groups'); } },
+  open_seasons: { label: 'Seasons', run: () => navigateTo('seasons') },
   review_pending: { label: 'Review', run: n => { if (n && n.payload && n.payload.season_id) CLUB.seasonId = n.payload.season_id; navigateTo('club'); } },
   view_health: { label: 'View', run: n => { if (n && n.role === 'manager') { seasonFrom(n); navigateTo('overview'); } else navigateTo('roster'); } },
   review_departures: { label: 'Review', run: () => navigateTo('groups') },

@@ -97,3 +97,20 @@ test('a club manager is reminded about unplaced members and goes to place them',
   await screen.getByRole('button', 'Place').tap();
   await expect(screen.getByRole('heading', /Unplaced Members/)).toBeVisible();
 });
+
+test('a club manager is reminded to create the next season, and the reminder goes once it exists', async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  await season('Season 24', 'active', 9);
+
+  await signInAs({ app, browser, screen }, manager);
+  await switchMode({ browser }, 'manager');
+  await expect(screen.getByText('Season 24 is in week 10 and no season after it has been created yet.', { exact: false })).toBeVisible();
+  await browser.locator('[data-reminder="milestone_no_next_season"] button').tap();
+  await browser.locator('#new-cycle-name').fill('Season 25');
+  await screen.getByRole('button', '+ Create Season').tap();
+  await expect(screen.getByText('Season 25', { exact: false }).first()).toBeVisible();
+
+  await openTab({ browser }, 'reminders');
+  await expect(browser.locator('[data-reminder="milestone_no_next_season"]')).toHaveCount(0);
+});
