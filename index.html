@@ -1635,6 +1635,7 @@ async function saveAttendance(groupId, seasonId, week) {
   const { error } = await sb.rpc('confirm_attendance', { p_group: groupId, p_season: seasonId, p_week: week, p_attendees: attendees });
   if (error) { alert(error.message); return; }
   holder.innerHTML = '<div style="font-size:12px;margin:4px 0 8px 12px;color:var(--success)">Attendance confirmed.</div>';
+  loadInbox(); // settles the attendance reminder
 }
 
 // The season's WAMs as an iCalendar file (cancelled ones left out, moved
@@ -1764,6 +1765,11 @@ const NOTICE_ACTIONS = {
   view_checkin: { label: 'View', run: n => { if (n && n.payload && n.payload.week) selectedWeek = n.payload.week; navigateTo('checkin'); } },
   view_attendance: { label: 'View roster', run: () => navigateTo('roster') },
   view_roster: { label: 'Prepare', run: () => navigateTo('roster') },
+  confirm_attendance: { label: 'Confirm', run: r => {
+    const p = (r && r.payload) || {};
+    if (p.group_id) { ROSTER.key = p.group_id + ':' + p.season_id; ROSTER.openAttendance = p.week; }
+    navigateTo('wams');
+  } },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_transfers: { label: 'Review', run: () => navigateTo('groups') },
   view_health: { label: 'View', run: n => navigateTo(n && n.role === 'manager' ? 'overview' : 'roster') },
@@ -2243,6 +2249,11 @@ async function renderLeadWams() {
       ${dayTimeSelects('wamtime')}
       <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="proposeWamTime('${group.id}')">Send to the club manager</button>
     </div>`;
+  if (ROSTER.openAttendance) { // arrived from an attendance reminder
+    const week = ROSTER.openAttendance;
+    ROSTER.openAttendance = null;
+    toggleAttendance(group.id, season.id, week);
+  }
 }
 
 // Commander mode: a one-way announcement to the group.

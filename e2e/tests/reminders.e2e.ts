@@ -63,3 +63,22 @@ test("a group commander is told who can't make tomorrow's WAM", async ({ app, br
   await screen.getByRole('button', 'Prepare').tap();
   await expect(screen.getByRole('heading', 'Group Roster')).toBeVisible();
 });
+
+test('a group commander is reminded to confirm attendance and does it from the reminder', async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const s25 = await season('Season 25', 'active', 0);
+  await group(manager, s25, 'Wed Mavericks', MON_0005, [sia, jessica], { commander: true });
+
+  await signInAs({ app, browser, screen }, sia);
+  await switchMode({ browser }, 'commander');
+  await expect(screen.getByText("Confirm who attended Wed Mavericks's week 1 WAM.", { exact: false })).toBeVisible();
+  await screen.getByRole('button', 'Confirm').tap();
+  await expect(screen.getByText(/Who attended\?/)).toBeVisible();
+  await screen.getByRole('button', 'Confirm attendance').tap();
+  await expect(screen.getByText('Attendance confirmed.')).toBeVisible();
+
+  await openTab({ browser }, 'reminders');
+  await expect(browser.locator('[data-reminder="attendance_unconfirmed"]')).toHaveCount(0);
+});
