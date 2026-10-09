@@ -1706,7 +1706,7 @@ async function cancelWam(groupId, seasonId, week) {
 /* ========== PULSE ========== */
 // Shown in a pulse week until the member answers (the inbox reminder says when).
 function pulseCardHtml() {
-  const due = (APP.notices || []).find(n => n.kind === 'pulse');
+  const due = (APP.reminders || []).find(r => r.kind === 'pulse');
   if (!due) return '';
   const { season_id, week } = due.payload || {};
   return `<div class="card" style="border:1px solid var(--accent)"><h3 style="color:var(--accent)">Week ${week} pulse</h3>

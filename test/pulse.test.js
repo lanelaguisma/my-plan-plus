@@ -81,12 +81,14 @@ describe('the pulse', () => {
   test('members are reminded in a pulse week until they answer', async () => {
     const { club, s25, jessica } = await inWeekFour();
 
-    const before = await club.as(jessica).query("select message, action from my_notices() where kind = 'pulse'");
+    const before = await club.as(jessica).query("select message, action, role from my_reminders() where kind = 'pulse'");
+    const notices = await club.as(jessica).query("select key from my_notices() where kind = 'pulse'");
     await pulse(club, jessica, s25.id, 'working');
-    const after = await club.as(jessica).query("select message from my_notices() where kind = 'pulse'");
+    const after = await club.as(jessica).query("select message from my_reminders() where kind = 'pulse'");
 
-    expect([before, after]).toEqual([
-      [{ message: 'How is Wed Mavericks working for you? Week 4 pulse — it takes one tap.', action: 'answer_pulse' }],
+    expect([before, notices, after]).toEqual([
+      [{ message: 'How is Wed Mavericks working for you? Week 4 pulse — it takes one tap.', action: 'answer_pulse', role: 'member' }],
+      [],
       [],
     ]);
   });
