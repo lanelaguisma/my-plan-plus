@@ -1755,6 +1755,11 @@ async function answerContinuation(continuing) {
 
 
 /* ========== INBOX ========== */
+// A club manager's notice or reminder about one season opens that season.
+function seasonFrom(n) {
+  if (n && n.payload && n.payload.season_id) { ADMIN.selCycleId = n.payload.season_id; ADMIN.alloc = null; }
+}
+
 // What a member can do straight from a notice, by the notice's action code.
 const NOTICE_ACTIONS = {
   view_group: { label: 'View my group', run: () => navigateTo('group') },
@@ -1771,8 +1776,10 @@ const NOTICE_ACTIONS = {
     navigateTo('wams');
   } },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
-  review_transfers: { label: 'Review', run: () => navigateTo('groups') },
-  view_health: { label: 'View', run: n => navigateTo(n && n.role === 'manager' ? 'overview' : 'roster') },
+  review_transfers: { label: 'Review', run: n => { seasonFrom(n); navigateTo('groups'); } },
+  review_unplaced: { label: 'Place', run: n => { seasonFrom(n); navigateTo('groups'); } },
+  review_pending: { label: 'Review', run: n => { if (n && n.payload && n.payload.season_id) CLUB.seasonId = n.payload.season_id; navigateTo('club'); } },
+  view_health: { label: 'View', run: n => { if (n && n.role === 'manager') { seasonFrom(n); navigateTo('overview'); } else navigateTo('roster'); } },
   review_departures: { label: 'Review', run: () => navigateTo('groups') },
   review_wam_time: { label: 'Review', run: () => navigateTo('groups') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
