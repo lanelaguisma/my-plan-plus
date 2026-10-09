@@ -1,6 +1,6 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { group, openTab, register, reset, rpc, season, signInAs, slot, sql } from '../fixtures';
+import { group, openTab, register, reset, rpc, season, signInAs, slot, sql, switchMode } from '../fixtures';
 
 const MON_0005 = slot(0, 0, 5); // Mondays 00:05 UTC: this week's WAM has already happened
 
@@ -42,4 +42,24 @@ test('a member is reminded to confirm continuation, with the days left, until th
 
   await openTab({ browser }, 'reminders');
   await expect(browser.locator('[data-reminder="continuation"]')).toHaveCount(0);
+});
+
+test("a group commander is told who can't make tomorrow's WAM", async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const s25 = await season('Season 25', 'active', 2);
+  const groupId = await group(manager, s25, 'Wed Mavericks', MON_0005, [sia, jessica], { commander: true });
+  await sql(`update groups set slot_mow = (extract(epoch from (now() + interval '12 hours')
+      - (date_trunc('week', now() at time zone 'UTC') at time zone 'UTC')) / 60)::int % 10080 where id = $1`, [groupId]);
+  const [{ week }] = await sql<{ week: number }>(
+    "select week from season_wams($1, $2) where starts_at > now() and starts_at <= now() + interval '24 hours'", [groupId, s25]);
+  await rpc(jessica, 'set_rsvp', { p_group: groupId, p_season: s25, p_week: week, p_attending: false, p_note: 'Away' });
+
+  await signInAs({ app, browser, screen }, sia);
+  await expect(browser.locator('#mode-switcher [data-mode="commander"] .mode-dot')).toBeVisible();
+  await switchMode({ browser }, 'commander');
+  await expect(screen.getByText("Jessica can't make it", { exact: false })).toBeVisible();
+  await screen.getByRole('button', 'Prepare').tap();
+  await expect(screen.getByRole('heading', 'Group Roster')).toBeVisible();
 });

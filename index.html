@@ -1763,6 +1763,7 @@ const NOTICE_ACTIONS = {
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
   view_checkin: { label: 'View', run: n => { if (n && n.payload && n.payload.week) selectedWeek = n.payload.week; navigateTo('checkin'); } },
   view_attendance: { label: 'View roster', run: () => navigateTo('roster') },
+  view_roster: { label: 'Prepare', run: () => navigateTo('roster') },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_transfers: { label: 'Review', run: () => navigateTo('groups') },
   view_health: { label: 'View', run: n => navigateTo(n && n.role === 'manager' ? 'overview' : 'roster') },
