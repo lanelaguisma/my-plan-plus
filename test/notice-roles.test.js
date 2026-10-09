@@ -40,10 +40,10 @@ describe('notice roles', () => {
     expect(await roles(club, manager, 'transfer_request')).toEqual(['manager']);
   });
 
-  test('derived notices are a member\'s', async () => {
+  test("a member's own reminders are in Member mode", async () => {
     const { club, members: [sia] } = await clubWithWedMavericks();
     await club.owner("update group_members set status = 'awaiting_continuation' where user_id = $1", [sia.id]);
 
-    expect(await roles(club, sia, 'continuation')).toEqual(['member']);
+    expect(await club.as(sia).query("select role from my_reminders() where kind = 'continuation'")).toEqual([{ role: 'member' }]);
   });
 });
