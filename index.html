@@ -459,10 +459,24 @@ textarea { resize: vertical; min-height: 60px; }
 .msg-compose .btn { width: auto; }
 .mail-icon { color: var(--accent); text-decoration: none; font-size: 15px; }
 
-/* 9 nav tabs: share the width evenly, never overflow */
+/* Nav tabs share the width evenly and never overflow (extra tabs go under More) */
 .nav { justify-content: space-between; padding-left: 2px; padding-right: 2px; }
-.nav-btn { flex: 1 1 0; min-width: 0; padding: 8px 0; font-size: 8px; overflow: hidden; white-space: nowrap; }
+.nav-btn { flex: 1 1 0; min-width: 0; padding: 8px 0; font-size: 10px; overflow: hidden; white-space: nowrap; }
 .nav-btn svg { width: 22px; height: 22px; }
+.nav-label { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.more-sheet { position: fixed; inset: 0; z-index: 99; background: rgba(0,0,0,0.35); }
+.more-sheet[hidden] { display: none; }
+.more-sheet-panel {
+  position: absolute; left: 0; right: 0; bottom: var(--nav-height); max-width: 520px; margin: 0 auto;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius) var(--radius) 0 0;
+  padding: 8px; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 4px;
+}
+.more-item {
+  background: none; border: none; color: var(--text-primary); cursor: pointer; font-size: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 4px; border-radius: var(--radius-sm);
+}
+.more-item:hover { background: var(--bg-input); }
+.more-item svg { width: 22px; height: 22px; }
 .slot-cell.preferred { background: var(--warning); color: #1a1d27; font-size: 14px; line-height: 30px; }
 </style>
 </head>
@@ -479,44 +493,10 @@ textarea { resize: vertical; min-height: 60px; }
 <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">&#127769;</button>
 
 <!-- ========== NAVIGATION ========== -->
-<nav class="nav" id="main-nav" style="display:none">
-  <button class="nav-btn active" data-screen="dashboard">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    Dashboard
-  </button>
-  <button class="nav-btn" data-screen="goals">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-    Goals
-  </button>
-  <button class="nav-btn" data-screen="checkin">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-    Check-in
-  </button>
-  <button class="nav-btn" data-screen="reports">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 12h2v5H7zM11 8h2v9h-2zM15 10h2v7h-2z"/></svg>
-    Reports
-  </button>
-  <button class="nav-btn" data-screen="learn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
-    Learn
-  </button>
-  <button class="nav-btn" data-screen="group">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-    Group<span class="nav-badge" id="inbox-badge" hidden></span>
-  </button>
-  <button class="nav-btn" data-screen="team">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-    Team
-  </button>
-  <button class="nav-btn" data-screen="boards">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-    Boards
-  </button>
-  <button class="nav-btn" data-screen="settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    Settings
-  </button>
-</nav>
+<nav class="nav" id="main-nav" style="display:none"></nav>
+<div class="more-sheet" id="more-sheet" hidden onclick="if(event.target===this)toggleMoreSheet(false)">
+  <div class="more-sheet-panel" id="more-sheet-panel"></div>
+</div>
 
 <!-- ========== SCREEN: DASHBOARD ========== -->
 <div id="screen-dashboard" class="screen active">
@@ -1506,9 +1486,7 @@ const NOTICE_ACTIONS = {
 async function loadInbox() {
   const { data, error } = await sb.rpc('my_notices');
   APP.notices = error ? [] : (data || []).sort((a, b) => (a.read - b.read) || (new Date(b.created_at) - new Date(a.created_at)));
-  const unread = APP.notices.filter(n => !n.read).length;
-  const badge = document.getElementById('inbox-badge');
-  if (badge) { badge.hidden = !unread; badge.textContent = unread > 9 ? '9+' : String(unread); }
+  updateInboxBadge();
 }
 
 function inboxCardHtml() {
@@ -1557,6 +1535,7 @@ async function enterApp(user) {
   syncAllCheckinShares();
   document.getElementById('auth-wrap').style.display = 'none';
   document.getElementById('main-nav').style.display = 'flex';
+  renderNav();
   if (!APP.profile || !(APP.profile.slots || []).length) navigateTo('group');
   else if (canUsePlan() && getCycle().startDate) navigateTo('dashboard');
   else navigateTo('group');
@@ -3269,17 +3248,196 @@ let currentScreen = 'dashboard';
 let charts = {};
 let expandedGoals = new Set();
 
-document.querySelectorAll('.nav-btn').forEach(btn => {
-  btn.addEventListener('click', () => navigateTo(btn.dataset.screen));
-});
+const TAB_ICONS = {
+  dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  goals: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+  checkin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+  reports: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 12h2v5H7zM11 8h2v9h-2zM15 10h2v7h-2z"/></svg>',
+  learn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>',
+  group: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>',
+  team: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
+  boards: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>',
+  admin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>'
+};
+
+// Every tab someone might have, the screen it opens, and who may have it.
+const TABS = {
+  dashboard: { label: 'Dashboard', screen: 'dashboard', role: 'member' },
+  goals: { label: 'Goals', screen: 'goals', role: 'member' },
+  checkin: { label: 'Check-in', screen: 'checkin', role: 'member' },
+  reports: { label: 'Reports', screen: 'reports', role: 'member' },
+  learn: { label: 'Learn', screen: 'learn', role: 'member' },
+  group: { label: 'Group', screen: 'group', role: 'member' },
+  team: { label: 'Team', screen: 'team', role: 'member' },
+  boards: { label: 'Boards', screen: 'boards', role: 'member' },
+  settings: { label: 'Settings', screen: 'settings', role: 'member' },
+  admin: { label: 'Manage', screen: 'admin', role: 'manager' }
+};
+
+// The tabs shown on the bar by default for each role; the rest sit under More.
+const DEFAULT_TABS = {
+  member: ['dashboard', 'checkin', 'goals', 'group', 'team', 'boards'],
+  commander: ['dashboard', 'checkin', 'group', 'team', 'boards'],
+  manager: ['dashboard', 'admin', 'group', 'checkin', 'boards']
+};
+
+// Commands a group in the running season or the one open for enrolment.
+function isCommander() {
+  return !!APP.user && [APP.myGroup, APP.myNextGroup].some(g => g && g.commander_id === APP.user.id);
+}
+
+function myRoles() {
+  return ['member'].concat(isCommander() ? ['commander'] : [], APP.isAdmin ? ['manager'] : []);
+}
+
+// Every tab the signed-in person may have, in catalogue order.
+function permittedTabs() {
+  const roles = myRoles();
+  return Object.keys(TABS).filter(id => roles.includes(TABS[id].role));
+}
+
+function roleDefaultTabs() {
+  const roles = myRoles();
+  let tabs = DEFAULT_TABS[roles.includes('manager') ? 'manager' : roles.includes('commander') ? 'commander' : 'member'].slice();
+  // A club manager who also commands a group keeps the commander's tabs too.
+  if (roles.includes('manager') && roles.includes('commander')) {
+    DEFAULT_TABS.commander.forEach(id => { if (!tabs.includes(id)) tabs.push(id); });
+  }
+  return tabs.filter(id => TABS[id]);
+}
+
+// The person's chosen tabs, minus any they may no longer have, plus any
+// that a newly gained role brings.
+function chosenTabs() {
+  const permitted = permittedTabs();
+  const prefs = APP.profile && APP.profile.nav_prefs;
+  if (!prefs || !Array.isArray(prefs.tabs)) return roleDefaultTabs();
+  const known = Array.isArray(prefs.known) ? prefs.known : permitted;
+  const tabs = prefs.tabs.filter(id => permitted.includes(id));
+  roleDefaultTabs().forEach(id => { if (!known.includes(id) && !tabs.includes(id)) tabs.push(id); });
+  return tabs;
+}
+
+// How many tabs fit on the bar beside More.
+function navCapacity() {
+  const w = (document.getElementById('main-nav') || {}).clientWidth || window.innerWidth;
+  return Math.max(3, Math.min(8, Math.floor(w / 68) - 1));
+}
+
+function tabButtonHtml(id, label, onclick) {
+  return `<button class="nav-btn" data-tab="${id}" data-screen="${TABS[id] ? TABS[id].screen : ''}" onclick="${onclick}">${TAB_ICONS[id] || TAB_ICONS.more}<span class="nav-label">${label}</span></button>`;
+}
+
+function renderNav() {
+  const nav = document.getElementById('main-nav');
+  if (!nav) return;
+  const chosen = chosenTabs();
+  const cap = navCapacity();
+  const onBar = chosen.length > cap + 1 ? chosen.slice(0, cap) : chosen;
+  APP.navOnBar = onBar;
+  nav.innerHTML = onBar.map(id => tabButtonHtml(id, TABS[id].label, `navigateTo('${TABS[id].screen}')`)).join('') +
+    tabButtonHtml('more', 'More', 'toggleMoreSheet()');
+  markActiveTab();
+  updateInboxBadge();
+}
+
+function markActiveTab() {
+  const onBar = APP.navOnBar || [];
+  const barScreen = onBar.some(id => TABS[id].screen === currentScreen);
+  document.querySelectorAll('#main-nav .nav-btn').forEach(b => b.classList.toggle('active',
+    b.dataset.tab === 'more' ? !barScreen : b.dataset.screen === currentScreen && onBar.includes(b.dataset.tab)));
+}
+
+// Unread notices show on the Group tab, or on More when Group isn't on the bar.
+function updateInboxBadge() {
+  const unread = (APP.notices || []).filter(n => !n.read).length;
+  document.querySelectorAll('#main-nav .nav-badge').forEach(b => b.remove());
+  if (!unread) return;
+  const host = document.querySelector('#main-nav .nav-btn[data-tab="group"]') || document.querySelector('#main-nav .nav-btn[data-tab="more"]');
+  if (host) host.insertAdjacentHTML('beforeend', `<span class="nav-badge" id="inbox-badge">${unread > 9 ? '9+' : unread}</span>`);
+}
+
+function toggleMoreSheet(open) {
+  const sheet = document.getElementById('more-sheet');
+  const show = open === undefined ? sheet.hidden : open;
+  if (show) {
+    const rest = permittedTabs().filter(id => !(APP.navOnBar || []).includes(id));
+    document.getElementById('more-sheet-panel').innerHTML = rest.map(id =>
+      `<button class="more-item" onclick="toggleMoreSheet(false);navigateTo('${TABS[id].screen}')">${TAB_ICONS[id] || ''}<span>${TABS[id].label}</span></button>`).join('') +
+      `<button class="more-item" onclick="toggleMoreSheet(false);navigateTo('settings');setTimeout(() => { const c = document.getElementById('nav-tabs-card'); if (c) c.scrollIntoView(); }, 50)">${TAB_ICONS.settings}<span>Customise tabs…</span></button>`;
+  }
+  sheet.hidden = !show;
+}
+
+window.addEventListener('resize', () => { if (APP.user) renderNav(); });
 
 function navigateTo(screen) {
   currentScreen = screen;
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + screen).classList.add('active');
-  document.querySelectorAll('.nav-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.screen === screen));
+  markActiveTab();
   renderScreen(screen);
+}
+
+/* ---------- Customising tabs (Settings) ---------- */
+let NAV_DRAFT = null;
+
+function navTabsCardHtml() {
+  if (!APP.user) return '';
+  if (!NAV_DRAFT) NAV_DRAFT = chosenTabs();
+  const permitted = permittedTabs();
+  const hidden = permitted.filter(id => !NAV_DRAFT.includes(id));
+  const row = (id, shown, i) => `<div class="member-row" data-nav-row="${id}">
+    <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" ${shown ? 'checked' : ''} onchange="toggleNavTab('${id}', this.checked)"> ${TABS[id].label}</label>
+    ${shown ? `<span style="display:flex;gap:4px">
+      <button class="icon-btn" title="Move up" ${i === 0 ? 'disabled' : ''} onclick="moveNavTab('${id}', -1)">&#9650;</button>
+      <button class="icon-btn" title="Move down" ${i === NAV_DRAFT.length - 1 ? 'disabled' : ''} onclick="moveNavTab('${id}', 1)">&#9660;</button></span>` : ''}
+  </div>`;
+  return `<div class="card" id="nav-tabs-card"><h3>Navigation Tabs</h3>
+    <p style="font-size:13px;color:var(--text-secondary);margin-bottom:8px">Choose the tabs on your bar and their order. Unticked tabs (and any that don't fit your screen) are under <strong>More</strong>.</p>
+    ${NAV_DRAFT.map((id, i) => row(id, true, i)).join('')}${hidden.map(id => row(id, false)).join('')}
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn btn-primary btn-sm" onclick="saveNavTabs()">Save tabs</button>
+      <button class="btn btn-secondary btn-sm" onclick="resetNavTabs()">Reset to defaults</button>
+    </div></div>`;
+}
+
+function redrawNavTabsCard() {
+  const card = document.getElementById('nav-tabs-card');
+  if (card) card.outerHTML = navTabsCardHtml();
+}
+
+function toggleNavTab(id, shown) {
+  NAV_DRAFT = shown ? NAV_DRAFT.concat(id) : NAV_DRAFT.filter(x => x !== id);
+  redrawNavTabsCard();
+}
+
+function moveNavTab(id, by) {
+  const i = NAV_DRAFT.indexOf(id), j = i + by;
+  if (i < 0 || j < 0 || j >= NAV_DRAFT.length) return;
+  [NAV_DRAFT[i], NAV_DRAFT[j]] = [NAV_DRAFT[j], NAV_DRAFT[i]];
+  redrawNavTabsCard();
+}
+
+async function saveNavTabs() {
+  if (!NAV_DRAFT.length) { alert('Keep at least one tab on your bar.'); return; }
+  const prefs = { tabs: NAV_DRAFT.slice(), known: permittedTabs() };
+  const { error } = await sb.rpc('set_nav_prefs', { p_prefs: prefs });
+  if (error) { alert(error.message); return; }
+  APP.profile.nav_prefs = prefs;
+  renderNav();
+  alert('Tabs saved.');
+}
+
+async function resetNavTabs() {
+  const { error } = await sb.rpc('set_nav_prefs', { p_prefs: null });
+  if (error) { alert(error.message); return; }
+  APP.profile.nav_prefs = null;
+  NAV_DRAFT = null;
+  renderNav();
+  redrawNavTabsCard();
 }
 
 function renderScreen(screen) {
@@ -4268,7 +4426,8 @@ function renderSettings() {
 
   const endDate = getCycleEndDate();
 
-  el.innerHTML = renderAccountCard() + `
+  NAV_DRAFT = null;
+  el.innerHTML = renderAccountCard() + navTabsCardHtml() + `
   <div class="card">
     <h3>Season Configuration</h3>
     ${communityCycleNote()}
