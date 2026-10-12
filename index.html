@@ -2664,7 +2664,7 @@ function drawAdmin() {
               <button class="btn btn-danger btn-sm" onclick="adminDeleteGroup('${g.id}')">Delete</button>
             </span>
           </div>
-          <div style="font-size:13px;color:var(--text-secondary);margin:4px 0">${mowLabel(g.slot_mow)} (45 min) &middot; ${g.member_count}/${g.capacity}${g.capacity_override ? ' (override)' : ''}${g.vacancies ? ' &middot; ' + g.vacancies + ' vacanc' + (g.vacancies === 1 ? 'y' : 'ies') : ''}${g.wam_link ? ' &middot; has meeting link' : ''}</div>
+          <div style="font-size:13px;color:var(--text-secondary);margin:4px 0">${mowLabel(g.slot_mow)} (45 min) &middot; ${g.member_count}/${g.capacity}${g.capacity_override ? ' (override)' : ''} &middot; min ${g.min_size}${g.min_size_override ? ' (set by ' + esc(displayName(g.min_size_set_by)) + ')' : ''}${g.vacancies ? ' &middot; ' + g.vacancies + ' vacanc' + (g.vacancies === 1 ? 'y' : 'ies') : ''}${g.wam_link ? ' &middot; has meeting link' : ''}</div>
           ${g.purpose ? `<div style="font-size:12px;margin-bottom:4px">${esc(g.purpose)}</div>` : ''}
           <div style="font-size:13px;margin:6px 0">Group Commander:
             <select onchange="adminAppointCommander('${g.id}', this.value)">
@@ -2997,7 +2997,26 @@ async function adminEditGroupProfile(groupId) {
   if (capacity_override !== null && !(capacity_override > 0)) { alert('Capacity must be a positive number.'); return; }
   const { error } = await sb.from('groups').update({ name: name.trim(), emoji: emoji.trim(), purpose: purpose.trim(), capacity_override }).eq('id', groupId);
   if (error) { alert(error.message); return; }
+  if (!await promptGroupMinSize(groupId, g.min_size_override)) return;
   renderAdmin();
+}
+
+// Asks for a group's minimum size override (blank = the club default);
+// false when cancelled or refused.
+async function promptGroupMinSize(groupId, current) {
+  const min = prompt('Minimum size override, 2 up to the group\'s capacity (leave blank to use the club-wide minimum):', current || '');
+  if (min === null) return false;
+  const size = min.trim() ? Number(min) : null;
+  if (size !== null && !Number.isInteger(size)) { alert('Minimum size must be a whole number.'); return false; }
+  const { error } = await sb.rpc('set_group_min_size', { p_group: groupId, p_size: size });
+  if (error) { alert(error.message); return false; }
+  return true;
+}
+
+async function rosterSetMinSize(groupId, current) {
+  if (!await promptGroupMinSize(groupId, current)) return;
+  await loadCommunity();
+  renderRoster();
 }
 
 async function adminSetDormant(groupId, dormant) {
@@ -3115,7 +3134,7 @@ async function renderRoster() {
 
   el.innerHTML = picker + `<div class="card">
       <h3>${group.emoji ? esc(group.emoji) + ' ' : ''}${esc(group.name)} &middot; ${esc(season.name)}</h3>
-      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mowLabel(group.slot_mow)} &middot; ${group.member_count}/${group.capacity} &middot; ${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} &middot; <span class="badge-pill ${group.state === 'active' ? 'green' : 'amber'}">${group.state}</span>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mowLabel(group.slot_mow)} &middot; ${group.member_count}/${group.capacity} &middot; ${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} &middot; min ${group.min_size}${commanding || APP.isAdmin ? ` <a href="#" class="auth-link" onclick="rosterSetMinSize('${group.id}', ${group.min_size_override || 'null'});return false">change</a>` : ''} &middot; <span class="badge-pill ${group.state === 'active' ? 'green' : 'amber'}">${group.state}</span>
         ${nextUp ? `<br>Next WAM: week ${nextUp.week}, ${wamTimeLabel(nextUp.starts_at)} &middot; ${rows.filter(r => r.member_id && r.next_can_attend).length} of ${rows.filter(r => r.member_id).length} expected` : ''}</div>
       ${table}
       <p style="font-size:11px;color:var(--text-muted);margin-top:6px">Tap a name to see their 12-week goals and weekly scores. Streak = weeks in a row with a check-in (w = weeks). WAMs = attended of the last ${Math.min(3, ROSTER.wams.filter(w => !w.cancelled && new Date(w.starts_at) <= new Date()).length) || 3} held.</p>

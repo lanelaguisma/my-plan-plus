@@ -31,7 +31,7 @@ _Avoid_: Session, event, activity, meeting
 ## Group health
 
 **Minimum Size**:
-The club-wide smallest roster at which a group can run properly (3).
+The smallest roster at which a group can run properly: club-wide (2) unless a club manager or that group's commander overrides it for that group.
 _Avoid_: Floor, minimum membership
 
 **Capacity**:
@@ -165,6 +165,10 @@ _Avoid_: Proxy, override
 **Notice**:
 An item in a member's in-app inbox telling them something happened and what action, if any, they need to take.
 _Avoid_: Notification, alert, message
+
+**Reminder**:
+An action a member, group commander or club manager still owes, such as a missing check-in or unconfirmed attendance; it stays open until the action is done and cannot be dismissed or marked read.
+_Avoid_: Nudge, to-do, task, digest
 
 **Announcement**:
 A one-way message from a club manager or group commander to a defined audience, delivered as a notice, with its audience recorded.

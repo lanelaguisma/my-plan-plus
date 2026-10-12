@@ -41,6 +41,7 @@ describe('health flags', () => {
 
   test('below the minimum size, with its vacancy', async () => {
     const fixture = await healthyGroup();
+    await fixture.club.as(fixture.manager).query('select set_group_min_size($1, 3)', [fixture.g[0]]);
     for (const m of [fixture.shan, fixture.kiran]) {
       await fixture.club.as(fixture.manager).query('select remove_from_roster($1, $2)', [m.id, fixture.s25.id]);
     }
@@ -71,7 +72,7 @@ describe('health flags', () => {
     await club.owner("update cycles set status = 'enrolling' where id = $1", [s25.id]);
     await club.owner("update group_members set status = 'awaiting_continuation' where cycle_id = $1 and user_id <> $2", [s25.id, fixture.sia.id]);
 
-    expect(await flags(fixture)).toContainEqual({ flag: 'few_continuations', detail: 'Only 1 confirmed continuing — 3 needed.' });
+    expect(await flags(fixture)).toContainEqual({ flag: 'few_continuations', detail: 'Only 1 confirmed continuing — 2 needed.' });
   });
 
   test('attendance under 75% over the last 3 WAMs', async () => {
