@@ -113,7 +113,7 @@ describe('my WAMs', () => {
     await club.as(manager).query('update cycles set start_date = $1 where id = $2', [monday.toISOString().slice(0, 10), s25.id]);
     await club.as(manager).query('update groups set slot_mow = $1 where id = $2', [slot, groupId]);
 
-    const reminders = await club.as(jessica).query("select message, action from my_notices() where kind = 'wam_reminder'");
+    const reminders = await club.as(jessica).query("select message, action from my_notices() where kind = 'wam_upcoming'");
 
     expect(reminders.map(r => r.action)).toEqual(['join_wam']);
   });
