@@ -750,6 +750,21 @@ textarea { resize: vertical; min-height: 60px; }
   </div>
 </div>
 
+<!-- ========== SCREEN: GROUP ROSTER ========== -->
+<div id="screen-roster" class="screen">
+  <div class="app-container fade-in">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <a href="https://www.logic2design.com" target="_blank"><img src="MyPlan+.png" alt="My Plan+" style="width:48px;height:48px;border-radius:10px"></a>
+      <div>
+        <h1 style="margin:0">Group Roster</h1>
+        <div class="subtitle" style="margin:0">How your group is doing, at a glance</div>
+      </div>
+    </div>
+    <div style="height:16px"></div>
+    <div id="roster-content"></div>
+  </div>
+</div>
+
 <!-- ========== SCREEN: CLUB ROSTER ========== -->
 <div id="screen-club" class="screen">
   <div class="app-container fade-in">
@@ -1390,7 +1405,8 @@ async function toggleAttendance(groupId, seasonId, week) {
   const rows = (data || []).filter(r => r.week === week);
   const names = {};
   (APP.myGroupMembers || []).concat(APP.nextGroupMembers || []).forEach(m => { names[m.id] = m.full_name || m.email; });
-  const w = (APP.wams || []).find(x => x.group_id === groupId && x.cycle_id === seasonId && x.week === week);
+  Object.assign(names, ROSTER.names || {});
+  const w = (APP.wams || []).concat(ROSTER.wams || []).find(x => x.group_id === groupId && x.cycle_id === seasonId && x.week === week);
   const upcoming = w && new Date(w.starts_at) > new Date();
   if (upcoming) {
     const coming = rows.filter(r => r.can_attend).length;
@@ -1555,14 +1571,14 @@ const NOTICE_ACTIONS = {
   review_offers: { label: 'Review', run: () => navigateTo('group') },
   confirm_continuation: { label: 'Answer', run: () => navigateTo('group') },
   view_wams: { label: 'View WAMs', run: () => navigateTo('group') },
-  view_attendance: { label: 'View group', run: () => navigateTo('group') },
+  view_attendance: { label: 'View roster', run: () => navigateTo('roster') },
   answer_pulse: { label: 'Answer', run: () => navigateTo('group') },
   review_transfers: { label: 'Review', run: () => navigateTo('admin') },
-  view_health: { label: 'View', run: () => navigateTo(APP.isAdmin ? 'admin' : 'group') },
+  view_health: { label: 'View', run: () => navigateTo(APP.isAdmin ? 'admin' : 'roster') },
   review_departures: { label: 'Review', run: () => navigateTo('admin') },
   review_wam_time: { label: 'Review', run: () => navigateTo('admin') },
   join_wam: { label: 'Join', run: n => { if (n && n.payload && n.payload.link) window.open(n.payload.link, '_blank'); else navigateTo('group'); } },
-  review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !commandedGroup() ? 'admin' : 'group') }
+  review_join_requests: { label: 'Review', run: () => navigateTo(APP.isAdmin && !isCommander() ? 'admin' : 'roster') }
 };
 
 async function loadInbox() {
@@ -1820,6 +1836,7 @@ function renderGroup() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 10l5-5m0 0h-4m4 0v4"/><path d="M21 14v5a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h5"/></svg>
         Join weekly session</a>` : ''}
       ${APP.activeCycle ? wamListHtml(APP.myGroup, APP.activeCycle) : ''}
+      ${APP.myGroup.commander_id === APP.user.id ? `<button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="navigateTo('roster')">Open my roster dashboard</button>` : ''}
       <div id="group-health-holder"></div>
       <div id="group-pulse-holder"></div>
       <div id="pending-holder-${APP.myGroup.id}"></div>
@@ -1913,8 +1930,8 @@ function renderGroup() {
 }
 
 // For a group commander: places held for people who haven't registered yet.
-async function loadPendingMembers(group, season) {
-  const holder = document.getElementById('pending-holder-' + group.id);
+async function loadPendingMembers(group, season, prefix = 'pending-holder-') {
+  const holder = document.getElementById(prefix + group.id);
   if (!holder) return;
   const { data, error } = await sb.rpc('group_pending_members', { p_group: group.id, p_season: season.id });
   if (error) return;
@@ -1925,14 +1942,14 @@ async function loadPendingMembers(group, season) {
     (group.vacancies > 0
       ? `<details style="margin-top:6px"><summary style="font-size:13px;cursor:pointer">Hold a place for someone not yet registered</summary>
           <p style="font-size:12px;color:var(--text-secondary);margin:6px 0">They join your roster as soon as they register with this email. Send them your invite link from <strong>Invite Someone</strong>.</p>
-          <div class="btn-row"><input type="text" id="pm-name-${group.id}" placeholder="Name"><input type="text" id="pm-email-${group.id}" placeholder="Email" inputmode="email"></div>
-          <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="addPendingMember('${group.id}', '${season.id}')">Hold a place</button></details>`
+          <div class="btn-row"><input type="text" id="${prefix}pm-name-${group.id}" placeholder="Name"><input type="text" id="${prefix}pm-email-${group.id}" placeholder="Email" inputmode="email"></div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="addPendingMember('${group.id}', '${season.id}', '${prefix}')">Hold a place</button></details>`
       : (data || []).length ? '' : '<div style="font-size:12px;color:var(--text-muted)">No open places to hold.</div>');
 }
 
-async function addPendingMember(groupId, seasonId) {
-  const name = document.getElementById('pm-name-' + groupId).value.trim();
-  const email = document.getElementById('pm-email-' + groupId).value.trim();
+async function addPendingMember(groupId, seasonId, prefix = 'pending-holder-') {
+  const name = document.getElementById(prefix + 'pm-name-' + groupId).value.trim();
+  const email = document.getElementById(prefix + 'pm-email-' + groupId).value.trim();
   const { error } = await sb.rpc('add_pending_member', { p_group: groupId, p_season: seasonId, p_name: name, p_email: email });
   if (error) { alert(error.message); return; }
   await loadCommunity();
@@ -1965,11 +1982,11 @@ function commandedGroup() {
   return null;
 }
 
-async function loadProspectiveMembers(group, season) {
+async function loadProspectiveMembers(group, season, containerId = 'group-content') {
   const holder = document.createElement('div');
   holder.className = 'card';
-  holder.id = 'pool-card';
-  document.getElementById('group-content').appendChild(holder);
+  holder.id = containerId + '-pool-card';
+  document.getElementById(containerId).appendChild(holder);
   holder.innerHTML = '<h3>Prospective Members</h3><p style="font-size:13px;color:var(--text-muted)">Loading…</p>';
   const { data, error } = await sb.rpc('prospective_members', { p_group: group.id, p_season: season.id });
   if (error) { holder.innerHTML = '<h3>Prospective Members</h3><p style="font-size:13px;color:var(--danger)">' + esc(error.message) + '</p>'; return; }
@@ -2008,21 +2025,21 @@ async function answerJoinRequest(offerId, approve) {
   const { error } = await sb.rpc('respond_to_offer', { p_offer: offerId, p_accept: approve });
   if (error) alert(error.message);
   await loadCommunity();
-  renderGroup();
+  renderScreen(currentScreen);
 }
 
 async function inviteMember(groupId, seasonId, memberId) {
   const { error } = await sb.rpc('send_invitation', { p_group: groupId, p_season: seasonId, p_member: memberId });
   if (error) { alert(error.message); return; }
   alert('Invitation sent.');
-  renderGroup();
+  renderScreen(currentScreen);
 }
 
 async function withdrawOffer(offerId) {
   if (!confirm('Withdraw this invitation?')) return;
   const { error } = await sb.rpc('withdraw_offer', { p_offer: offerId });
   if (error) alert(error.message);
-  renderGroup();
+  renderScreen(currentScreen);
 }
 
 /* ========== BOARDS SCREEN ========== */
@@ -2136,14 +2153,16 @@ async function cancelTransfer() {
   renderGroup();
 }
 
-async function recordDeparture(memberId, name) {
+async function recordDeparture(memberId, name, groupId, seasonId) {
   const reason = prompt('Record that ' + name + ' has left the group. Reason (e.g. "stopped attending" or "asked to leave"):', 'stopped attending');
   if (reason === null) return;
-  const { error } = await sb.rpc('record_departure', { p_member: memberId, p_group: APP.myGroup.id, p_season: APP.activeCycle.id, p_reason: reason });
+  const { error } = await sb.rpc('record_departure', {
+    p_member: memberId, p_group: groupId || APP.myGroup.id, p_season: seasonId || APP.activeCycle.id, p_reason: reason
+  });
   if (error) { alert(error.message); return; }
   alert('Recorded. The place is open again, and the club manager has been told.');
   await loadCommunity();
-  renderGroup();
+  renderScreen(currentScreen);
 }
 
 async function leaveGroup() {
@@ -2960,6 +2979,146 @@ function adminExportCSV() {
   downloadFile('myplanplus-registrants-' + todayStr() + '.csv', 'text/csv', rows.join('\n'));
 }
 
+/* ========== GROUP ROSTER DASHBOARD (group commanders, club managers) ========== */
+const ROSTER = { key: '', names: {}, wams: [], open: {} };
+
+// The groups the signed-in person can lead: the ones they command, and
+// every running group for a club manager.
+function leadableGroups() {
+  const list = [];
+  const add = (g, season) => { if (g && season && !list.some(x => x.group.id === g.id && x.season.id === season.id)) list.push({ group: g, season }); };
+  [[APP.myGroup, APP.activeCycle], [APP.myNextGroup, APP.nextCycle]].forEach(([g, season]) => {
+    if (g && g.commander_id === APP.user.id) add(g, season);
+  });
+  if (APP.isAdmin) {
+    (APP.cycleGroups || []).forEach(g => add(g, APP.activeCycle));
+    (APP.nextGroups || []).forEach(g => add(g, APP.nextCycle));
+  }
+  return list;
+}
+
+async function renderRoster() {
+  const el = document.getElementById('roster-content');
+  const options = leadableGroups();
+  if (!options.length) {
+    el.innerHTML = '<div class="empty-state"><p>The roster dashboard is for group commanders. You\'ll see your group here once you command one.</p></div>';
+    return;
+  }
+  if (!options.some(o => o.group.id + ':' + o.season.id === ROSTER.key)) ROSTER.key = options[0].group.id + ':' + options[0].season.id;
+  const { group, season } = options.find(o => o.group.id + ':' + o.season.id === ROSTER.key);
+  el.innerHTML = '<div class="empty-state"><p>Loading…</p></div>';
+  const [dash, wams] = await Promise.all([
+    sb.rpc('group_roster_dashboard', { p_group: group.id, p_season: season.id }),
+    sb.rpc('season_wams', { p_group: group.id, p_season: season.id })
+  ]);
+  if (dash.error) { el.innerHTML = `<div class="empty-state"><p>${esc(dash.error.message)}</p></div>`; return; }
+  const rows = dash.data || [];
+  ROSTER.rows = rows;
+  ROSTER.names = {};
+  rows.forEach(r => { if (r.member_id) ROSTER.names[r.member_id] = r.full_name; });
+  ROSTER.wams = (wams.data || []).map(w => Object.assign({ group_id: group.id, cycle_id: season.id }, w));
+  const commanding = group.commander_id === APP.user.id;
+  const lastHeld = ROSTER.wams.filter(w => !w.cancelled && new Date(w.starts_at) <= new Date()).pop();
+  const nextUp = ROSTER.wams.find(w => !w.cancelled && new Date(w.starts_at).getTime() + 45 * 60000 > Date.now());
+
+  const picker = options.length > 1 ? `<select style="margin-bottom:12px" onchange="ROSTER.key=this.value;renderRoster()">${options.map(o =>
+    `<option value="${o.group.id}:${o.season.id}"${o.group.id + ':' + o.season.id === ROSTER.key ? ' selected' : ''}>${esc((o.group.emoji ? o.group.emoji + ' ' : '') + o.group.name)} — ${esc(o.season.name)}</option>`).join('')}</select>` : '';
+  const scoreCell = r => r.latest_score == null ? '<span style="color:var(--text-muted)">—</span>'
+    : `<strong class="${scoreColor(r.latest_score)}">${r.latest_score}%</strong> <span style="font-size:11px;color:var(--text-muted)">wk ${r.latest_week}</span>`;
+  const rsvpCell = r => r.pending_id ? '' : r.next_week == null ? '—'
+    : r.next_can_attend ? '<span style="color:var(--success)">&#10003;</span>'
+    : `<span style="color:var(--warning)" title="${esc(r.next_note || '')}">can't${r.next_note ? ' &#9432;' : ''}</span>`;
+  const table = `<div class="admin-table"><table><thead><tr><th>Member</th><th>Latest</th><th>Avg</th><th>Streak</th><th>WAMs</th><th>Next</th></tr></thead><tbody>` +
+    rows.map(r => r.pending_id
+      ? `<tr><td>${esc(r.full_name)} <span class="badge-pill amber">pending registration</span></td><td colspan="5" style="color:var(--text-muted)">Joins the roster when they register</td></tr>`
+      : `<tr>
+        <td><a href="#" class="auth-link" onclick="toggleMemberPlan('${r.member_id}');return false">${esc(r.full_name)}</a>${r.is_commander ? ' <span class="badge-pill green">commander</span>' : ''}${r.status === 'awaiting_continuation' ? ' <span class="badge-pill amber">not yet confirmed</span>' : ''}</td>
+        <td>${scoreCell(r)}</td>
+        <td>${r.average_score == null ? '—' : r.average_score + '%'}</td>
+        <td>${r.streak ? r.streak + ' wk' + (r.streak === 1 ? '' : 's') : '<span style="color:var(--text-muted)">0</span>'}</td>
+        <td>${r.held ? `<span style="color:${r.attended < r.held ? 'var(--warning)' : 'inherit'}">${r.attended}/${r.held}</span>` : '—'}</td>
+        <td>${rsvpCell(r)}</td></tr>
+        <tr id="plan-row-${r.member_id}" ${ROSTER.open[r.member_id] ? '' : 'hidden'}><td colspan="6"><div id="plan-${r.member_id}" style="font-size:13px"></div>
+          ${commanding || APP.isAdmin ? `<div class="btn-row" style="margin-top:6px" id="member-actions-${r.member_id}">${rosterMemberActions(r, group, season, commanding)}</div>` : ''}</td></tr>`).join('') +
+    '</tbody></table></div>';
+
+  el.innerHTML = picker + `<div class="card">
+      <h3>${group.emoji ? esc(group.emoji) + ' ' : ''}${esc(group.name)} &middot; ${esc(season.name)}</h3>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px">${mowLabel(group.slot_mow)} &middot; ${group.member_count}/${group.capacity} &middot; ${group.vacancies} open place${group.vacancies === 1 ? '' : 's'} &middot; <span class="badge-pill ${group.state === 'active' ? 'green' : 'amber'}">${group.state}</span>
+        ${nextUp ? `<br>Next WAM: week ${nextUp.week}, ${wamTimeLabel(nextUp.starts_at)} &middot; ${rows.filter(r => r.member_id && r.next_can_attend).length} of ${rows.filter(r => r.member_id).length} expected` : ''}</div>
+      ${table}
+      <p style="font-size:11px;color:var(--text-muted);margin-top:6px">Tap a name to see their 12-week goals and weekly scores. Streak = weeks in a row with a check-in. WAMs = attended of the last ${Math.min(3, ROSTER.wams.filter(w => !w.cancelled && new Date(w.starts_at) <= new Date()).length) || 3} held.</p>
+      ${lastHeld ? `<div class="member-row" style="margin-top:6px"><span>Attendance &middot; week ${lastHeld.week} (${wamTimeLabel(lastHeld.starts_at)})</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleAttendance('${group.id}','${season.id}',${lastHeld.week})">Attendance</button></div>
+        <div id="att-${group.id}-${lastHeld.week}"></div>` : ''}
+    </div>
+    <div class="card"><div id="roster-health"></div><div id="roster-pending-${group.id}"></div><div id="roster-offers"></div></div>`;
+  Object.keys(ROSTER.open).forEach(id => { if (ROSTER.open[id]) loadMemberPlan(id, season); });
+  loadRosterManagement(group, season);
+}
+
+function rosterMemberActions(r, group, season, commanding) {
+  const name = esc(r.full_name).replace(/'/g, '');
+  return commanding && r.member_id !== APP.user.id
+    ? `<button class="btn btn-secondary btn-sm" onclick="recordDeparture('${r.member_id}', '${name}', '${group.id}', '${season.id}')">Record departure</button>`
+    : '';
+}
+
+async function loadRosterManagement(group, season) {
+  const health = document.getElementById('roster-health');
+  const [flags, offers] = await Promise.all([
+    sb.rpc('group_health_flags', { p_group: group.id, p_season: season.id }),
+    sb.rpc('group_offers', { p_group: group.id, p_season: season.id })
+  ]);
+  if (health && !flags.error) {
+    health.innerHTML = '<h3>Group health</h3>' + ((flags.data || []).length ? flagListHtml(flags.data)
+      : '<div style="font-size:13px;color:var(--success)">All good &mdash; nothing needs attention.</div>');
+  }
+  loadPendingMembers(group, season, 'roster-pending-');
+  const holder = document.getElementById('roster-offers');
+  if (!holder || offers.error) return;
+  const requests = (offers.data || []).filter(o => o.kind === 'join_request' && o.status === 'pending');
+  const invitations = (offers.data || []).filter(o => o.kind === 'invitation' && o.status === 'pending');
+  holder.innerHTML = (requests.length ? '<h3 style="margin-top:12px">Join requests</h3>' + requests.map(o => `<div class="member-row">
+      <span>${esc(o.member_name)}${o.current_group ? `<br><span style="font-size:12px;color:var(--text-secondary)">currently in ${esc(o.current_group)}</span>` : ''}</span>
+      <span style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="answerJoinRequest('${o.id}', true)">Approve</button>
+      <button class="btn btn-secondary btn-sm" onclick="answerJoinRequest('${o.id}', false)">Decline</button></span></div>`).join('') : '') +
+    (invitations.length ? '<h3 style="margin-top:12px">Invitations waiting</h3>' + invitations.map(o => `<div class="member-row"><span>${esc(o.member_name)} <span class="badge-pill amber">pending</span></span>
+      ${group.commander_id === APP.user.id ? `<button class="btn btn-secondary btn-sm" onclick="withdrawOffer('${o.id}')">Withdraw</button>` : ''}</div>`).join('') : '');
+  if (group.commander_id === APP.user.id && group.vacancies > 0) {
+    holder.insertAdjacentHTML('beforeend', `<button class="btn btn-secondary btn-sm" style="margin-top:10px" onclick="navigateTo('group')">Find people to invite</button>`);
+  }
+}
+
+function toggleMemberPlan(memberId) {
+  ROSTER.open[memberId] = !ROSTER.open[memberId];
+  const row = document.getElementById('plan-row-' + memberId);
+  if (row) row.hidden = !ROSTER.open[memberId];
+  const [, seasonId] = ROSTER.key.split(':');
+  if (ROSTER.open[memberId]) loadMemberPlan(memberId, { id: seasonId });
+}
+
+async function loadMemberPlan(memberId, season) {
+  const holder = document.getElementById('plan-' + memberId);
+  if (!holder) return;
+  holder.textContent = 'Loading…';
+  const { data, error } = await sb.rpc('member_plan', { p_member: memberId, p_season: season.id });
+  if (error) { holder.textContent = error.message; return; }
+  const plan = (data || [])[0] || { goals: [], tactics: [], scores: [] };
+  const goals = (plan.goals || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+  const scores = plan.scores || [];
+  holder.innerHTML = (goals.length
+      ? goals.map(g => {
+          const tactics = (plan.tactics || []).filter(t => t.goalId === g.id);
+          return `<div style="margin:4px 0"><strong>&#127919; ${esc(g.title)}</strong>${g.description ? `<div style="color:var(--text-secondary)">${esc(g.description)}</div>` : ''}
+            ${tactics.length ? `<ul style="margin:2px 0 0 18px">${tactics.map(t => `<li>${esc(t.title)}</li>`).join('')}</ul>` : ''}</div>`;
+        }).join('')
+      : '<div style="color:var(--text-muted)">No goals set yet.</div>') +
+    `<div style="margin-top:6px">Weekly scores: ${scores.length
+      ? scores.map(sc => `<span class="badge-pill ${sc.score >= 85 ? 'green' : sc.score >= 65 ? 'amber' : ''}" title="Week ${sc.week}">W${sc.week} ${sc.score}%</span>`).join(' ')
+      : '<span style="color:var(--text-muted)">no check-ins yet</span>'}</div>`;
+}
+
 /* ========== CLUB ROSTER (club managers) ========== */
 const CLUB = { seasonId: null, rows: [], groups: [], status: '', groupId: '', q: '' };
 const ROSTER_STATUS = {
@@ -3531,6 +3690,7 @@ let charts = {};
 let expandedGoals = new Set();
 
 const TAB_ICONS = {
+  roster: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9zM9 11h6M9 15h4"/></svg>',
   club: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>',
   dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
   goals: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
@@ -3556,6 +3716,7 @@ const TABS = {
   team: { label: 'Team', screen: 'team', role: 'member' },
   boards: { label: 'Boards', screen: 'boards', role: 'member' },
   settings: { label: 'Settings', screen: 'settings', role: 'member' },
+  roster: { label: 'Roster', screen: 'roster', role: 'commander', alsoFor: 'manager' },
   admin: { label: 'Manage', screen: 'admin', role: 'manager' },
   club: { label: 'Members', screen: 'club', role: 'manager' }
 };
@@ -3563,7 +3724,7 @@ const TABS = {
 // The tabs shown on the bar by default for each role; the rest sit under More.
 const DEFAULT_TABS = {
   member: ['dashboard', 'checkin', 'goals', 'group', 'team', 'boards'],
-  commander: ['dashboard', 'checkin', 'group', 'team', 'boards'],
+  commander: ['dashboard', 'roster', 'checkin', 'group', 'boards', 'team'],
   manager: ['dashboard', 'admin', 'club', 'group', 'checkin']
 };
 
@@ -3579,7 +3740,7 @@ function myRoles() {
 // Every tab the signed-in person may have, in catalogue order.
 function permittedTabs() {
   const roles = myRoles();
-  return Object.keys(TABS).filter(id => roles.includes(TABS[id].role));
+  return Object.keys(TABS).filter(id => roles.includes(TABS[id].role) || roles.includes(TABS[id].alsoFor));
 }
 
 function roleDefaultTabs() {
@@ -3736,6 +3897,7 @@ function renderScreen(screen) {
   else if (screen === 'boards') renderBoards();
   else if (screen === 'admin') renderAdmin();
   else if (screen === 'club') renderClubRoster();
+  else if (screen === 'roster') renderRoster();
   else if (screen === 'settings') renderSettings();
 }
 

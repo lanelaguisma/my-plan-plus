@@ -109,3 +109,21 @@ test('a member already in a group applies to another and moves when approved', a
   await signInAs({ app, browser, screen }, jessica);
   await expect(screen.getByRole('heading', 'Your Group: Fri-B')).toBeVisible();
 });
+
+test("a group commander checks the roster dashboard and opens a member's goals", async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica] = [await register('Sia'), await register('Jessica')];
+  const s25 = await season('Season 25', 'active', 3);
+  await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
+  await sql("insert into plan_data (user_id, key, data) values ($1, 'myplanplus_goals', $2)",
+    [jessica.id, JSON.stringify([{ id: 'g1', title: 'Run a half marathon', order: 0 }])]);
+  await sql('insert into checkins (user_id, cycle_id, week, score) values ($1, $2, 1, 72), ($1, $2, 2, 88)', [jessica.id, s25]);
+
+  await signInAs({ app, browser, screen }, sia);
+  await browser.locator('#main-nav [data-tab="roster"]').tap();
+  await expect(screen.getByRole('heading', 'Group Roster')).toBeVisible();
+  await expect(screen.getByText('88%')).toBeVisible();
+  await screen.getByRole('link', 'Jessica').tap();
+  await expect(screen.getByText('Run a half marathon', { exact: false })).toBeVisible();
+});
