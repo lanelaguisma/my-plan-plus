@@ -1822,6 +1822,7 @@ function renderGroup() {
         <button class="btn btn-danger btn-sm" onclick="leaveGroup()">Leave Group</button>
       </div>
       ${APP.openTransfer ? '<div style="font-size:12px;color:var(--warning);margin-top:6px">Transfer requested — the club manager will move you.</div>' : ''}
+      ${applyElsewhereHtml(APP.myGroup, APP.activeCycle, APP.cycleGroups)}
       <p style="font-size:13px;color:var(--text-secondary);margin-top:12px">You have full access to the planning tools &mdash; set your focus for the 12 weeks in <strong>Goals</strong> and record your <strong>Check-in</strong> each week.</p>
     </div>`;
 
@@ -1849,6 +1850,7 @@ function renderGroup() {
         <div id="pending-holder-${APP.myNextGroup.id}"></div>
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(APP.nextCycle.start_date)} &middot; ${(APP.nextCounts[APP.myNextGroup.id] || 0)} member(s) so far. It goes live when the club manager makes the season active.</div>
         <button class="btn btn-danger btn-sm" onclick="leaveNextGroup()">Leave This Group</button>
+        ${applyElsewhereHtml(APP.myNextGroup, APP.nextCycle, APP.nextGroups)}
       </div>`;
     } else {
       html += groupChooserHtml(APP.nextCycle, APP.nextGroups, APP.nextCounts, 'nextgrp', 'Next season — sign-up open');
@@ -1930,6 +1932,17 @@ async function cancelPendingMember(id) {
   if (currentScreen === 'admin') renderAdmin(); else renderScreen(currentScreen);
 }
 
+// For a placed member: other groups with room this season they can apply to.
+function applyElsewhereHtml(mine, season, groups) {
+  if (!season || mine.commander_id === APP.user.id) return '';
+  const open = groups.filter(g => g.id !== mine.id && g.state !== 'dormant' && g.vacancies > 0);
+  if (!open.length) return '';
+  return `<details style="margin-top:10px"${APP.applyOpen ? ' open' : ''} ontoggle="APP.applyOpen = this.open"><summary style="font-size:13px;cursor:pointer">Apply to another group</summary>
+    <p style="font-size:12px;color:var(--text-secondary);margin:6px 0">You keep your place in ${esc(mine.name)} until the other group's commander approves, then you move.</p>
+    ${open.map(g => `<div class="member-row"><span>${groupProfileHtml(g, g.member_count)}</span>${joinRequestButton(g, season)}</div>`).join('')}
+  </details>`;
+}
+
 // The group (and season) the signed-in member commands and can still fill.
 function commandedGroup() {
   if (APP.myNextGroup && APP.myNextGroup.commander_id === APP.user.id && APP.myNextGroup.vacancies > 0) return { group: APP.myNextGroup, season: APP.nextCycle };
@@ -1959,7 +1972,7 @@ async function loadProspectiveMembers(group, season) {
   const requests = (offers.data || []).filter(o => o.kind === 'join_request' && o.status === 'pending');
   if (requests.length) {
     holder.innerHTML += `<h3 style="margin-top:12px">Join requests</h3>` + requests.map(o => `<div class="member-row">
-      <span>${esc(o.member_name)}</span>
+      <span>${esc(o.member_name)}${o.current_group ? `<br><span style="font-size:12px;color:var(--text-secondary)">currently in ${esc(o.current_group)}</span>` : ''}</span>
       <span style="display:flex;gap:6px">
         <button class="btn btn-primary btn-sm" onclick="answerJoinRequest('${o.id}', true)">Approve</button>
         <button class="btn btn-secondary btn-sm" onclick="answerJoinRequest('${o.id}', false)">Decline</button>
@@ -2032,11 +2045,12 @@ function groupProfileHtml(g, count) {
     ${g.commander_name ? ' &middot; Group Commander: ' + esc(g.commander_name) : ''}</span>`;
 }
 
-// "Ask to join" for an unplaced member, or the state of their request.
+// "Ask to join" a group (or the state of the member's request). Members
+// already in a group can apply to move; their commander role must go first.
 function joinRequestButton(g, cycle) {
-  const placed = (APP.activeCycle && cycle.id === APP.activeCycle.id && APP.myGroup) ||
-                 (APP.nextCycle && cycle.id === APP.nextCycle.id && APP.myNextGroup);
-  if (placed) return '';
+  const current = (APP.activeCycle && cycle.id === APP.activeCycle.id && APP.myGroup) ||
+                  (APP.nextCycle && cycle.id === APP.nextCycle.id && APP.myNextGroup);
+  if (current && (current.id === g.id || current.commander_id === APP.user.id)) return '';
   const mine = (APP.offers || []).find(o => o.kind === 'join_request' && o.group_id === g.id && o.cycle_id === cycle.id && o.status === 'pending');
   if (mine) return `<span style="display:flex;gap:6px;align-items:center"><span class="badge-pill amber">requested</span>
     <button class="btn btn-secondary btn-sm" onclick="cancelJoinRequest('${mine.id}')">Cancel</button></span>`;
@@ -2044,6 +2058,8 @@ function joinRequestButton(g, cycle) {
 }
 
 async function askToJoin(groupId, seasonId) {
+  const moving = [APP.myGroup, APP.myNextGroup].some(g => g && g.cycle_id === seasonId);
+  if (moving && !confirm('Ask to move to this group? You keep your current place until its commander approves, then you move.')) return;
   const { error } = await sb.rpc('send_join_request', { p_group: groupId, p_season: seasonId });
   if (error) { alert(error.message); return; }
   alert('Request sent — the group commander will let you know.');
@@ -2064,7 +2080,7 @@ function groupChooserHtml(cycle, groups, counts, prefix, title) {
     <p style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px">Starts ${formatDate(cycle.start_date)}. Keep your availability up to date and the club manager will place you in a group that matches it. Here are the groups this season.</p>`;
   if (groups.length) {
     h += groups.map(g => {
-      const count = counts[g.id] || 0;
+      const count = g.member_count != null ? g.member_count : (counts[g.id] || 0);
       const cap = g.capacity || 4;
       const full = count >= cap;
       return `<div class="member-row">

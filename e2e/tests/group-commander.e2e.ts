@@ -86,3 +86,26 @@ test("a group commander cancels a WAM and the rest of the roster is told", async
   await signInAs({ app, browser, screen }, jessica);
   await expect(screen.getByText("Wed Mavericks's week 12 WAM is cancelled.", { exact: false })).toBeVisible();
 });
+
+test('a member already in a group applies to another and moves when approved', async ({ app, browser, screen }) => {
+  await reset();
+  const manager = await register('Iain Dunn', { clubManager: true });
+  const [sia, jessica, kiran] = [await register('Sia'), await register('Jessica'), await register('Kiran')];
+  const s25 = await season('Season 25', 'active');
+  await group(manager, s25, 'Wed Mavericks', WED, [sia, jessica], { commander: true });
+  await group(manager, s25, 'Fri-B', slot(4, 23), [kiran], { commander: true });
+
+  await signInAs({ app, browser, screen }, jessica);
+  await screen.getByText('Apply to another group').tap();
+  const off = await browser.onDialog('accept');
+  await screen.getByRole('button', 'Ask to join').tap();
+  await expect(screen.getByText('requested')).toBeVisible();
+  await off();
+
+  await signInAs({ app, browser, screen }, kiran);
+  await expect(screen.getByText('currently in Wed Mavericks')).toBeVisible();
+  await screen.getByRole('button', 'Approve').tap();
+
+  await signInAs({ app, browser, screen }, jessica);
+  await expect(screen.getByRole('heading', 'Your Group: Fri-B')).toBeVisible();
+});
